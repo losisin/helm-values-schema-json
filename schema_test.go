@@ -1,13 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
 
 func TestReadAndUnmarshalYAML(t *testing.T) {
-	// Create a temporary YAML file for testing
 	yamlContent := []byte("key1: value1\nkey2: value2\n")
 	yamlFilePath := "test.yaml"
 	err := os.WriteFile(yamlFilePath, yamlContent, 0644)
@@ -33,7 +31,6 @@ func TestReadAndUnmarshalYAML(t *testing.T) {
 	if target["key2"] != "value2" {
 		t.Errorf("target map should contain key2 with value 'value2'")
 	}
-	fmt.Println(err)
 }
 
 func TestMergeMaps(t *testing.T) {
