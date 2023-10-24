@@ -71,7 +71,7 @@ getDownloadURL() {
   # If no version found (because of no git), try fetch from plugin
   if [ -z "$version" ]; then
     echo "No version found"
-    version=v$(sed -n -e 's/version:[ "]*\([^"]*\).*/\1/p' plugin.yaml)  
+    version=$(sed -n -e 's/version:[ "]*\([^"]*\).*/\1/p' plugin.yaml)  
   fi
 
   # Setup Download Url
