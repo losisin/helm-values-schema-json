@@ -18,6 +18,7 @@ Installed plugin: schema
 ## Usage
 
 ```
+$ helm schema -help
 usage: helm schema [-input STR] [-draft INT] [-output STR]
   -draft int
     	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
@@ -32,10 +33,10 @@ usage: helm schema [-input STR] [-draft INT] [-output STR]
 In most cases you will want to run the plugin with default options:
 
 ```
-helm schema -input values.yaml
+$ helm schema -input values.yaml
 ```
 
-This will read `values.yaml`, set draft version to `202-12` and save outpout to `values.schema.json`.
+This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
 
 #### Extended
 
@@ -71,7 +72,7 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```
-helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 2020 -output my.schema.json
+$ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 2020 -output my.schema.json
 ```
 
 Output will be something like this:
