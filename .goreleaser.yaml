@@ -21,7 +21,6 @@ builds:
     goarch:
       - amd64
       - arm64
-      - 386
     binary: schema
 
 archives:
@@ -33,6 +32,7 @@ archives:
       - plugin.yaml
 
 checksum:
+  name_template: '{{ .ProjectName }}-checksum.sha'
   algorithm: sha256
 
 changelog:
