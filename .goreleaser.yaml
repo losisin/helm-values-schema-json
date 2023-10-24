@@ -25,7 +25,7 @@ builds:
 
 archives:
   - id: schema
-    format: tar.gz
+    format: tgz
     files:
       - LICENSE
       - README.md

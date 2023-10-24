@@ -4,7 +4,6 @@
 
 PROJECT_NAME="helm-values-schema-json"
 PROJECT_GH="losisin/$PROJECT_NAME"
-PROJECT_CHECKSUM_FILE="$PROJECT_NAME-checksum.sha"
 HELM_PLUGIN_PATH="$HELM_PLUGIN_DIR"
 
 # Convert the HELM_PLUGIN_PATH to unix if cygpath is
@@ -45,16 +44,16 @@ initOS() {
     msys*) OS='windows';;
     # Minimalist GNU for Windows
     mingw*) OS='windows';;
-    darwin) OS='macos';;
+    darwin) OS='darwin';;
   esac
 }
 
 # verifySupported checks that the os/arch combination is supported for
 # binary builds.
 verifySupported() {
-  supported="linux-arm64\nlinux-amd64\nmacos-amd64\nwindows-amd64\nmacos-arm64"
-  if ! echo "$supported" | grep -q "$OS-$ARCH"; then
-    echo "No prebuild binary for $OS-$ARCH."
+  supported="linux_arm64\nlinux_amd64\ndarwin_amd64\ndarwin_arm64\nwindows_amd64\nwindows_arm64"
+  if ! echo "$supported" | grep -q "${OS}_${ARCH}"; then
+    echo "No prebuild binary for ${OS}_${ARCH}."
     exit 1
   fi
 
@@ -62,7 +61,7 @@ verifySupported() {
     echo "Either curl or wget is required"
     exit 1
   fi
-  echo "Support $OS-$ARCH"
+  echo "Support ${OS}_${ARCH}"
 }
 
 # getDownloadURL checks the latest available version.
@@ -76,9 +75,7 @@ getDownloadURL() {
   fi
 
   # Setup Download Url
-  DOWNLOAD_URL="https://github.com/$PROJECT_GH/releases/download/${version}/$PROJECT_NAME-$OS-$ARCH-${version#v}.tgz"
-  # Setup Checksum Url
-  PROJECT_CHECKSUM="https://github.com/$PROJECT_GH/releases/download/${version}/$PROJECT_CHECKSUM_FILE"
+  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}-${OS}_${ARCH}-${version#v}.tar.gz"
 }
 
 # downloadFile downloads the latest binary package and also the checksum
@@ -95,41 +92,10 @@ downloadFile() {
   fi
 }
 
-# installFile verifies the SHA256 for the file, then unpacks and
-# installs it.
+# installFile unpacks and installs the file
 installFile() {
   cd "/tmp"
-  DOWNLOAD_FILE=$(find ./_dist -name "*.tgz")
-  if [ -n "$PROJECT_CHECKSUM" ]; then
-    echo Validating Checksum.
-    if type "curl" >/dev/null 2>&1; then
-      if type "shasum" >/dev/null 2>&1; then
-        curl -s -L "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | shasum -a 256 -c -s
-      elif type "sha256sum" >/dev/null 2>&1; then
-        if grep -q "ID=alpine" /etc/os-release; then
-          curl -s -L "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | sha256sum -c -s
-        else
-          curl -s -L "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | sha256sum -c --status
-        fi
-      else
-        echo No Checksum as there is no shasum or sha256sum found.
-      fi
-    elif type "wget" >/dev/null 2>&1; then
-      if type "shasum" >/dev/null 2>&1; then
-        wget -q -O - "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | shasum -a 256 -c -s
-      elif type "sha256sum" >/dev/null 2>&1; then
-        if grep -q "ID=alpine" /etc/os-release; then
-          wget -q -O - "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | sha256sum -c -s
-        else
-          wget -q -O - "$PROJECT_CHECKSUM" | grep "$DOWNLOAD_FILE" | sha256sum -c --status
-        fi
-      else
-        echo No Checksum as there is no shasum or sha256sum found.
-      fi
-    fi
-  else
-    echo No Checksum validated.
-  fi
+  DOWNLOAD_FILE=$(find ./_dist -name "*.tar.gz")
   HELM_TMP="/tmp/$PROJECT_NAME"
   mkdir -p "$HELM_TMP"
   tar xf "$DOWNLOAD_FILE" -C "$HELM_TMP"
