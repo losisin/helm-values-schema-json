@@ -75,7 +75,7 @@ getDownloadURL() {
   fi
 
   # Setup Download Url
-  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}-${OS}_${ARCH}-${version#v}.tar.gz"
+  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}-${OS}_${ARCH}-${version#v}.tgz"
 }
 
 # downloadFile downloads the latest binary package and also the checksum
@@ -95,7 +95,7 @@ downloadFile() {
 # installFile unpacks and installs the file
 installFile() {
   cd "/tmp"
-  DOWNLOAD_FILE=$(find ./_dist -name "*.tar.gz")
+  DOWNLOAD_FILE=$(find ./_dist -name "*.tgz")
   HELM_TMP="/tmp/$PROJECT_NAME"
   mkdir -p "$HELM_TMP"
   tar xf "$DOWNLOAD_FILE" -C "$HELM_TMP"
