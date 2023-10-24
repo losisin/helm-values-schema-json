@@ -52,7 +52,7 @@ initOS() {
 # verifySupported checks that the os/arch combination is supported for
 # binary builds.
 verifySupported() {
-  local supported="linux-arm64\nlinux-amd64\nmacos-amd64\nwindows-amd64\nmacos-arm64"
+  supported="linux-arm64\nlinux-amd64\nmacos-amd64\nwindows-amd64\nmacos-arm64"
   if ! echo "$supported" | grep -q "$OS-$ARCH"; then
     echo "No prebuild binary for $OS-$ARCH."
     exit 1
@@ -68,7 +68,7 @@ verifySupported() {
 # getDownloadURL checks the latest available version.
 getDownloadURL() {
   # Determine last tag based on VCS download
-  local version=$(git describe --tags --abbrev=0 >/dev/null 2>&1)
+  version=$(git describe --tags --abbrev=0 >/dev/null 2>&1)
   # If no version found (because of no git), try fetch from plugin
   if [ -z "$version" ]; then
     echo "No version found"
@@ -87,7 +87,7 @@ downloadFile() {
   PLUGIN_TMP_FOLDER="/tmp/_dist/"
   [ -d "$PLUGIN_TMP_FOLDER" ] && rm -r "$PLUGIN_TMP_FOLDER" >/dev/null
   mkdir -p "$PLUGIN_TMP_FOLDER"
-  echo "Downloading "$DOWNLOAD_URL" to location $PLUGIN_TMP_FOLDER"
+  echo "Downloading $DOWNLOAD_URL to location $PLUGIN_TMP_FOLDER"
   if type "curl" >/dev/null 2>&1; then
       (cd "$PLUGIN_TMP_FOLDER" && curl -LO "$DOWNLOAD_URL")
   elif type "wget" >/dev/null 2>&1; then
@@ -133,7 +133,7 @@ installFile() {
   HELM_TMP="/tmp/$PROJECT_NAME"
   mkdir -p "$HELM_TMP"
   tar xf "$DOWNLOAD_FILE" -C "$HELM_TMP"
-  HELM_TMP_BIN="$HELM_TMP/untt"
+  HELM_TMP_BIN="$HELM_TMP/schema"
   echo "Preparing to install into ${HELM_PLUGIN_PATH}"
   # Use * to also copy the file with the exe suffix on Windows
   cp "$HELM_TMP_BIN"* "$HELM_PLUGIN_PATH"
@@ -147,6 +147,7 @@ fail_trap() {
   result=$?
   if [ "$result" != "0" ]; then
     echo "Failed to install $PROJECT_NAME"
+    printf "\tFor support, go to https://github.com/%s.\n" "$PROJECT_GH"
   fi
   exit $result
 }
