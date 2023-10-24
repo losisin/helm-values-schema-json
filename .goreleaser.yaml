@@ -21,18 +21,18 @@ builds:
     goarch:
       - amd64
       - arm64
-      - 386
     binary: schema
 
 archives:
   - id: schema
-    format: tar.gz
+    format: tgz
     files:
       - LICENSE
       - README.md
       - plugin.yaml
 
 checksum:
+  name_template: '{{ .ProjectName }}-checksum.sha'
   algorithm: sha256
 
 changelog:
