@@ -75,7 +75,7 @@ getDownloadURL() {
   fi
 
   # Setup Download Url
-  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}-${OS}_${ARCH}-${version#v}.tgz"
+  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}-${OS}_${ARCH}-${version}.tgz"
 }
 
 # downloadFile downloads the latest binary package and also the checksum
