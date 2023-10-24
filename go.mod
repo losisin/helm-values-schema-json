@@ -1,4 +1,4 @@
-module helm-values-schema-json
+module github.com/losisin/helm-values-schema-json
 
 go 1.20
 
