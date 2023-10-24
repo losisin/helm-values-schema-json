@@ -72,7 +72,7 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```bash
-$ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 2020 -output my.schema.json
+$ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 7 -output my.schema.json
 ```
 
 Output will be something like this:

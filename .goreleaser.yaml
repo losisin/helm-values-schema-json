@@ -29,6 +29,7 @@ archives:
     format: tar.gz
     files:
       - LICENSE
+      - README.md
       - plugin.yaml
 
 checksum:
