@@ -4,7 +4,7 @@ Helm plugin for generating `values.schema.json` from single or multiple values f
 
 ## Install
 
-```
+```bash
 $ helm plugin install https://github.com/losisin/helm-values-schema-json.git
 Installed plugin: schema
 ```
@@ -17,7 +17,7 @@ Installed plugin: schema
 
 ## Usage
 
-```
+```bash
 $ helm schema -help
 usage: helm schema [-input STR] [-draft INT] [-output STR]
   -draft int
@@ -28,23 +28,23 @@ usage: helm schema [-input STR] [-draft INT] [-output STR]
     	Output file path (default "values.schema.json")
 ```
 
-#### Basic
+### Basic
 
 In most cases you will want to run the plugin with default options:
 
-```
+```bash
 $ helm schema -input values.yaml
 ```
 
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
 
-#### Extended
+### Extended
 
 Merge multiple values files, set json-schema draft version explicitly and save output to `my.schema.json`:
 
 `values_1.yaml`
 
-```
+```yaml
 nodeSelector:
   kubernetes.io/hostname: ""
 dummyList:
@@ -59,7 +59,7 @@ key4: []
 
 `custom/path/values_2.yaml`
 
-```
+```yaml
 nodeSelector:
   kubernetes.io/hostname: "node1"
 deep:
@@ -71,13 +71,13 @@ deep:
 
 Run the following command to merge the yaml files and output json schema:
 
-```
+```bash
 $ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 2020 -output my.schema.json
 ```
 
 Output will be something like this:
 
-```
+```json
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
