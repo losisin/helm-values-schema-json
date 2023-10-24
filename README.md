@@ -1,6 +1,6 @@
 # helm values schema json plugin
 
-Helm plugin for generating values.schema.json from multiple values files. Works only with Helm3 charts.
+Helm plugin for generating `values.schema.json` from single or multiple values files. Works only with Helm3 charts.
 
 ## Install
 
@@ -15,9 +15,33 @@ Installed plugin: schema
 - Save output with custom name and location - default is values.schema.json in current working directory
 - Change schema draft version - default is draft 2020-12
 
-Given 2 yaml files in different locations:
+## Usage
 
-values_1.yaml
+```
+usage: helm schema [-input STR] [-draft INT] [-output STR]
+  -draft int
+    	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+  -input value
+    	Multiple yamlFiles as inputs (comma-separated)
+  -output string
+    	Output file path (default "values.schema.json")
+```
+
+#### Basic
+
+In most cases you will want to run the plugin with default options:
+
+```
+helm schema -input values.yaml
+```
+
+This will read `values.yaml`, set draft version to `202-12` and save outpout to `values.schema.json`.
+
+#### Extended
+
+Merge multiple values files, set json-schema draft version explicitly and save output to `my.schema.json`:
+
+`values_1.yaml`
 
 ```
 nodeSelector:
@@ -32,7 +56,7 @@ key3: {}
 key4: []
 ```
 
-dummy/path/values_2.yaml
+`custom/path/values_2.yaml`
 
 ```
 nodeSelector:
@@ -47,14 +71,14 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```
-helm schema -input values_1.yaml,dummy/path/values_2.yaml -draft 2020 -output values.schema.json
+helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 2020 -output my.schema.json
 ```
 
 Output will be something like this:
 
 ```
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
         "deep": {
@@ -108,16 +132,4 @@ Output will be something like this:
         }
     }
 }
-```
-
-## Usage
-
-```
-usage: helm schema [-input STR] [-draft INT] [-output STR]
-  -draft int
-    	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
-  -input value
-    	Multiple yamlFiles as inputs (comma-separated)
-  -output string
-    	Output file path (default "values.schema.json")
 ```
