@@ -6,7 +6,12 @@ PLUGIN_SHORTNAME := json-schema
 BUILD_DATE := $(shell date -u '+%Y-%m-%d %I:%M:%S UTC' 2> /dev/null)
 GIT_HASH := $(shell git rev-parse HEAD 2> /dev/null)
 
-OS_FAMILY := $(shell (uname | tr '[:upper:]' '[:lower:]'))
+SYS := $(shell (uname | tr '[:upper:]' '[:lower:]'))
+ifneq(, $(findstring mingw, $(SYS)))
+	OS_FAMILY = windows
+else ifneq(, $(findstring cygwin, $(SYS)))
+	OS_FAMILY = windows
+endif
 
 GOPATH ?= $(shell go env GOPATH)
 PATH := $(GOPATH)/bin:$(PATH)

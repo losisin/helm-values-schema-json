@@ -37,6 +37,8 @@ jobs:
         run: make test-all
       - name: Install plugin
         run: make install
+      - name: Run plugin
+        run: helm schema -help
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
