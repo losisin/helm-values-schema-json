@@ -6,18 +6,9 @@ PLUGIN_SHORTNAME := json-schema
 BUILD_DATE := $(shell date -u '+%Y-%m-%d %I:%M:%S UTC' 2> /dev/null)
 GIT_HASH := $(shell git rev-parse HEAD 2> /dev/null)
 
-SYS := $(shell (uname | tr '[:upper:]' '[:lower:]'))
-ifneq (, $(findstring mingw, $(SYS)))
-	OS_FAMILY = windows
-else ifneq (, $(findstring cygwin, $(SYS)))
-	OS_FAMILY = windows
-else
-	OS_FAMILY = $(SYS)
-endif
-
 GOPATH ?= $(shell go env GOPATH)
 PATH := $(GOPATH)/bin:$(PATH)
-GO_BUILD_ENV_VARS = $(if $(GO_ENV_VARS),$(GO_ENV_VARS),CGO_ENABLED=0 GOOS=${OS_FAMILY})
+GO_BUILD_ENV_VARS = $(if $(GO_ENV_VARS),$(GO_ENV_VARS),CGO_ENABLED=0)
 GO_BUILD_ARGS = -buildvcs=false -ldflags "-X main.GitCommit=${GIT_HASH}"
 
 HELM_PLUGINS = $(shell helm env HELM_PLUGINS)
