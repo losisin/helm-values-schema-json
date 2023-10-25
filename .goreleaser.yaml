@@ -21,6 +21,11 @@ builds:
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -s -w
+        -X main.Version={{ .Tag }}
+        -X main.GitCommit={{ .Commit }}
+        -X main.BuildDate={{ .Date }}
     binary: schema
 
 archives:
