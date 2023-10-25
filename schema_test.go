@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +64,59 @@ func TestMergeMaps(t *testing.T) {
 
 	if merged["key3"] != "value3" {
 		t.Errorf("Merged map should contain key3 from mapB")
+	}
+}
+
+func TestMainWithDynamicFlags(t *testing.T) {
+	testCases := []struct {
+		draftVersion   int
+		expectedString string
+	}{
+		{4, `"$schema": "http://json-schema.org/draft-04/schema#",`},
+		{6, `"$schema": "http://json-schema.org/draft-06/schema#",`},
+		{7, `"$schema": "http://json-schema.org/draft-07/schema#",`},
+		{2019, `"$schema": "https://json-schema.org/draft/2019-09/schema",`},
+		{2020, `"$schema": "https://json-schema.org/draft/2020-12/schema",`},
+	}
+
+	for _, testCase := range testCases {
+		// Run schema.go with the specified draft version flag.
+		cmd := exec.Command("go", "run", "schema.go", "--input=values.yaml", fmt.Sprintf("--draft=%d", testCase.draftVersion))
+
+		// Capture the command's output (stdout and stderr).
+		cmdOutput, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Command execution failed: %v\nOutput:\n%s", err, cmdOutput)
+		}
+
+		// Check the exit status to ensure it ran successfully.
+		if cmd.ProcessState.ExitCode() != 0 {
+			t.Fatalf("Command execution returned a non-zero exit code: %d\nOutput:\n%s", cmd.ProcessState.ExitCode(), cmdOutput)
+		}
+
+		// Now, read and inspect the contents of values.schema.json.
+		file, err := os.Open("values.schema.json")
+		if err != nil {
+			t.Fatalf("Failed to open values.schema.json: %v", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		lineNumber := 1
+
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if lineNumber == 2 {
+				if line != testCase.expectedString {
+					t.Errorf("Expected line 2 to be:\n%s\nGot:\n%s", testCase.expectedString, line)
+				}
+				break
+			}
+			lineNumber++
+		}
+
+		if err := scanner.Err(); err != nil {
+			t.Fatalf("Error reading values.schema.json: %v", err)
+		}
 	}
 }
