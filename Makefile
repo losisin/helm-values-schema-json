@@ -39,12 +39,13 @@ HELM_PLUGIN_DIR = $(HELM_PLUGINS)/$(PLUGIN_SHORTNAME)
 build: ## Build the plugin
 	@echo "Building plugin..."
 	@${GO_BUILD_ENV_VARS} go build -o $(BINNAME) ${GO_BUILD_ARGS}
+	@ls -la
 
 install: build ## Install the plugin
 	@echo "Installing plugin..."
 	@mkdir -p $(HELM_PLUGIN_DIR)
-	@cp $(BINNAME) $(HELM_PLUGIN_DIR)
-	@cp plugin.yaml $(HELM_PLUGIN_DIR)*
+	@cp $(BINNAME)* $(HELM_PLUGIN_DIR)
+	@cp plugin.yaml $(HELM_PLUGIN_DIR)
 
 verify: ## Verify the plugin
 	@echo
