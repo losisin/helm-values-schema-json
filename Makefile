@@ -9,7 +9,7 @@ GIT_HASH := $(shell git rev-parse HEAD 2> /dev/null)
 SYS := $(shell (uname | tr '[:upper:]' '[:lower:]'))
 ifneq (, $(findstring mingw, $(SYS)))
 	OS_FAMILY = windows
-else ifneq(, $(findstring cygwin, $(SYS)))
+else ifneq (, $(findstring cygwin, $(SYS)))
 	OS_FAMILY = windows
 else
 	OS_FAMILY = $(SYS)
