@@ -11,6 +11,8 @@ ifneq (, $(findstring mingw, $(SYS)))
 	OS_FAMILY = windows
 else ifneq(, $(findstring cygwin, $(SYS)))
 	OS_FAMILY = windows
+else
+	OS_FAMILY = $(SYS)
 endif
 
 GOPATH ?= $(shell go env GOPATH)
