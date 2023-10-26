@@ -112,7 +112,7 @@ func TestPrintMap(t *testing.T) {
 
 	var yamlData map[string]interface{}
 
-	err := readAndUnmarshalYAML("values.yaml", &yamlData)
+	err := readAndUnmarshalYAML("testdata/values.yaml", &yamlData)
 	if err != nil {
 		t.Fatalf("Failed to mock YAML data: %v", err)
 	}

@@ -1,0 +1,2 @@
+nodeSelector:
+  kubernetes.io/hostname: "node1"
