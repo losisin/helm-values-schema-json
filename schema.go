@@ -124,8 +124,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// fmt.Println("Schema URL:", schemaUrl)
-
 	// Declare a map to hold the merged YAML data
 	mergedMap := make(map[string]interface{})
 
