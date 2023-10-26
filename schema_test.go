@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
@@ -108,40 +107,28 @@ func TestMergeMaps(t *testing.T) {
 }
 
 func TestPrintMap(t *testing.T) {
-	// Create a temporary file for testing
 	tmpFile := "test_output.json"
 	defer os.Remove(tmpFile)
 
-	// Create a variable to store the mock YAML data
 	var yamlData map[string]interface{}
 
-	// Mock the output of readAndUnmarshalYAML
 	err := readAndUnmarshalYAML("values.yaml", &yamlData)
 	if err != nil {
 		t.Fatalf("Failed to mock YAML data: %v", err)
 	}
-
-	// Convert the YAML data to JSON
-	// jsonData, err := convertYAMLToJSON(yamlData)
-	// if err != nil {
-	// 	t.Fatalf("Failed to convert YAML to JSON: %v", err)
-	// }
 	s := &jsonschema.Document{}
 	s.Read(yamlData)
 
-	// Call the printMap function to write the JSON data to the temporary file
 	err = printMap(s, tmpFile)
 	if err != nil {
 		t.Fatalf("printMap failed: %v", err)
 	}
 
-	// Read the contents of the temporary file
-	fileData, err := ioutil.ReadFile(tmpFile)
+	fileData, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read temporary file: %v", err)
 	}
 
-	// Verify that the output is valid JSON
 	var outputJSON interface{}
 	if err := json.Unmarshal(fileData, &outputJSON); err != nil {
 		t.Errorf("Output is not valid JSON: %v", err)
