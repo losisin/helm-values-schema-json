@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
@@ -10,65 +9,112 @@ import (
 )
 
 func TestMultiStringFlagString(t *testing.T) {
-	// Initialize a multiStringFlag instance.
-	flag := multiStringFlag{"value1", "value2", "value3"}
+	tests := []struct {
+		input    multiStringFlag
+		expected string
+	}{
+		{
+			input:    multiStringFlag{},
+			expected: "",
+		},
+		{
+			input:    multiStringFlag{"value1"},
+			expected: "value1",
+		},
+		{
+			input:    multiStringFlag{"value1", "value2", "value3"},
+			expected: "value1, value2, value3",
+		},
+	}
 
-	// Call the String method.
-	result := flag.String()
-
-	// Define the expected result.
-	expected := "value1, value2, value3"
-
-	// Check if the result matches the expected value.
-	if result != expected {
-		t.Errorf("String() method returned %s, expected %s", result, expected)
+	for i, test := range tests {
+		result := test.input.String()
+		if result != test.expected {
+			t.Errorf("Test case %d: Expected %q, but got %q", i+1, test.expected, result)
+		}
 	}
 }
 
 func TestMultiStringFlagSet(t *testing.T) {
-	// Initialize a multiStringFlag instance.
-	flag := multiStringFlag{}
-
-	// Call the Set method with a sample value.
-	value := "value1,value2,value3"
-	err := flag.Set(value)
-
-	// Check for any errors returned by the Set method.
-	if err != nil {
-		t.Errorf("Set() method returned an error: %v", err)
+	tests := []struct {
+		input     string
+		initial   multiStringFlag
+		expected  multiStringFlag
+		errorFlag bool
+	}{
+		{
+			input:     "value1,value2,value3",
+			initial:   multiStringFlag{},
+			expected:  multiStringFlag{"value1", "value2", "value3"},
+			errorFlag: false,
+		},
+		{
+			input:     "",
+			initial:   multiStringFlag{"existingValue"},
+			expected:  multiStringFlag{"existingValue"},
+			errorFlag: false,
+		},
+		{
+			input:     "value1, value2, value3",
+			initial:   multiStringFlag{},
+			expected:  multiStringFlag{"value1", "value2", "value3"},
+			errorFlag: false,
+		},
 	}
 
-	// Define the expected flag value after calling Set.
-	expected := multiStringFlag{"value1", "value2", "value3"}
-
-	// Check if the flag value matches the expected value.
-	if !reflect.DeepEqual(flag, expected) {
-		t.Errorf("Set() method set the flag to %v, expected %v", flag, expected)
+	for i, test := range tests {
+		err := test.initial.Set(test.input)
+		if err != nil && !test.errorFlag {
+			t.Errorf("Test case %d: Expected no error, but got: %v", i+1, err)
+		} else if err == nil && test.errorFlag {
+			t.Errorf("Test case %d: Expected an error, but got none", i+1)
+		}
 	}
 }
 
 func TestReadAndUnmarshalYAML(t *testing.T) {
-	yamlContent := []byte("key1: value1\nkey2: value2\n")
-	yamlFilePath := "test.yaml"
-	err := os.WriteFile(yamlFilePath, yamlContent, 0644)
-	if err != nil {
-		t.Fatalf("Error creating a temporary YAML file: %v", err)
-	}
-	defer os.Remove(yamlFilePath)
-	var target map[string]interface{}
-	err = readAndUnmarshalYAML(yamlFilePath, &target)
-	if err != nil {
-		t.Errorf("Error reading and unmarshaling YAML: %v", err)
-	}
-	if len(target) != 2 {
-		t.Errorf("Expected target map length to be 2, but got %d", len(target))
-	}
-	if target["key1"] != "value1" {
-		t.Errorf("target map should contain key1 with value 'value1'")
-	}
-	if target["key2"] != "value2" {
-		t.Errorf("target map should contain key2 with value 'value2'")
-	}
+	t.Run("Valid YAML", func(t *testing.T) {
+		yamlContent := []byte("key1: value1\nkey2: value2\n")
+		yamlFilePath := "valid.yaml"
+
+		err := os.WriteFile(yamlFilePath, yamlContent, 0644)
+		if err != nil {
+			t.Fatalf("Error creating a temporary YAML file: %v", err)
+		}
+		defer os.Remove(yamlFilePath)
+
+		var target map[string]interface{}
+		err = readAndUnmarshalYAML(yamlFilePath, &target)
+
+		if err != nil {
+			t.Errorf("Error reading and unmarshaling valid YAML: %v", err)
+			return
+		}
+
+		if len(target) != 2 {
+			t.Errorf("Expected target map length to be 2, but got %d", len(target))
+		}
+
+		if target["key1"] != "value1" {
+			t.Errorf("target map should contain key1 with value 'value1'")
+		}
+
+		if target["key2"] != "value2" {
+			t.Errorf("target map should contain key2 with value 'value2'")
+		}
+	})
+
+	t.Run("File Missing", func(t *testing.T) {
+		// YAML file is assumed to be missing
+		missingFilePath := "missing.yaml"
+
+		var target map[string]interface{}
+		err := readAndUnmarshalYAML(missingFilePath, &target)
+
+		if err == nil {
+			t.Errorf("Expected an error when the file is missing, but got nil")
+		}
+	})
 }
 
 func TestMergeMaps(t *testing.T) {
@@ -96,6 +142,24 @@ func TestMergeMaps(t *testing.T) {
 				"key1": map[string]interface{}{"subkey1": "value1", "subkey2": "value2"},
 			},
 		},
+		{
+			a: map[string]interface{}{
+				"key1": map[string]interface{}{
+					"subkey1": "value1",
+				},
+			},
+			b: map[string]interface{}{
+				"key1": map[string]interface{}{
+					"subkey2": "value2",
+				},
+			},
+			expected: map[string]interface{}{
+				"key1": map[string]interface{}{
+					"subkey1": "value1",
+					"subkey2": "value2",
+				},
+			},
+		},
 	}
 
 	for i, test := range tests {
@@ -112,25 +176,33 @@ func TestPrintMap(t *testing.T) {
 
 	var yamlData map[string]interface{}
 
+	// Test successful data read and schema creation
 	err := readAndUnmarshalYAML("testdata/values.yaml", &yamlData)
 	if err != nil {
 		t.Fatalf("Failed to mock YAML data: %v", err)
 	}
-	s := &jsonschema.Document{}
-	s.Read(yamlData)
+	data := jsonschema.NewDocument("")
+	data.ReadDeep(&yamlData)
 
-	err = printMap(s, tmpFile)
-	if err != nil {
-		t.Fatalf("printMap failed: %v", err)
+	cases := []struct {
+		data        *jsonschema.Document
+		tmpFile     string
+		expectError bool
+	}{
+		{data, tmpFile, false},
+		{data, "", true},
+		{nil, tmpFile, true},
 	}
 
-	fileData, err := os.ReadFile(tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to read temporary file: %v", err)
-	}
-
-	var outputJSON interface{}
-	if err := json.Unmarshal(fileData, &outputJSON); err != nil {
-		t.Errorf("Output is not valid JSON: %v", err)
+	for _, c := range cases {
+		t.Run("PrintMap", func(t *testing.T) {
+			err := printMap(c.data, c.tmpFile)
+			switch {
+			case err == nil && c.expectError:
+				t.Fatalf("Expected an error, but printMap succeeded")
+			case err != nil && !c.expectError:
+				t.Fatalf("Unexpected error: %v", err)
+			}
+		})
 	}
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -54,28 +55,29 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 }
 
 func printMap(data *jsonschema.Document, outputPath string) error {
+	if data == nil {
+		return errors.New("data is nil")
+	}
 	// Use YAML marshaling to format the map
 	jsonData, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	// If outputPath is provided, create or overwrite the specified file
-	if outputPath != "" {
-		// Create or overwrite the file
-		file, err := os.Create(outputPath)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
-		// Write the new data to the output file
-		_, err = file.Write(jsonData)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("Merged data saved to %s\n", outputPath)
+	// Create or overwrite the file
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
 	}
+	defer file.Close()
+
+	// Write the new data to the output file
+	_, err = file.Write(jsonData)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Merged data saved to %s\n", outputPath)
 
 	return nil
 }
@@ -102,7 +104,7 @@ func main() {
 
 	// Check if the input flag is set
 	if len(yamlFiles) == 0 {
-		fmt.Println("Input flag is required. Please provide input yaml files using the -i flag.")
+		fmt.Println("Input flag is required. Please provide input yaml files using the -input flag.")
 		usage()
 		return
 	}
