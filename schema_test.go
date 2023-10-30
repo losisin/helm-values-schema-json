@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -325,20 +327,40 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 	}
 }
 
-// func TestGenerateJsonSchemaFail(t *testing.T) {
-// 	var tests = []struct {
-// 		conf Config
-// 	}{
-// 		{Config{input: multiStringFlag{}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}},
-// 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 0, outputPath: "0.schema.json", args: []string{}}},
-// 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 0, outputPath: "", args: []string{}}},
-// 	}
+func captureOutput(f func()) string {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	f()
+	log.SetOutput(os.Stderr)
+	return buf.String()
+}
 
-// 	for _, tt := range tests {
-// 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
-// 			conf := &tt.conf
-// 			generateJsonSchema(conf)
+func TestGenerateJsonSchemaFail(t *testing.T) {
+	var tests = []struct {
+		conf   Config
+		errStr string
+	}{
+		{Config{input: multiStringFlag{}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "Input flag is required"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 1903, outputPath: "values.schema.json", args: []string{}}, "Invalid draft version"},
+	}
 
-// 		})
-// 	}
-// }
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
+			conf := &tt.conf
+			generateJsonSchema(conf)
+
+			want := tt.errStr
+			got := captureOutput(func() {
+				cui.Success(tt.args.message)
+			})
+			got := err
+			if got.Error() != want {
+				t.Error("Got:", got, ",", "Want:", want)
+			}
+
+			// if strings.Contains(capturedOutput, tt.errStr) {
+			// 	t.Errorf("err got %q, want to find %q", capturedOutput, tt.errStr)
+			// }
+		})
+	}
+}
