@@ -261,7 +261,7 @@ func TestParseFlagsUsage(t *testing.T) {
 func TestParseFlagsFail(t *testing.T) {
 	var tests = []struct {
 		args   []string
-		errstr string
+		errStr string
 	}{
 		{[]string{"-input"}, "flag needs an argument"},
 		{[]string{"-draft", "foo"}, "invalid value"},
@@ -273,8 +273,8 @@ func TestParseFlagsFail(t *testing.T) {
 			if conf != nil {
 				t.Errorf("conf got %v, want nil", conf)
 			}
-			if !strings.Contains(err.Error(), tt.errstr) {
-				t.Errorf("err got %q, want to find %q", err.Error(), tt.errstr)
+			if !strings.Contains(err.Error(), tt.errStr) {
+				t.Errorf("err got %q, want to find %q", err.Error(), tt.errStr)
 			}
 			if !strings.Contains(output, "Usage of") {
 				t.Errorf("output got %q", output)
