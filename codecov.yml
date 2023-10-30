@@ -1,5 +1,6 @@
 coverage:
-  precision: 3
-  range: "70...100"
+  precision: 2
+  round: nearest
+  range: 50...75
 comment:
   require_changes: true
