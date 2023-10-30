@@ -106,9 +106,14 @@ func parseFlags(progname string, args []string) (config *Config, output string, 
 	flags.StringVar(&conf.outputPath, "output", "values.schema.json", "Output file path")
 	flags.IntVar(&conf.draft, "draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
 
+	// flags.Usage = func() {
+	// 	fmt.Println("usage: helm schema [-input STR] [-draft INT] [-output STR]")
+	// 	flags.PrintDefaults()
+	// }
+
 	err = flags.Parse(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "usage: helm schema [-input STR] [-draft INT] [-output STR]")
+		fmt.Println("usage: helm schema [-input STR] [-draft INT] [-output STR]")
 		return nil, buf.String(), err
 	}
 
@@ -171,8 +176,8 @@ func generateJsonSchema(config *Config) {
 func main() {
 	conf, output, err := parseFlags(os.Args[0], os.Args[1:])
 	if err == flag.ErrHelp {
-		fmt.Println("output:", output)
-		os.Exit(2)
+		fmt.Println(output)
+		os.Exit(0)
 	} else if err != nil {
 		fmt.Println("got error:", err)
 		fmt.Println("output:\n", output)
