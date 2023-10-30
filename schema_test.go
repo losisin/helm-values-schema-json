@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -327,13 +325,13 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 	}
 }
 
-func captureOutput(f func()) string {
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
-	f()
-	log.SetOutput(os.Stderr)
-	return buf.String()
-}
+// func captureOutput(f func()) string {
+// 	var buf bytes.Buffer
+// 	log.SetOutput(&buf)
+// 	f()
+// 	log.SetOutput(os.Stderr)
+// 	return buf.String()
+// }
 
 // func TestGenerateJsonSchemaFail(t *testing.T) {
 // 	var tests = []struct {
