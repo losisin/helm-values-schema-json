@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -107,7 +108,6 @@ func TestReadAndUnmarshalYAML(t *testing.T) {
 	})
 
 	t.Run("File Missing", func(t *testing.T) {
-		// YAML file is assumed to be missing
 		missingFilePath := "missing.yaml"
 
 		var target map[string]interface{}
@@ -178,15 +178,14 @@ func TestPrintMap(t *testing.T) {
 
 	var yamlData map[string]interface{}
 
-	// Test successful data read and schema creation
-	err := readAndUnmarshalYAML("testdata/values.yaml", &yamlData)
+	err := readAndUnmarshalYAML("testdata/values_1.yaml", &yamlData)
 	if err != nil {
 		t.Fatalf("Failed to mock YAML data: %v", err)
 	}
 	data := jsonschema.NewDocument("")
 	data.ReadDeep(&yamlData)
 
-	cases := []struct {
+	tests := []struct {
 		data        *jsonschema.Document
 		tmpFile     string
 		expectError bool
@@ -196,32 +195,32 @@ func TestPrintMap(t *testing.T) {
 		{nil, tmpFile, true},
 	}
 
-	for _, c := range cases {
+	for _, tt := range tests {
 		t.Run("PrintMap", func(t *testing.T) {
-			err := printMap(c.data, c.tmpFile)
+			err := printMap(tt.data, tt.tmpFile)
 			switch {
-			case err == nil && c.expectError:
+			case err == nil && tt.expectError:
 				t.Fatalf("Expected an error, but printMap succeeded")
-			case err != nil && !c.expectError:
+			case err != nil && !tt.expectError:
 				t.Fatalf("Unexpected error: %v", err)
 			}
 		})
 	}
 }
 
-func TestParseFlagsCorrect(t *testing.T) {
+func TestParseFlagsPass(t *testing.T) {
 	var tests = []struct {
 		args []string
 		conf Config
 	}{
-		{[]string{"-input", "testdata/values.yaml"},
-			Config{input: multiStringFlag{"testdata/values.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
+		{[]string{"-input", "testdata/values_1.yaml"},
+			Config{input: multiStringFlag{"testdata/values_1.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
 
-		{[]string{"-input", "values1.yaml testdata/values.yaml"},
-			Config{input: multiStringFlag{"values1.yaml testdata/values.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
+		{[]string{"-input", "values1.yaml testdata/values_1.yaml"},
+			Config{input: multiStringFlag{"values1.yaml testdata/values_1.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
 
-		{[]string{"-input", "testdata/values.yaml", "-output", "my.schema.json", "-draft", "2019"},
-			Config{input: multiStringFlag{"testdata/values.yaml"}, outputPath: "my.schema.json", draft: 2019, args: []string{}}},
+		{[]string{"-input", "testdata/values_1.yaml", "-output", "my.schema.json", "-draft", "2019"},
+			Config{input: multiStringFlag{"testdata/values_1.yaml"}, outputPath: "my.schema.json", draft: 2019, args: []string{}}},
 	}
 
 	for _, tt := range tests {
@@ -259,7 +258,7 @@ func TestParseFlagsUsage(t *testing.T) {
 	}
 }
 
-func TestParseFlagsError(t *testing.T) {
+func TestParseFlagsFail(t *testing.T) {
 	var tests = []struct {
 		args   []string
 		errstr string
@@ -283,3 +282,63 @@ func TestParseFlagsError(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateJsonSchemaPass(t *testing.T) {
+	var tests = []struct {
+		conf        Config
+		expectedUrl string
+	}{
+		{Config{input: multiStringFlag{"testdata/values_1.yaml testdata/values_2.yaml"}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "https://json-schema.org/draft/2020-12/schema"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "https://json-schema.org/draft/2020-12/schema"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 2019, outputPath: "2019.schema.json", args: []string{}}, "https://json-schema.org/draft/2019-09/schema"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 7, outputPath: "7.schema.json", args: []string{}}, "http://json-schema.org/draft-07/schema#"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 6, outputPath: "6.schema.json", args: []string{}}, "http://json-schema.org/draft-06/schema#"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 4, outputPath: "4.schema.json", args: []string{}}, "http://json-schema.org/draft-04/schema#"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
+			conf := &tt.conf
+			generateJsonSchema(conf)
+
+			_, err := os.Stat(conf.outputPath)
+			if os.IsNotExist(err) {
+				t.Errorf("Expected file '%q' to be created, but it doesn't exist", conf.outputPath)
+			}
+			os.Remove(conf.outputPath)
+		})
+		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
+			conf := &tt.conf
+			generateJsonSchema(conf)
+
+			outputJson, err := os.ReadFile(conf.outputPath)
+			if err != nil {
+				t.Errorf("Error reading file '%q': %v", conf.outputPath, err)
+			}
+
+			actualURL := string(outputJson)
+			if !strings.Contains(actualURL, tt.expectedUrl) {
+				t.Errorf("Schema URL does not match. Got: %s, Expected: %s", actualURL, tt.expectedUrl)
+			}
+			os.Remove(conf.outputPath)
+		})
+	}
+}
+
+// func TestGenerateJsonSchemaFail(t *testing.T) {
+// 	var tests = []struct {
+// 		conf Config
+// 	}{
+// 		{Config{input: multiStringFlag{}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}},
+// 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 0, outputPath: "0.schema.json", args: []string{}}},
+// 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 0, outputPath: "", args: []string{}}},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
+// 			conf := &tt.conf
+// 			generateJsonSchema(conf)
+
+// 		})
+// 	}
+// }
