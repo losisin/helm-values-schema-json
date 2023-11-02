@@ -71,11 +71,11 @@ getDownloadURL() {
   # If no version found (because of no git), try fetch from plugin
   if [ -z "$version" ]; then
     echo "No version found"
-    version=$(sed -n -e 's/version:[ "]*\([^"]*\).*/\1/p' plugin.yaml)  
+    version=v$(sed -n -e 's/version:[ "]*\([^"]*\).*/\1/p' plugin.yaml)  
   fi
 
   # Setup Download Url
-  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/${version}/${PROJECT_NAME}_${version}_${OS}_${ARCH}.tgz"
+  DOWNLOAD_URL="https://github.com/${PROJECT_GH}/releases/download/v${version}/${PROJECT_NAME}_${version#v}_${OS}_${ARCH}.tgz"
 }
 
 # downloadFile downloads the latest binary package and also the checksum
