@@ -1,0 +1,16 @@
+nodeSelector:
+  kubernetes.io/hostname: ""
+deep:
+  deep1:
+    deep2:
+      deep3:
+        deep4: "qwerty"
+list:
+  - "a"
+  - "b"
+  - "c"
+
+key1: "qwerty"
+key2: 42
+key3: {}
+key4: []

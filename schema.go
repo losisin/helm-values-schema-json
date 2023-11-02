@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,6 +12,15 @@ import (
 	"github.com/losisin/go-jsonschema-generator"
 	"gopkg.in/yaml.v3"
 )
+
+// Save values of parsed flags in Config
+type Config struct {
+	input      multiStringFlag
+	outputPath string
+	draft      int
+
+	args []string
+}
 
 // Define a custom flag type to accept multiple yamlFiles
 type multiStringFlag []string
@@ -27,6 +37,7 @@ func (m *multiStringFlag) Set(value string) error {
 	return nil
 }
 
+// Read and unmarshal YAML file
 func readAndUnmarshalYAML(filePath string, target interface{}) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -35,6 +46,7 @@ func readAndUnmarshalYAML(filePath string, target interface{}) error {
 	return yaml.Unmarshal(data, target)
 }
 
+// Merge all YAML files into a single map
 func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(a))
 	for k, v := range a {
@@ -54,6 +66,7 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 	return out
 }
 
+// Print the merged map to a file as JSON schema
 func printMap(data *jsonschema.Document, outputPath string) error {
 	if data == nil {
 		return errors.New("data is nil")
@@ -82,35 +95,37 @@ func printMap(data *jsonschema.Document, outputPath string) error {
 	return nil
 }
 
-func usage() {
-	fmt.Fprintln(os.Stderr, "usage: helm schema [-input STR] [-draft INT] [-output STR]")
-	flag.PrintDefaults()
+// Parse flags
+func parseFlags(progname string, args []string) (config *Config, output string, err error) {
+	flags := flag.NewFlagSet(progname, flag.ContinueOnError)
+	var buf bytes.Buffer
+	flags.SetOutput(&buf)
+
+	var conf Config
+	flags.Var(&conf.input, "input", "Multiple yaml files as inputs (comma-separated)")
+	flags.StringVar(&conf.outputPath, "output", "values.schema.json", "Output file path")
+	flags.IntVar(&conf.draft, "draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
+
+	err = flags.Parse(args)
+	if err != nil {
+		fmt.Println("usage: helm schema [-input STR] [-draft INT] [-output STR]")
+		return nil, buf.String(), err
+	}
+
+	conf.args = flags.Args()
+	return &conf, buf.String(), nil
 }
 
-func main() {
-	// Define the custom flag for yamlFiles and set its default value
-	var yamlFiles multiStringFlag
-	flag.Var(&yamlFiles, "input", "Multiple yamlFiles as inputs (comma-separated)")
-
-	// Define the flag to specify the schema url
-	draft := flag.Int("draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
-
-	// Define the flag to specify the output file
-	var outputPath string
-	flag.StringVar(&outputPath, "output", "values.schema.json", "Output file path")
-
-	flag.Usage = usage
-	flag.Parse()
-
+// Generate JSON schema
+func generateJsonSchema(config *Config) {
 	// Check if the input flag is set
-	if len(yamlFiles) == 0 {
-		fmt.Println("Input flag is required. Please provide input yaml files using the -input flag.")
-		usage()
-		return
+	if len(config.input) == 0 {
+		fmt.Fprintln(os.Stderr, "Input flag is required. Please provide input yaml files using the -input flag.")
+		os.Exit(2)
 	}
 
 	var schemaUrl string
-	switch *draft {
+	switch config.draft {
 	case 4:
 		schemaUrl = "http://json-schema.org/draft-04/schema#"
 	case 6:
@@ -130,8 +145,7 @@ func main() {
 	mergedMap := make(map[string]interface{})
 
 	// Iterate over the input YAML files
-	for _, filePath := range yamlFiles {
-		// Read and unmarshal each YAML file
+	for _, filePath := range config.input {
 		var currentMap map[string]interface{}
 		if err := readAndUnmarshalYAML(filePath, &currentMap); err != nil {
 			fmt.Printf("Error reading %s: %v\n", filePath, err)
@@ -140,15 +154,28 @@ func main() {
 
 		// Merge the current YAML data with the mergedMap
 		mergedMap = mergeMaps(mergedMap, currentMap)
-		// fmt.Println(mergedMap)
 	}
 
-	// Print or save the merged map
+	// Print the merged map
 	d := jsonschema.NewDocument(schemaUrl)
 	d.ReadDeep(&mergedMap)
 
-	err := printMap(d, outputPath)
+	err := printMap(d, config.outputPath)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
+}
+
+func main() {
+	conf, output, err := parseFlags(os.Args[0], os.Args[1:])
+	if err == flag.ErrHelp {
+		fmt.Println(output)
+		os.Exit(0)
+	} else if err != nil {
+		fmt.Println("got error:", err)
+		fmt.Println("output:\n", output)
+		os.Exit(1)
+	}
+
+	generateJsonSchema(conf)
 }
