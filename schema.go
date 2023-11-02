@@ -117,11 +117,11 @@ func parseFlags(progname string, args []string) (config *Config, output string, 
 }
 
 // Generate JSON schema
-func generateJsonSchema(config *Config) {
+func generateJsonSchema(config *Config) error {
 	// Check if the input flag is set
 	if len(config.input) == 0 {
 		fmt.Fprintln(os.Stderr, "Input flag is required. Please provide input yaml files using the -input flag.")
-		return
+		return nil
 	}
 
 	var schemaUrl string
@@ -164,6 +164,8 @@ func generateJsonSchema(config *Config) {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
+
+	return nil
 }
 
 func main() {

@@ -265,6 +265,7 @@ func TestParseFlagsFail(t *testing.T) {
 	}{
 		{[]string{"-input"}, "flag needs an argument"},
 		{[]string{"-draft", "foo"}, "invalid value"},
+		{[]string{"-foo"}, "flag provided but not defined"},
 	}
 
 	for _, tt := range tests {
@@ -288,7 +289,7 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 		conf        Config
 		expectedUrl string
 	}{
-		{Config{input: multiStringFlag{"testdata/values_1.yaml testdata/values_2.yaml"}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "https://json-schema.org/draft/2020-12/schema"},
+		{Config{input: multiStringFlag{"testdata/values_1.yaml", "testdata/values_2.yaml"}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "https://json-schema.org/draft/2020-12/schema"},
 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "https://json-schema.org/draft/2020-12/schema"},
 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 2019, outputPath: "2019.schema.json", args: []string{}}, "https://json-schema.org/draft/2019-09/schema"},
 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 7, outputPath: "7.schema.json", args: []string{}}, "http://json-schema.org/draft-07/schema#"},
@@ -305,6 +306,17 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 			if os.IsNotExist(err) {
 				t.Errorf("Expected file '%q' to be created, but it doesn't exist", conf.outputPath)
 			}
+
+			outputJson, err := os.ReadFile(conf.outputPath)
+			if err != nil {
+				t.Errorf("Error reading file '%q': %v", conf.outputPath, err)
+			}
+
+			actualURL := string(outputJson)
+			if !strings.Contains(actualURL, tt.expectedUrl) {
+				t.Errorf("Schema URL does not match. Got: %s, Expected: %s", actualURL, tt.expectedUrl)
+			}
+
 			os.Remove(conf.outputPath)
 		})
 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
@@ -324,41 +336,3 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 		})
 	}
 }
-
-// func captureOutput(f func()) string {
-// 	var buf bytes.Buffer
-// 	log.SetOutput(&buf)
-// 	f()
-// 	log.SetOutput(os.Stderr)
-// 	return buf.String()
-// }
-
-// func TestGenerateJsonSchemaFail(t *testing.T) {
-// 	var tests = []struct {
-// 		conf   Config
-// 		errStr string
-// 	}{
-// 		{Config{input: multiStringFlag{}, draft: 2020, outputPath: "2020.schema.json", args: []string{}}, "Input flag is required"},
-// 		{Config{input: multiStringFlag{"testdata/values_1.yaml"}, draft: 1903, outputPath: "values.schema.json", args: []string{}}, "Invalid draft version"},
-// 	}
-
-// 	for _, tt := range tests {
-// 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
-// 			conf := &tt.conf
-// 			generateJsonSchema(conf)
-
-// 			want := tt.errStr
-// 			got := captureOutput(func() {
-// 				cui.Success(tt.args.message)
-// 			})
-// 			got := err
-// 			if got.Error() != want {
-// 				t.Error("Got:", got, ",", "Want:", want)
-// 			}
-
-// 			if strings.Contains(capturedOutput, tt.errStr) {
-// 				t.Errorf("err got %q, want to find %q", capturedOutput, tt.errStr)
-// 			}
-// 		})
-// 	}
-// }
