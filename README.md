@@ -56,7 +56,7 @@ First [install pre-commit](https://pre-commit.com/#install) and then create or u
 ```yaml
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v0.1.6
+    rev: v0.2.0
     hooks:
       - id: helm-schema
         args: ["-input", "values.yaml"]
