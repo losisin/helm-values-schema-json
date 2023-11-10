@@ -1,0 +1,12 @@
+repos:
+  - repo: https://github.com/losisin/helm-values-schema-json
+    rev: v0.1.6
+    hooks:
+      - id: helm-schema
+        args:
+          # Single or multiple yamlFiles as inputs (comma-separated)
+          - --input=values.yaml
+          # Output file path (default "values.schema.json")
+          - --output=values.schema.json
+          # Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+          - --draft=2020
