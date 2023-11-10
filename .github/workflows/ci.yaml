@@ -2,7 +2,7 @@ name: ci
 on:
   pull_request:
     branches:
-      - master
+      - main
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
