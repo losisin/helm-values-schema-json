@@ -22,6 +22,67 @@ Installed plugin: schema
 - Save output with custom name and location - default is values.schema.json in current working directory
 - Change schema draft version - default is draft 2020-12
 
+## Integrations
+
+There are several ways to automate schema generation with this plugin. Main reason is that the json schema file can be hard to follow and we as humans tend to forget and update routine tasks. So why not automate it?
+
+### GitHub actions
+
+There is GitHub action that I've build using typescript and published on marketplace. You can find it [here](https://github.com/marketplace/actions/helm-values-schema-json-action). Basic usage is as follows:
+
+```yaml
+name: Generate values schema json
+on:
+  - pull_request
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+      - name: Generate values schema json
+        uses: losisin/helm-values-schema-json-action@v1
+        with:
+          input: values.yaml
+```
+
+### pre-commit hook
+
+With pre-commit, you can ensure your JSON schema is kept up-to-date each time you make a commit.
+
+First [install pre-commit](https://pre-commit.com/#install) and then create or update a `.pre-commit-config.yaml` in the root of your Git repo with at least the following content:
+
+```yaml
+repos:
+  - repo: https://github.com/losisin/helm-values-schema-json
+    rev: v0.1.6
+    hooks:
+      - id: helm-schema
+        args: ["-input", "values.yaml"]
+```
+
+Then run:
+
+```bash
+pre-commit install
+pre-commit install-hooks
+```
+
+Further changes to your chart files will cause an update to json schema when you make a commit.
+
+### Husky
+
+This is a great tool for adding git hooks to your project. You can find it's documentation [here](https://typicode.github.io/husky/). Here is how you can use it:
+
+```json
+"husky": {
+  "hooks": {
+    "pre-commit": "helm schema -input values.yaml"
+  }
+},
+```
+
 ## Usage
 
 ```bash
