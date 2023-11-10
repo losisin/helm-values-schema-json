@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    labels:
+      - dependabot
+      - actions
+    schedule:
+      interval: daily
+
+  - package-ecosystem: gomod
+    directory: /
+    labels:
+      - dependabot
+      - go
+    schedule:
+      interval: daily
