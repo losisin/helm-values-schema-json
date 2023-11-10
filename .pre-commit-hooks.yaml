@@ -3,5 +3,5 @@
   description: Helm plugin for generating values.schema.json from single or multiple values files. Works only with Helm3 charts.
   entry: scripts/git-hook.sh
   language: script
-  name: Helm Docs
+  name: Helm values schema json
   require_serial: true
