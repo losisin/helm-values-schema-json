@@ -108,7 +108,7 @@ func parseFlags(progname string, args []string) (config *Config, output string, 
 
 	err = flags.Parse(args)
 	if err != nil {
-		fmt.Println("usage: helm schema [-input STR] [-draft INT] [-output STR]")
+		fmt.Println("Usage: helm schema [-input STR] [-draft INT] [-output STR]")
 		return nil, buf.String(), err
 	}
 
@@ -117,11 +117,10 @@ func parseFlags(progname string, args []string) (config *Config, output string, 
 }
 
 // Generate JSON schema
-func generateJsonSchema(config *Config) {
+func generateJsonSchema(config *Config) error {
 	// Check if the input flag is set
 	if len(config.input) == 0 {
-		fmt.Fprintln(os.Stderr, "Input flag is required. Please provide input yaml files using the -input flag.")
-		os.Exit(2)
+		return errors.New("input flag is required. Please provide input yaml files using the -input flag")
 	}
 
 	var schemaUrl string
@@ -137,8 +136,7 @@ func generateJsonSchema(config *Config) {
 	case 2020:
 		schemaUrl = "https://json-schema.org/draft/2020-12/schema"
 	default:
-		fmt.Fprintln(os.Stderr, "Invalid draft version. Please use one of: 4, 6, 7, 2019, 2020.")
-		os.Exit(1)
+		return errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020")
 	}
 
 	// Declare a map to hold the merged YAML data
@@ -148,8 +146,8 @@ func generateJsonSchema(config *Config) {
 	for _, filePath := range config.input {
 		var currentMap map[string]interface{}
 		if err := readAndUnmarshalYAML(filePath, &currentMap); err != nil {
-			fmt.Printf("Error reading %s: %v\n", filePath, err)
-			continue
+			return errors.New("error reading YAML file(s)")
+
 		}
 
 		// Merge the current YAML data with the mergedMap
@@ -164,18 +162,22 @@ func generateJsonSchema(config *Config) {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
+
+	return nil
 }
 
 func main() {
 	conf, output, err := parseFlags(os.Args[0], os.Args[1:])
 	if err == flag.ErrHelp {
 		fmt.Println(output)
-		os.Exit(0)
+		return
 	} else if err != nil {
-		fmt.Println("got error:", err)
-		fmt.Println("output:\n", output)
-		os.Exit(1)
+		fmt.Println("Error:", output)
+		return
 	}
 
-	generateJsonSchema(conf)
+	err = generateJsonSchema(conf)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 }
