@@ -303,9 +303,12 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
 			conf := &tt.conf
-			generateJsonSchema(conf)
+			err := generateJsonSchema(conf)
+			if err != nil {
+				t.Fatalf("generateJsonSchema() failed: %v", err)
+			}
 
-			_, err := os.Stat(conf.outputPath)
+			_, err = os.Stat(conf.outputPath)
 			if os.IsNotExist(err) {
 				t.Errorf("Expected file '%q' to be created, but it doesn't exist", conf.outputPath)
 			}
@@ -324,7 +327,10 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 		})
 		t.Run(fmt.Sprintf("%v", tt.conf), func(t *testing.T) {
 			conf := &tt.conf
-			generateJsonSchema(conf)
+			err := generateJsonSchema(conf)
+			if err != nil {
+				t.Fatalf("generateJsonSchema() failed: %v", err)
+			}
 
 			outputJson, err := os.ReadFile(conf.outputPath)
 			if err != nil {
@@ -424,7 +430,10 @@ func TestMain(t *testing.T) {
 			}()
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, err := io.Copy(&buf, r)
+			if err != nil {
+				t.Errorf("Error reading stdout: %v", err)
+			}
 
 			os.Args = originalArgs
 			os.Stdout = originalStdout
