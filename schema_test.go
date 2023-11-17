@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/losisin/go-jsonschema-generator"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMultiStringFlagString(t *testing.T) {
@@ -225,7 +228,7 @@ func TestParseFlagsPass(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			conf, output, err := parseFlags("prog", tt.args)
+			conf, output, err := parseFlags("schema", tt.args)
 			if err != nil {
 				t.Errorf("err got %v, want nil", err)
 			}
@@ -244,7 +247,7 @@ func TestParseFlagsUsage(t *testing.T) {
 
 	for _, arg := range usageArgs {
 		t.Run(arg, func(t *testing.T) {
-			conf, output, err := parseFlags("prog", []string{arg})
+			conf, output, err := parseFlags("schema", []string{arg})
 			if err != flag.ErrHelp {
 				t.Errorf("err got %v, want ErrHelp", err)
 			}
@@ -270,7 +273,7 @@ func TestParseFlagsFail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			conf, output, err := parseFlags("prog", tt.args)
+			conf, output, err := parseFlags("schema", tt.args)
 			if conf != nil {
 				t.Errorf("conf got %v, want nil", conf)
 			}
@@ -333,6 +336,105 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 				t.Errorf("Schema URL does not match. Got: %s, Expected: %s", actualURL, tt.expectedUrl)
 			}
 			os.Remove(conf.outputPath)
+		})
+	}
+}
+
+func TestGenerateJsonSchemaFail(t *testing.T) {
+	testCases := []struct {
+		config      *Config
+		expectedErr string
+	}{
+		{
+			config:      &Config{},
+			expectedErr: "input flag is required. Please provide input yaml files using the -input flag",
+		},
+		{
+			config: &Config{
+				input: multiStringFlag{"testdata/values_1.yaml"},
+				draft: 5,
+			},
+			expectedErr: "invalid draft version. Please use one of: 4, 6, 7, 2019, 2020",
+		},
+		{
+			config: &Config{
+				input: multiStringFlag{"fake.yaml"},
+				draft: 2019,
+			},
+			expectedErr: "error reading YAML file(s)",
+		},
+	}
+
+	for _, testCase := range testCases {
+		err := generateJsonSchema(testCase.config)
+		if err == nil {
+			t.Errorf("Expected error, got nil")
+		} else if err.Error() != testCase.expectedErr {
+			t.Errorf("Expected error: %s, got: %s", testCase.expectedErr, err.Error())
+		}
+	}
+}
+
+func TestMain(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		expectedError string
+		expectedOut   string
+	}{
+		{
+			name:          "HelpFlag",
+			args:          []string{"schema", "-h"},
+			expectedOut:   "Usage of schema",
+			expectedError: "",
+		},
+		{
+			name:          "InvalidFlags",
+			args:          []string{"schema", "-fail"},
+			expectedOut:   "",
+			expectedError: "flag provided but not defined",
+		},
+		{
+			name:          "SuccessfulRun",
+			args:          []string{"schema", "-input", "testdata/values_1.yaml"},
+			expectedOut:   "",
+			expectedError: "",
+		},
+		{
+			name:          "GenerateError",
+			args:          []string{"schema", "-input", "testdata/fail.yaml", "-draft", "2020"},
+			expectedOut:   "",
+			expectedError: "Error: error reading YAML file(s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalArgs := os.Args
+			originalStdout := os.Stdout
+
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			os.Args = tt.args
+
+			go func() {
+				main()
+				w.Close()
+			}()
+
+			var buf bytes.Buffer
+			io.Copy(&buf, r)
+
+			os.Args = originalArgs
+			os.Stdout = originalStdout
+
+			out := buf.String()
+
+			assert.Contains(t, out, tt.expectedOut)
+			if tt.expectedError != "" {
+				assert.Contains(t, out, tt.expectedError)
+			}
 		})
 	}
 }
