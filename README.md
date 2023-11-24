@@ -202,3 +202,16 @@ Output will be something like this:
     }
 }
 ```
+
+## Issues, Features, Feedback
+
+Your input matters. Feel free to open [issues](https://github.com/losisin/helm-values-schema-json/issues) for bugs, feature requests, or any feedback you may have. Check if a similar issue exists before creating a new one, and please use clear titles and explanations to help understand your point better. Your thoughts help me improve this project!
+
+### How to Contribute
+
+🌟 Thank you for considering contributing to my project! Your efforts are incredibly valuable. To get started:
+1. Fork the repository.
+2. Create your feature branch: `git checkout -b feature/YourFeature`
+3. Commit your changes: `git commit -am 'Add: YourFeature'`
+4. Push to the branch: `git push origin feature/YourFeature`
+5. Submit a pull request! 🚀
