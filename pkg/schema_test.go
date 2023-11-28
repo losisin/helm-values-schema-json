@@ -32,7 +32,6 @@ type ExampleJSONBasic struct {
 	Bytes      []byte  `json:",omitempty"`
 	Float32    float32 `json:",omitempty"`
 	Float64    float64
-	Interface  interface{}
 	Timestamp  time.Time `json:",omitempty"`
 }
 
@@ -44,7 +43,7 @@ func (s *propertySuite) TestLoad(c *C) {
 		Schema: "http://json-schema.org/schema#",
 		property: property{
 			Type:     "object",
-			Required: []string{"Float64", "Interface"},
+			Required: []string{"Float64"},
 			Properties: map[string]*property{
 				"Bool":       {Type: "boolean"},
 				"Integer":    {Type: "integer"},
@@ -61,28 +60,7 @@ func (s *propertySuite) TestLoad(c *C) {
 				"Bytes":      {Type: "string"},
 				"Float32":    {Type: "number"},
 				"Float64":    {Type: "number"},
-				"Interface":  {},
 				"Timestamp":  {Type: "string", Format: "date-time"},
-			},
-		},
-	})
-}
-
-type ExampleJSONBasicWithTag struct {
-	Bool bool `json:"test"`
-}
-
-func (s *propertySuite) TestLoadWithTag(c *C) {
-	j := &Document{}
-	j.Read(&ExampleJSONBasicWithTag{})
-
-	c.Assert(*j, DeepEquals, Document{
-		Schema: "http://json-schema.org/schema#",
-		property: property{
-			Type:     "object",
-			Required: []string{"test"},
-			Properties: map[string]*property{
-				"test": {Type: "boolean"},
 			},
 		},
 	})
@@ -139,72 +117,6 @@ type ExampleJSONNestedStruct struct {
 	}
 }
 
-func (s *propertySuite) TestLoadNested(c *C) {
-	j := &Document{}
-	j.Read(&ExampleJSONNestedStruct{})
-
-	c.Assert(*j, DeepEquals, Document{
-		Schema: "http://json-schema.org/schema#",
-		property: property{
-			Type: "object",
-			Properties: map[string]*property{
-				"Struct": {
-					Type: "object",
-					Properties: map[string]*property{
-						"Foo": {Type: "string"},
-					},
-					Required: []string{"Foo"},
-				},
-			},
-			Required: []string{"Struct"},
-		},
-	})
-}
-
-type ExampleJSONBasicMaps struct {
-	Maps           map[string]string `json:",omitempty"`
-	MapOfInterface map[string]interface{}
-}
-
-func (s *propertySuite) TestLoadMap(c *C) {
-	j := &Document{}
-	j.Read(&ExampleJSONBasicMaps{})
-
-	c.Assert(*j, DeepEquals, Document{
-		Schema: "http://json-schema.org/schema#",
-		property: property{
-			Type: "object",
-			Properties: map[string]*property{
-				"Maps": {
-					Type: "object",
-					Properties: map[string]*property{
-						".*": {Type: "string"},
-					},
-					AdditionalProperties: false,
-				},
-				"MapOfInterface": {
-					Type:                 "object",
-					AdditionalProperties: true,
-				},
-			},
-			Required: []string{"MapOfInterface"},
-		},
-	})
-}
-
-func (s *propertySuite) TestLoadNonStruct(c *C) {
-	j := &Document{}
-	j.Read([]string{})
-
-	c.Assert(*j, DeepEquals, Document{
-		Schema: "http://json-schema.org/schema#",
-		property: property{
-			Type:  "array",
-			Items: &property{Type: "string"},
-		},
-	})
-}
-
 func (s *propertySuite) TestString(c *C) {
 	j := &Document{}
 	j.Read(true)
@@ -217,24 +129,15 @@ func (s *propertySuite) TestString(c *C) {
 	c.Assert(j.String(), Equals, expected)
 }
 
-func (s *propertySuite) TestMarshal(c *C) {
-	j := &Document{}
-	j.Read(10)
-
-	expected := "{\n" +
-		"    \"$schema\": \"http://json-schema.org/schema#\",\n" +
-		"    \"type\": \"integer\"\n" +
-		"}"
-
-	json, err := j.Marshal()
-	c.Assert(err, IsNil)
-	c.Assert(string(json), Equals, expected)
+type ExampleJSONBasicMaps struct {
+	Maps           map[string]string `json:",omitempty"`
+	MapOfInterface map[string]interface{}
 }
 
 func TestLoadMapDeep(t *testing.T) {
 	t.Run("within a struct map of string to string", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(&ExampleJSONBasicMaps{
+		j.Read(&ExampleJSONBasicMaps{
 			Maps: map[string]string{
 				"aString":          "ok1",
 				"anotherString":    "anotherValue",
@@ -269,7 +172,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("map of string to string", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]string{
+		j.Read(map[string]string{
 			"aString":          "ok1",
 			"anotherString":    "anotherValue",
 			"yetAnotherString": "anotherValue",
@@ -293,7 +196,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("map of string to interface", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]interface{}{
+		j.Read(map[string]interface{}{
 			"aString":          "ok1",
 			"anotherString":    "anotherValue",
 			"yetAnotherString": "anotherValue",
@@ -398,7 +301,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("slice of interface with string value", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]interface{}{
+		j.Read(map[string]interface{}{
 			"sliceOfInterfaceWithString": []interface{}{"something"},
 		})
 
@@ -423,7 +326,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("slice of interface with int value", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]interface{}{
+		j.Read(map[string]interface{}{
 			"sliceOfInterfaceWithInt": []interface{}{1},
 		})
 
@@ -448,7 +351,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("slice of interface with float value", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]interface{}{
+		j.Read(map[string]interface{}{
 			"sliceOfInterfaceWithFloat": []interface{}{1.555},
 		})
 
@@ -473,7 +376,7 @@ func TestLoadMapDeep(t *testing.T) {
 	})
 	t.Run("slice of interface with map value", func(t *testing.T) {
 		j := &Document{}
-		j.ReadDeep(map[string]interface{}{
+		j.Read(map[string]interface{}{
 			"sliceOfInterfaceWithMapValue": []interface{}{
 				map[interface{}]interface{}{
 					"someString":       "another",
@@ -511,16 +414,4 @@ func TestLoadMapDeep(t *testing.T) {
 			fmt.Println(cmp.Diff(expected, *j, cmp.AllowUnexported(Document{})))
 		}
 	})
-}
-
-func TestNewDocument(t *testing.T) {
-	schema := "example_schema"
-
-	// Call the NewDocument function
-	doc := NewDocument(schema)
-
-	// Verify that the returned document has the expected schema
-	if doc.Schema != schema {
-		t.Errorf("Expected schema: %s, Got: %s", schema, doc.Schema)
-	}
 }

@@ -16,7 +16,7 @@ func TestPrintMap(t *testing.T) {
 		t.Fatalf("Failed to mock YAML data: %v", err)
 	}
 	data := NewDocument("")
-	data.ReadDeep(&yamlData)
+	data.Read(&yamlData)
 
 	tests := []struct {
 		data        *Document
