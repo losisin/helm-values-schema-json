@@ -70,9 +70,10 @@ type SliceStruct struct {
 	Value string
 }
 
+//nolint:all
 type ExampleJSONBasicSlices struct {
 	Slice            []string      `json:",foo,omitempty"`
-	SliceOfInterface []interface{} `json:",foo"`
+	SliceOfInterface []interface{} `json:",bar"`
 	SliceOfStruct    []SliceStruct
 }
 
