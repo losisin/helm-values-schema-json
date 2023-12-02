@@ -47,6 +47,8 @@ func TestMain(t *testing.T) {
 			originalArgs := os.Args
 			originalStdout := os.Stdout
 
+			defer os.Remove("values.schema.json")
+
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
