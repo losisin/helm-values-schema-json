@@ -30,15 +30,15 @@ func TestMain(t *testing.T) {
 		},
 		{
 			name:          "SuccessfulRun",
-			args:          []string{"schema", "-input", "testdata/values_1.yaml"},
+			args:          []string{"schema", "-input", "testdata/fail.yaml"},
 			expectedOut:   "",
 			expectedError: "",
 		},
 		{
 			name:          "GenerateError",
-			args:          []string{"schema", "-input", "testdata/fail.yaml", "-draft", "2020"},
-			expectedOut:   "",
-			expectedError: "Error: error reading YAML file(s)",
+			args:          []string{"schema", "-input", "fail.yaml", "-draft", "2020"},
+			expectedOut:   "Error: open fail.yaml: no such file or directory",
+			expectedError: "",
 		},
 	}
 

@@ -1,226 +1,209 @@
 package pkg
 
 import (
-	"encoding/json"
-	"reflect"
+	"errors"
+	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-var defaultSchema = "http://json-schema.org/schema#"
-
-type Document struct {
-	Schema string `json:"$schema,omitempty"`
-	property
+type Schema struct {
+	Type          interface{}        `json:"type,omitempty"`
+	Enum          []any              `json:"enum,omitempty"`
+	MultipleOf    *float64           `json:"multipleOf,omitempty"`
+	Maximum       *float64           `json:"maximum,omitempty"`
+	Minimum       *float64           `json:"minimum,omitempty"`
+	MaxLength     *uint64            `json:"maxLength,omitempty"`
+	MinLength     *uint64            `json:"minLength,omitempty"`
+	Pattern       string             `json:"pattern,omitempty"`
+	MaxItems      *uint64            `json:"maxItems,omitempty"`
+	MinItems      *uint64            `json:"minItems,omitempty"`
+	UniqueItems   bool               `json:"uniqueItems,omitempty"`
+	MaxProperties *uint64            `json:"maxProperties,omitempty"`
+	MinProperties *uint64            `json:"minProperties,omitempty"`
+	Required      []string           `json:"required,omitempty"`
+	Items         *Schema            `json:"items,omitempty"`
+	Properties    map[string]*Schema `json:"properties,omitempty"`
 }
 
-// NewDocument creates a new JSON-Schema Document with the specified schema.
-func NewDocument(schema string) *Document {
-	return &Document{
-		Schema: schema,
+func getKind(value string) string {
+	kindMapping := map[string]string{
+		"boolean": "boolean",
+		"integer": "integer",
+		"number":  "number",
+		"string":  "string",
+	}
+
+	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return kindMapping["integer"]
+	}
+	if _, err := strconv.ParseFloat(value, 64); err == nil {
+		return kindMapping["number"]
+	}
+	if _, err := strconv.ParseBool(value); err == nil {
+		return kindMapping["boolean"]
+	}
+	if value != "" {
+		return kindMapping["string"]
+	}
+	return "null"
+}
+
+func getSchemaURL(draft int) (string, error) {
+	switch draft {
+	case 4:
+		return "http://json-schema.org/draft-04/schema#", nil
+	case 6:
+		return "http://json-schema.org/draft-06/schema#", nil
+	case 7:
+		return "http://json-schema.org/draft-07/schema#", nil
+	case 2019:
+		return "https://json-schema.org/draft/2019-09/schema", nil
+	case 2020:
+		return "https://json-schema.org/draft/2020-12/schema", nil
+	default:
+		return "", errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020")
 	}
 }
 
-// Reads the variable structure into the JSON-Schema Document
-func (d *Document) Read(variable interface{}) {
-	d.setDefaultSchema()
-
-	value := reflect.ValueOf(variable)
-	d.read(value, "")
-}
-
-func (d *Document) setDefaultSchema() {
-	if d.Schema == "" {
-		d.Schema = defaultSchema
+func getComment(keyNode *yaml.Node, valNode *yaml.Node) string {
+	if len(valNode.Value) > 0 {
+		return valNode.LineComment
 	}
+	return keyNode.LineComment
 }
 
-// Marshal returns the JSON encoding of the Document
-func (d *Document) Marshal() ([]byte, error) {
-	return json.MarshalIndent(d, "", "    ")
-}
+func processList(comment string, stringsOnly bool) []interface{} {
+	comment = strings.Trim(comment, "[]")
+	items := strings.Split(comment, ",")
 
-// String return the JSON encoding of the Document as a string
-func (d *Document) String() string {
-	jsonBytes, _ := d.Marshal()
-	return string(jsonBytes)
-}
-
-type property struct {
-	Type                 string               `json:"type,omitempty"`
-	Format               string               `json:"format,omitempty"`
-	Items                *property            `json:"items,omitempty"`
-	Properties           map[string]*property `json:"properties,omitempty"`
-	Required             []string             `json:"required,omitempty"`
-	AdditionalProperties bool                 `json:"additionalProperties,omitempty"`
-}
-
-func (p *property) read(v reflect.Value, opts tagOptions) {
-	if !v.IsValid() {
-		p.Type = "null"
-		return
+	var list []interface{}
+	for _, item := range items {
+		trimmedItem := strings.TrimSpace(item)
+		if !stringsOnly && trimmedItem == "null" {
+			list = append(list, nil)
+		} else {
+			trimmedItem = strings.Trim(trimmedItem, "\"")
+			list = append(list, trimmedItem)
+		}
 	}
-	jsType, format, kind := getTypeFromMapping(v.Type())
-	if jsType != "" {
-		p.Type = jsType
-	}
-	if format != "" {
-		p.Format = format
-	}
-
-	switch kind {
-	case reflect.Slice:
-		p.readFromSlice(v)
-	case reflect.Map:
-		p.readFromMap(v)
-	case reflect.Struct:
-		p.readFromStruct(v)
-	case reflect.Ptr, reflect.Interface:
-		p.read(v.Elem(), opts)
-	}
+	return list
 }
 
-func (p *property) readFromSlice(v reflect.Value) {
-	if v.Len() == 0 {
-		t := v.Type()
-		jsType, _, kind := getTypeFromMapping(t.Elem())
-		if kind == reflect.Uint8 {
-			p.Type = "string"
-		} else if jsType != "" {
-			p.Items = &property{}
-			if v.Len() == 0 {
-				p.Items.read(reflect.Zero(t.Elem()), "")
-				return
+func processComment(schema *Schema, comment string) (isRequired bool) {
+	isRequired = false
+
+	parts := strings.Split(strings.TrimPrefix(comment, "# @schema "), ";")
+	for _, part := range parts {
+		keyValue := strings.SplitN(part, ":", 2)
+		if len(keyValue) == 2 {
+			key := strings.TrimSpace(keyValue[0])
+			value := strings.TrimSpace(keyValue[1])
+
+			switch key {
+			case "type":
+				schema.Type = processList(value, true)
+			case "enum":
+				schema.Enum = processList(value, false)
+			case "multipleOf":
+				if v, err := strconv.ParseFloat(value, 64); err == nil {
+					if v > 0 {
+						schema.MultipleOf = &v
+					}
+				}
+			case "maximum":
+				if v, err := strconv.ParseFloat(value, 64); err == nil {
+					schema.Maximum = &v
+				}
+			case "minimum":
+				if v, err := strconv.ParseFloat(value, 64); err == nil {
+					schema.Minimum = &v
+				}
+			case "maxLength":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MaxLength = &v
+				}
+			case "minLength":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MinLength = &v
+				}
+			case "pattern":
+				schema.Pattern = value
+			case "maxItems":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MaxItems = &v
+				}
+			case "minItems":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MinItems = &v
+				}
+			case "uniqueItems":
+				if v, err := strconv.ParseBool(value); err == nil {
+					schema.UniqueItems = v
+				}
+			case "maxProperties":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MaxProperties = &v
+				}
+			case "minProperties":
+				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+					schema.MinProperties = &v
+				}
+			case "required":
+				if strings.TrimSpace(value) == "true" {
+					isRequired = strings.TrimSpace(value) == "true"
+				}
 			}
-			p.Items.read(v.Index(0), "")
-		}
-		return
-	}
-
-	_, _, kind := getTypeFromMapping(v.Index(0).Type())
-	if kind == reflect.Uint8 {
-		p.Type = "string"
-	} else {
-		p.Items = &property{}
-		p.Items.read(v.Index(0), "")
-	}
-}
-
-func (p *property) readFromMap(v reflect.Value) {
-	properties := make(map[string]*property)
-	iter := v.MapRange()
-	for iter.Next() {
-		key := iter.Key()
-		value := iter.Value()
-		keyName := mapKeyToString(key)
-		properties[keyName] = &property{}
-		properties[keyName].read(value, "")
-	}
-
-	if len(properties) > 0 {
-		p.Properties = properties
-	}
-}
-
-func mapKeyToString(key reflect.Value) string {
-	keyKind := key.Kind()
-
-	if keyKind == reflect.Interface {
-		return mapKeyToString(key.Elem())
-	}
-
-	return key.String()
-}
-
-func (p *property) readFromStruct(v reflect.Value) {
-	t := v.Type()
-	p.Type = "object"
-	p.Properties = make(map[string]*property, 0)
-	p.AdditionalProperties = false
-
-	count := t.NumField()
-	for i := 0; i < count; i++ {
-		field := t.Field(i)
-
-		tag := field.Tag.Get("json")
-		name, opts := parseTag(tag)
-		if name == "" {
-			name = field.Name
-		}
-		if name == "-" {
-			continue
-		}
-
-		p.Properties[name] = &property{}
-		p.Properties[name].read(v.Field(i), opts)
-
-		if !opts.Contains("omitempty") {
-			p.Required = append(p.Required, name)
 		}
 	}
+
+	return isRequired
 }
 
-var formatMapping = map[string][]string{
-	"time.Time": {"string", "date-time"},
-}
+func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
+	schema := &Schema{}
 
-var kindMapping = map[reflect.Kind]string{
-	reflect.Bool:    "boolean",
-	reflect.Int:     "integer",
-	reflect.Int8:    "integer",
-	reflect.Int16:   "integer",
-	reflect.Int32:   "integer",
-	reflect.Int64:   "integer",
-	reflect.Uint:    "integer",
-	reflect.Uint8:   "integer",
-	reflect.Uint16:  "integer",
-	reflect.Uint32:  "integer",
-	reflect.Uint64:  "integer",
-	reflect.Float32: "number",
-	reflect.Float64: "number",
-	reflect.String:  "string",
-	reflect.Slice:   "array",
-	reflect.Struct:  "object",
-	reflect.Map:     "object",
-}
-
-func getTypeFromMapping(t reflect.Type) (string, string, reflect.Kind) {
-	if v, ok := formatMapping[t.String()]; ok {
-		return v[0], v[1], reflect.String
-	}
-
-	kind := t.Kind()
-	if v, ok := kindMapping[kind]; ok {
-		return v, "", kind
-	}
-
-	return "", "", kind
-}
-
-type tagOptions string
-
-func parseTag(tag string) (string, tagOptions) {
-	if idx := strings.Index(tag, ","); idx != -1 {
-		return tag[:idx], tagOptions(tag[idx+1:])
-	}
-	return tag, ""
-}
-
-func (o tagOptions) Contains(optionName string) bool {
-	if len(o) == 0 {
-		return false
-	}
-
-	s := string(o)
-	for s != "" {
-		var next string
-		i := strings.Index(s, ",")
-		if i >= 0 {
-			s, next = s[:i], s[i+1:]
+	switch valNode.Kind {
+	case yaml.MappingNode:
+		properties := make(map[string]*Schema)
+		required := []string{}
+		for i := 0; i < len(valNode.Content); i += 2 {
+			childKeyNode := valNode.Content[i]
+			childValNode := valNode.Content[i+1]
+			childSchema, isRequired := parseNode(childKeyNode, childValNode)
+			properties[childKeyNode.Value] = childSchema
+			if isRequired {
+				required = append(required, childKeyNode.Value)
+			}
 		}
-		if s == optionName {
-			return true
+		schema.Type = "object"
+		schema.Properties = properties
+
+		if len(required) > 0 {
+			schema.Required = required
 		}
-		s = next
+
+	case yaml.SequenceNode:
+		schema.Type = "array"
+
+		if len(valNode.Content) > 0 {
+			itemSchema, _ := parseNode(nil, valNode.Content[0])
+			schema.Items = itemSchema
+		}
+
+	case yaml.ScalarNode:
+		if valNode.Style == yaml.DoubleQuotedStyle || valNode.Style == yaml.SingleQuotedStyle {
+			schema.Type = "string"
+		} else {
+			schema.Type = getKind(valNode.Value)
+		}
 	}
-	return false
+
+	propIsRequired := false
+	if keyNode != nil {
+		propIsRequired = processComment(schema, getComment(keyNode, valNode))
+	}
+
+	return schema, propIsRequired
 }

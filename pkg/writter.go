@@ -8,7 +8,7 @@ import (
 )
 
 // Print the merged map to a file as JSON schema
-func printMap(data *Document, outputPath string) error {
+func writeMap(data map[string]interface{}, outputPath string) error {
 	if data == nil {
 		return errors.New("data is nil")
 	}

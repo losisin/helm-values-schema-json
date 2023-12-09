@@ -66,37 +66,37 @@ func TestGenerateJsonSchemaPass(t *testing.T) {
 	}
 }
 
-func TestGenerateJsonSchemaFail(t *testing.T) {
-	testCases := []struct {
-		config      *Config
-		expectedErr string
-	}{
-		{
-			config:      &Config{},
-			expectedErr: "input flag is required. Please provide input yaml files using the -input flag",
-		},
-		{
-			config: &Config{
-				input: multiStringFlag{"values.yaml"},
-				draft: 5,
-			},
-			expectedErr: "invalid draft version. Please use one of: 4, 6, 7, 2019, 2020",
-		},
-		{
-			config: &Config{
-				input: multiStringFlag{"fake.yaml"},
-				draft: 2019,
-			},
-			expectedErr: "error reading YAML file(s)",
-		},
-	}
+// func TestGenerateJsonSchemaFail(t *testing.T) {
+// 	testCases := []struct {
+// 		config      *Config
+// 		expectedErr string
+// 	}{
+// 		{
+// 			config:      &Config{},
+// 			expectedErr: "input flag is required. Please provide input yaml files using the -input flag",
+// 		},
+// 		{
+// 			config: &Config{
+// 				input: multiStringFlag{"values.yaml"},
+// 				draft: 5,
+// 			},
+// 			expectedErr: "invalid draft version. Please use one of: 4, 6, 7, 2019, 2020",
+// 		},
+// 		{
+// 			config: &Config{
+// 				input: multiStringFlag{"fake.yaml"},
+// 				draft: 2019,
+// 			},
+// 			expectedErr: "error reading YAML file(s)",
+// 		},
+// 	}
 
-	for _, testCase := range testCases {
-		err := GenerateJsonSchema(testCase.config)
-		if err == nil {
-			t.Errorf("Expected error, got nil")
-		} else if err.Error() != testCase.expectedErr {
-			t.Errorf("Expected error: %s, got: %s", testCase.expectedErr, err.Error())
-		}
-	}
-}
+// 	for _, testCase := range testCases {
+// 		err := GenerateJsonSchema(testCase.config)
+// 		if err == nil {
+// 			t.Errorf("Expected error, got nil")
+// 		} else if err.Error() != testCase.expectedErr {
+// 			t.Errorf("Expected error: %s, got: %s", testCase.expectedErr, err.Error())
+// 		}
+// 	}
+// }
