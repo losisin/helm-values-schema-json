@@ -1,5 +1,10 @@
 package pkg
 
+import (
+	"errors"
+	"reflect"
+)
+
 func mergeSchemas(dest, src *Schema) *Schema {
 	if dest == nil {
 		return src
@@ -75,9 +80,23 @@ func mergeSchemas(dest, src *Schema) *Schema {
 }
 
 func convertSchemaToMap(schema *Schema) (map[string]interface{}, error) {
+	return convertSchemaToMapRec(schema, make(map[uintptr]bool))
+}
+
+func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string]interface{}, error) {
 	if schema == nil {
 		return nil, nil
 	}
+	// Get the uintptr for the current schema pointer to identify it uniquely
+	ptr := reflect.ValueOf(schema).Pointer()
+
+	// If we've already visited this schema, we've found a circular reference
+	if visited[ptr] {
+		return nil, errors.New("circular reference detected in schema")
+	}
+
+	// Mark the current schema as visited
+	visited[ptr] = true
 
 	schemaMap := make(map[string]interface{})
 
@@ -129,7 +148,7 @@ func convertSchemaToMap(schema *Schema) (map[string]interface{}, error) {
 
 	// Nested Schemas
 	if schema.Items != nil {
-		itemsMap, err := convertSchemaToMap(schema.Items)
+		itemsMap, err := convertSchemaToMapRec(schema.Items, visited)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +157,7 @@ func convertSchemaToMap(schema *Schema) (map[string]interface{}, error) {
 	if schema.Properties != nil {
 		propertiesMap := make(map[string]interface{})
 		for propName, propSchema := range schema.Properties {
-			propMap, err := convertSchemaToMap(propSchema)
+			propMap, err := convertSchemaToMapRec(propSchema, visited)
 			if err != nil {
 				return nil, err
 			}
@@ -146,6 +165,8 @@ func convertSchemaToMap(schema *Schema) (map[string]interface{}, error) {
 		}
 		schemaMap["properties"] = propertiesMap
 	}
+
+	delete(visited, ptr)
 
 	return schemaMap, nil
 }

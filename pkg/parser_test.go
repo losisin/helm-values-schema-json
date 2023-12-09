@@ -3,7 +3,61 @@ package pkg
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func uint64Ptr(i uint64) *uint64 {
+	return &i
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
+// schemasEqual is a helper function to compare two Schema objects.
+func schemasEqual(a, b *Schema) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	// Compare simple fields
+	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems {
+		return false
+	}
+	// Compare pointer fields
+	if !comparePointer(a.MultipleOf, b.MultipleOf) ||
+		!comparePointer(a.Maximum, b.Maximum) ||
+		!comparePointer(a.Minimum, b.Minimum) ||
+		!comparePointer(a.MaxLength, b.MaxLength) ||
+		!comparePointer(a.MinLength, b.MinLength) ||
+		!comparePointer(a.MaxItems, b.MaxItems) ||
+		!comparePointer(a.MinItems, b.MinItems) ||
+		!comparePointer(a.MaxProperties, b.MaxProperties) ||
+		!comparePointer(a.MinProperties, b.MinProperties) {
+		return false
+	}
+	// Compare slice fields
+	if !reflect.DeepEqual(a.Enum, b.Enum) || !reflect.DeepEqual(a.Required, b.Required) {
+		return false
+	}
+	// Recursively check nested fields
+	if !schemasEqual(a.Items, b.Items) {
+		return false
+	}
+	// Compare map fields (Properties)
+	return reflect.DeepEqual(a.Properties, b.Properties)
+}
+
+// comparePointer is a helper function for comparing pointer fields
+func comparePointer[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a != nil && b != nil {
+		return *a == *b
+	}
+	return false
+}
 
 func TestMergeSchemas(t *testing.T) {
 	tests := []struct {
@@ -112,50 +166,6 @@ func TestMergeSchemas(t *testing.T) {
 	}
 }
 
-// comparePointer is a helper function for comparing pointer fields
-func comparePointer[T comparable](a, b *T) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a != nil && b != nil {
-		return *a == *b
-	}
-	return false
-}
-
-// schemasEqual is a helper function to compare two Schema objects.
-func schemasEqual(a, b *Schema) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems {
-		return false
-	}
-	// Compare pointer fields
-	if !comparePointer(a.MultipleOf, b.MultipleOf) ||
-		!comparePointer(a.Maximum, b.Maximum) ||
-		!comparePointer(a.Minimum, b.Minimum) ||
-		!comparePointer(a.MaxLength, b.MaxLength) ||
-		!comparePointer(a.MinLength, b.MinLength) ||
-		!comparePointer(a.MaxItems, b.MaxItems) ||
-		!comparePointer(a.MinItems, b.MinItems) ||
-		!comparePointer(a.MaxProperties, b.MaxProperties) ||
-		!comparePointer(a.MinProperties, b.MinProperties) {
-		return false
-	}
-	// Compare slice fields
-	if !reflect.DeepEqual(a.Enum, b.Enum) || !reflect.DeepEqual(a.Required, b.Required) {
-		return false
-	}
-	// Recursively check nested fields
-	if !schemasEqual(a.Items, b.Items) {
-		return false
-	}
-	// Compare map fields (Properties)
-	return reflect.DeepEqual(a.Properties, b.Properties)
-}
-
 func TestConvertSchemaToMap(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -249,10 +259,43 @@ func TestConvertSchemaToMap(t *testing.T) {
 	}
 }
 
-func uint64Ptr(i uint64) *uint64 {
-	return &i
-}
+func TestConvertSchemaToMapFail(t *testing.T) {
+	recursiveSchema := &Schema{}
+	recursiveSchema.Properties = map[string]*Schema{
+		"circular": recursiveSchema,
+	}
 
-func float64Ptr(f float64) *float64 {
-	return &f
+	schemaWithItemsError := &Schema{
+		Type:  "array",
+		Items: recursiveSchema,
+	}
+
+	schemaWithPropertiesError := &Schema{
+		Type:       "object",
+		Properties: map[string]*Schema{"circular": recursiveSchema},
+	}
+
+	tests := []struct {
+		name        string
+		schema      *Schema
+		expectedErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:        "Error with recursive items",
+			schema:      schemaWithItemsError,
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "Error with recursive properties",
+			schema:      schemaWithPropertiesError,
+			expectedErr: assert.Error,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := convertSchemaToMap(tc.schema)
+			tc.expectedErr(t, err)
+		})
+	}
 }
