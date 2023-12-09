@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -68,9 +69,15 @@ func GenerateJsonSchema(config *Config) error {
 	}
 	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
 
-	err = writeMap(jsonSchemaMap, config.outputPath)
+	// If validation is successful, marshal the schema and save to the file
+	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", "    ")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		return err
+	}
+
+	outputPath := config.outputPath
+	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
+		return fmt.Errorf("error writing JSON schema to file '%s': %v", outputPath, err)
 	}
 
 	return nil
