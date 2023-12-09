@@ -1,0 +1,45 @@
+# Required
+image:
+  repository: nginx # @schema required: true
+  tag: latest
+  pullPolicy: Always
+nameOverride: foo # @schema required: true
+
+# Enum
+service: ClusterIP #schema enum: [ClusterIP, LoadBalancer]
+
+# NULL
+empty: # @schema type: [string, null]
+
+# Numbers
+replicas: 2 # @schema minimum: 1 ; maximum: 10 ; multipleOf: 2
+
+# Strings
+fullnameOverride: bar # @schema pattern: ^[a-z]$ ; minLength: 1 ; maxLength: 10
+
+# Arrays
+tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
+  - key: "bar"
+    operator: "Equal"
+    value: "baz"
+    effect: "NoSchedule"
+
+# Objects
+affinity:
+  nodeAffinity: # @schema minProperties: 1 ; maxProperties: 2
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values:
+          - antarctica-east1
+          - antarctica-west1
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+        - key: another-node-label-key
+          operator: In
+          values:
+          - another-node-label-value

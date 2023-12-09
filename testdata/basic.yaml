@@ -1,0 +1,23 @@
+replicas: 2
+
+nameOverride: "foo"
+
+image:
+  pullPolicy: Always
+
+tolerations:
+  - key: "foo"
+    operator: "Equal"
+    value: "bar"
+    effect: "NoSchedule"
+
+empty:
+
+fullnameOverride: ""
+
+imagePullSecrets: []
+
+resources: {}
+
+ingress:
+  enabled: true
