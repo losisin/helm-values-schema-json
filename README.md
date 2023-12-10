@@ -7,7 +7,7 @@
 [![GitHub release (with filter)](https://img.shields.io/github/v/release/losisin/helm-values-schema-json)](https://github.com/losisin/helm-values-schema-json/releases)
 
 
-Helm plugin for generating `values.schema.json` from single or multiple values files. Works only with Helm3 charts.
+Helm plugin for generating `values.schema.json` from single or multiple values files. Schema can be enriched by reading annotations from comments. Works only with Helm3 charts.
 
 ## Installation
 

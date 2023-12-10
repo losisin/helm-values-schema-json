@@ -6,7 +6,7 @@ image:
 nameOverride: foo # @schema required: true
 
 # Enum
-service: ClusterIP #schema enum: [ClusterIP, LoadBalancer]
+service: ClusterIP # @schema enum: [ClusterIP, LoadBalancer, null]
 
 # NULL
 empty: # @schema type: [string, null]

@@ -121,6 +121,11 @@
             "type": "integer"
         },
         "service": {
+            "enum": [
+                "ClusterIP",
+                "LoadBalancer",
+                null
+            ],
             "type": "string"
         },
         "tolerations": {
