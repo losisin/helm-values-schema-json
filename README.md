@@ -9,7 +9,7 @@
 
 Helm plugin for generating `values.schema.json` from single or multiple values files. Works only with Helm3 charts.
 
-## Install
+## Installation
 
 ```bash
 $ helm plugin install https://github.com/losisin/helm-values-schema-json.git
@@ -20,7 +20,8 @@ Installed plugin: schema
 
 - Add multiple values files and merge them together - required
 - Save output with custom name and location - default is values.schema.json in current working directory
-- Change schema draft version - default is draft 2020-12
+- Use preferred schema draft version - default is draft 2020
+- Read annotations from comments. See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs) for more info or checkout example yaml files in [testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
 
 ## Integrations
 
