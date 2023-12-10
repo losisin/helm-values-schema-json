@@ -37,7 +37,6 @@ The following annotations are supported:
     * [minProperties](#minproperties)
     * [maxProperties](#maxproperties)
     * [required](#required)
-* [Nulls](#nulls)
 
 ## Validation Keywords for Any Instance Type
 
