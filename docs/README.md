@@ -303,9 +303,9 @@ nodeSelector: # @schema minProperties:1
 Array of unique strings appened to the parent node. [section 6.5.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.3)
 
 ```yaml
-image: # @schema required:[repository, tag]
-  repository: "nginx"
-  tag: "latest"
+image:
+  repository: "nginx" # @schema required:true
+  tag: "latest" # @schema required:true
   imagePullPolicy: "IfNotPresent"
 ```
 
