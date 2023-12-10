@@ -9,12 +9,9 @@ nameOverride: "myapp" # @schema maxLength:10;patter:^[a-z]+$
 This will generate following schema:
 
 ```json
-{
-  "nameOverride": {
-    "type": "string",
+"nameOverride": {
     "maxLength": 10,
-    "pattern": "^[a-z]+$"
-  }
+    "type": "string"
 }
 ```
 
@@ -106,11 +103,9 @@ nameOverride: "myapp" # @schema maxLength:10
 This will generate following schema:
 
 ```json
-{
-  "nameOverride": {
-    "type": "string",
-    "maxLength": 10
-  }
+"nameOverride": {
+    "maxLength": 10,
+    "type": "string"
 }
 ```
 
@@ -125,11 +120,9 @@ nameOverride: "myapp" # @schema minLength:3
 This will generate following schema:
 
 ```json
-{
-  "nameOverride": {
-    "type": "string",
-    "minLength": 3
-  }
+"nameOverride": {
+    "minLength": 3,
+    "type": "string"
 }
 ```
 
@@ -144,11 +137,8 @@ nameOverride: "myapp" # @schema patter:^[a-z]+$
 This will generate following schema:
 
 ```json
-{
-  "nameOverride": {
-    "type": "string",
-    "pattern": "^[a-z]+$"
-  }
+"nameOverride": {
+    "type": "string"
 }
 ```
 
@@ -164,8 +154,8 @@ replicas: 2 # @schema multipleOf:2
  
 ```json
 "replicas": {
-    "type": "integer",
-    "multipleOf": 2
+    "multipleOf": 2,
+    "type": "integer"
 }
 ```
 
@@ -179,8 +169,8 @@ replicas: 2 # @schema maximum:10
  
 ```json
 "replicas": {
-    "type": "integer",
-    "maximum": 10
+    "maximum": 10,
+    "type": "integer"
 }
 ```
 
@@ -194,8 +184,8 @@ replicas: 5 # @schema minimum:2
  
 ```json
 "replicas": {
-    "type": "integer",
-    "minimum": 2
+    "minimum": 2,
+    "type": "integer"
 }
 ```
 
@@ -214,11 +204,11 @@ dummyList: # @schema maxItems:5
 
 ```json
 "dummyList": {
-    "type": "array",
-    "maxItems": 5,
     "items": {
         "type": "string"
-    }
+    },
+    "maxItems": 5,
+    "type": "array"
 }
 ```
 
@@ -235,11 +225,11 @@ dummyList: # @schema minItems:2
 
 ```json
 "dummyList": {
-    "type": "array",
-    "minItems": 2,
     "items": {
         "type": "string"
-    }
+    },
+    "minItems": 2,
+    "type": "array"
 }
 ```
 
@@ -256,11 +246,11 @@ dummyList: # @schema uniqueItems:true
 
 ```json
 "dummyList": {
-    "type": "array",
-    "uniqueItems": true,
     "items": {
         "type": "string"
-    }
+    },
+    "type": "array",
+    "uniqueItems": true
 }
 ```
 
@@ -271,19 +261,19 @@ dummyList: # @schema uniqueItems:true
 Non-negative integer. [section 6.5.1](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.1)
 
 ```yaml
-nodeSelector: # @schema minProperties:10
+nodeSelector: # @schema maxProperties:10
   kubernetes.io/hostname: "my-node"
 ```
 
 ```json
 "nodeSelector": {
-    "type": "object",
-    "maxProperties": 1,
+    "maxProperties": 10,
     "properties": {
         "kubernetes.io/hostname": {
             "type": "string"
         }
-    }
+    },
+    "type": "object"
 }
 ```
 
@@ -298,13 +288,13 @@ nodeSelector: # @schema minProperties:1
 
 ```json
 "nodeSelector": {
-    "type": "object",
     "minProperties": 1,
     "properties": {
         "kubernetes.io/hostname": {
             "type": "string"
         }
-    }
+    },
+    "type": "object"
 }
 ```
 
@@ -321,21 +311,21 @@ image: # @schema required:[repository, tag]
 
 ```json
 "image": {
-    "type": "object",
-    "required": [
-        "repository",
-        "tag"
-    ],
     "properties": {
+        "imagePullPolicy": {
+            "type": "string"
+        },
         "repository": {
             "type": "string"
         },
         "tag": {
             "type": "string"
-        },
-        "imagePullPolicy": {
-            "type": "string"
         }
-    }
+    },
+    "required": [
+        "repository",
+        "tag"
+    ],
+    "type": "object"
 }
 ```
