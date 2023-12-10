@@ -7,9 +7,9 @@
 [![GitHub release (with filter)](https://img.shields.io/github/v/release/losisin/helm-values-schema-json)](https://github.com/losisin/helm-values-schema-json/releases)
 
 
-Helm plugin for generating `values.schema.json` from single or multiple values files. Works only with Helm3 charts.
+Helm plugin for generating `values.schema.json` from single or multiple values files. Schema can be enriched by reading annotations from comments. Works only with Helm3 charts.
 
-## Install
+## Installation
 
 ```bash
 $ helm plugin install https://github.com/losisin/helm-values-schema-json.git
@@ -20,7 +20,8 @@ Installed plugin: schema
 
 - Add multiple values files and merge them together - required
 - Save output with custom name and location - default is values.schema.json in current working directory
-- Change schema draft version - default is draft 2020-12
+- Use preferred schema draft version - default is draft 2020
+- Read annotations from comments. See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs) for more info or checkout example yaml files in [testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
 
 ## Integrations
 
@@ -56,7 +57,7 @@ First [install pre-commit](https://pre-commit.com/#install) and then create or u
 ```yaml
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v0.2.0
+    rev: v1.0.0
     hooks:
       - id: helm-schema
         args: ["-input", "values.yaml"]

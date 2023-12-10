@@ -1,0 +1,159 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "affinity": {
+            "properties": {
+                "nodeAffinity": {
+                    "maxProperties": 2,
+                    "minProperties": 1,
+                    "properties": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": {
+                            "items": {
+                                "properties": {
+                                    "preference": {
+                                        "properties": {
+                                            "matchExpressions": {
+                                                "items": {
+                                                    "properties": {
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "weight": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "properties": {
+                                "nodeSelectorTerms": {
+                                    "items": {
+                                        "properties": {
+                                            "matchExpressions": {
+                                                "items": {
+                                                    "properties": {
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "empty": {
+            "type": [
+                "string",
+                "null"
+            ]
+        },
+        "fullnameOverride": {
+            "maxLength": 10,
+            "minLength": 1,
+            "pattern": "^[a-z]$",
+            "type": "string"
+        },
+        "image": {
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "repository"
+            ],
+            "type": "object"
+        },
+        "nameOverride": {
+            "type": "string"
+        },
+        "replicas": {
+            "maximum": 10,
+            "minimum": 1,
+            "multipleOf": 2,
+            "type": "integer"
+        },
+        "service": {
+            "enum": [
+                "ClusterIP",
+                "LoadBalancer",
+                null
+            ],
+            "type": "string"
+        },
+        "tolerations": {
+            "items": {
+                "properties": {
+                    "effect": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "operator": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+        }
+    },
+    "required": [
+        "nameOverride"
+    ],
+    "type": "object"
+}

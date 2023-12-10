@@ -30,15 +30,15 @@ func TestMain(t *testing.T) {
 		},
 		{
 			name:          "SuccessfulRun",
-			args:          []string{"schema", "-input", "testdata/values_1.yaml"},
-			expectedOut:   "",
+			args:          []string{"schema", "-input", "testdata/basic.yaml"},
+			expectedOut:   "JSON schema successfully generated",
 			expectedError: "",
 		},
 		{
 			name:          "GenerateError",
-			args:          []string{"schema", "-input", "testdata/fail.yaml", "-draft", "2020"},
-			expectedOut:   "",
-			expectedError: "Error: error reading YAML file(s)",
+			args:          []string{"schema", "-input", "fail.yaml", "-draft", "2020"},
+			expectedOut:   "error reading YAML file(s)",
+			expectedError: "",
 		},
 	}
 
@@ -46,6 +46,8 @@ func TestMain(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			originalArgs := os.Args
 			originalStdout := os.Stdout
+
+			defer os.Remove("values.schema.json")
 
 			r, w, _ := os.Pipe()
 			os.Stdout = w

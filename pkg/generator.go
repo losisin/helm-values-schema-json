@@ -1,56 +1,87 @@
 package pkg
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Generate JSON schema
 func GenerateJsonSchema(config *Config) error {
-	// Check if the input flag is set
-	if len(config.input) == 0 {
-		return errors.New("input flag is required. Please provide input yaml files using the -input flag")
+	// Determine the schema URL based on the draft version
+	schemaURL, err := getSchemaURL(config.draft)
+	if err != nil {
+		return err
 	}
 
-	var schemaUrl string
-	switch config.draft {
-	case 4:
-		schemaUrl = "http://json-schema.org/draft-04/schema#"
-	case 6:
-		schemaUrl = "http://json-schema.org/draft-06/schema#"
-	case 7:
-		schemaUrl = "http://json-schema.org/draft-07/schema#"
-	case 2019:
-		schemaUrl = "https://json-schema.org/draft/2019-09/schema"
-	case 2020:
-		schemaUrl = "https://json-schema.org/draft/2020-12/schema"
-	default:
-		return errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020")
-	}
-
-	// Declare a map to hold the merged YAML data
-	mergedMap := make(map[string]interface{})
+	// Initialize a Schema to hold the merged YAML data
+	mergedSchema := &Schema{}
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.input {
-		var currentMap map[string]interface{}
-		if err := readAndUnmarshalYAML(filePath, &currentMap); err != nil {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
 			return errors.New("error reading YAML file(s)")
-
 		}
 
-		// Merge the current YAML data with the mergedMap
-		mergedMap = mergeMaps(mergedMap, currentMap)
+		var node yaml.Node
+		if err := yaml.Unmarshal(content, &node); err != nil {
+			return errors.New("error unmarshaling YAML")
+		}
+
+		if len(node.Content) == 0 {
+			continue // Skip empty files
+		}
+
+		rootNode := node.Content[0]
+		properties := make(map[string]*Schema)
+		required := []string{}
+
+		for i := 0; i < len(rootNode.Content); i += 2 {
+			keyNode := rootNode.Content[i]
+			valNode := rootNode.Content[i+1]
+			schema, isRequired := parseNode(keyNode, valNode)
+			properties[keyNode.Value] = schema
+			if isRequired {
+				required = append(required, keyNode.Value)
+			}
+		}
+
+		// Create a temporary Schema to merge from the nodes
+		tempSchema := &Schema{
+			Type:       "object",
+			Properties: properties,
+			Required:   required,
+		}
+
+		// Merge with existing data
+		mergedSchema = mergeSchemas(mergedSchema, tempSchema)
+		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
 	}
 
-	// Print the merged map
-	d := NewDocument(schemaUrl)
-	d.Read(&mergedMap)
-
-	err := printMap(d, config.outputPath)
+	// Convert merged Schema into a JSON Schema compliant map
+	jsonSchemaMap, err := convertSchemaToMap(mergedSchema)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		return err
 	}
+	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
+
+	// If validation is successful, marshal the schema and save to the file
+	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	// Write the JSON schema to the output file
+	outputPath := config.outputPath
+	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
+		return errors.New("error writing schema to file")
+	}
+
+	fmt.Println("JSON schema successfully generated")
 
 	return nil
 }
