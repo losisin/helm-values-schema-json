@@ -24,12 +24,12 @@ func GenerateJsonSchema(config *Config) error {
 	for _, filePath := range config.input {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			return err
+			return errors.New("error reading YAML file(s)")
 		}
 
 		var node yaml.Node
 		if err := yaml.Unmarshal(content, &node); err != nil {
-			return errors.New("error reading YAML file(s)")
+			return errors.New("error unmarshaling YAML")
 		}
 
 		if len(node.Content) == 0 {
@@ -75,10 +75,13 @@ func GenerateJsonSchema(config *Config) error {
 		return err
 	}
 
+	// Write the JSON schema to the output file
 	outputPath := config.outputPath
 	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
-		return fmt.Errorf("error writing JSON schema to file '%s': %v", outputPath, err)
+		return errors.New("error writing schema to file")
 	}
+
+	fmt.Println("JSON schema successfully generated")
 
 	return nil
 }

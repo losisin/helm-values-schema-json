@@ -108,7 +108,7 @@ func TestGetSchemaURL(t *testing.T) {
 		},
 		{
 			name:        "Invalid Draft",
-			draft:       3, // assuming 3 is an invalid draft version
+			draft:       5,
 			expectedURL: "",
 			expectedErr: errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020"),
 		},
