@@ -1,0 +1,4 @@
+app: &app
+  settings:
+    namespace:
+      - *app # @schema type:[string]

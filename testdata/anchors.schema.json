@@ -1,0 +1,24 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "app": {
+            "properties": {
+                "settings": {
+                    "properties": {
+                        "namespace": {
+                            "items": {
+                                "type": [
+                                    "string"
+                                ]
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "type": "object"
+}
