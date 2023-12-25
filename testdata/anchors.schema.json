@@ -14,9 +14,7 @@
                             "type": "array"
                         }
                     },
-                    "type": [
-                        "integer"
-                    ]
+                    "type": "object"
                 }
             },
             "type": "object"

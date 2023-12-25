@@ -70,7 +70,7 @@ replicaCount: # @schema type:[integer, null]
 }
 ```
 
-Another way to use this is to define type when using anchors and pointers in yaml. See discussion [#28](https://github.com/losisin/helm-values-schema-json/issues/28) for more details.
+Another way to use this is to define type when using anchors and aliases in yaml. See discussion [#28](https://github.com/losisin/helm-values-schema-json/issues/28) for more details.
 
 ```yaml
 app: &app

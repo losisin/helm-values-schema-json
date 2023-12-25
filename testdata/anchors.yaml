@@ -1,4 +1,4 @@
-app: &app # @schema type:[integer]
+app: &app
   settings:
     namespace:
       - *app # @schema type:[string]
