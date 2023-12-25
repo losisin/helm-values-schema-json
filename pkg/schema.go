@@ -68,10 +68,13 @@ func getSchemaURL(draft int) (string, error) {
 }
 
 func getComment(keyNode *yaml.Node, valNode *yaml.Node) string {
-	if len(valNode.Value) > 0 {
+	if valNode.LineComment != "" {
 		return valNode.LineComment
 	}
-	return keyNode.LineComment
+	if keyNode != nil {
+		return keyNode.LineComment
+	}
+	return ""
 }
 
 func processList(comment string, stringsOnly bool) []interface{} {
@@ -102,8 +105,6 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 			value := strings.TrimSpace(keyValue[1])
 
 			switch key {
-			case "type":
-				schema.Type = processList(value, true)
 			case "enum":
 				schema.Enum = processList(value, false)
 			case "multipleOf":
@@ -154,6 +155,8 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				if strings.TrimSpace(value) == "true" {
 					isRequired = strings.TrimSpace(value) == "true"
 				}
+			case "type":
+				schema.Type = processList(value, true)
 			}
 		}
 	}
