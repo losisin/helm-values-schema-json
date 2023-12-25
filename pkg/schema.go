@@ -203,10 +203,7 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	propIsRequired := false
-	if keyNode != nil {
-		propIsRequired = processComment(schema, getComment(keyNode, valNode))
-	}
+	propIsRequired := processComment(schema, getComment(keyNode, valNode))
 
 	return schema, propIsRequired
 }

@@ -70,6 +70,42 @@ replicaCount: # @schema type:[integer, null]
 }
 ```
 
+Another way to use this is to define type when using anchors and pointers in yaml. See discussion [#28](https://github.com/losisin/helm-values-schema-json/issues/28) for more details.
+
+```yaml
+app: &app
+  settings:
+    namespace:
+      - *app # @schema type:[string]
+```
+
+```json
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "app": {
+            "properties": {
+                "settings": {
+                    "properties": {
+                        "namespace": {
+                            "items": {
+                                "type": [
+                                    "string"
+                                ]
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "type": "object"
+}
+```
+
 ### Enum
 
 Always returns array of strings. Special case is `null` where instead of string, it is treated as valid inpput type.  [section 6.1.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2)

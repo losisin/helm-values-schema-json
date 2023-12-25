@@ -161,7 +161,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "some value",
 				LineComment: "",
 			},
-			expectedComment: "",
+			expectedComment: "# Key comment",
 		},
 		{
 			name: "empty value node, key node with comment",
