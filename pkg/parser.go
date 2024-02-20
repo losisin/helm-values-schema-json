@@ -50,6 +50,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.MinProperties != nil {
 		dest.MinProperties = src.MinProperties
 	}
+	if src.Title != "" {
+		dest.Title = src.Title
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -136,6 +139,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.MinProperties != nil {
 		schemaMap["minProperties"] = *schema.MinProperties
+	}
+	if schema.Title != "" {
+		schemaMap["title"] = schema.Title
 	}
 
 	// Arrays

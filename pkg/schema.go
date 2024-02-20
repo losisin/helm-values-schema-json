@@ -11,6 +11,7 @@ import (
 type Schema struct {
 	Type          interface{}        `json:"type,omitempty"`
 	Enum          []any              `json:"enum,omitempty"`
+	Title         string             `json:"title,omitempty"`
 	MultipleOf    *float64           `json:"multipleOf,omitempty"`
 	Maximum       *float64           `json:"maximum,omitempty"`
 	Minimum       *float64           `json:"minimum,omitempty"`
@@ -157,6 +158,8 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				}
 			case "type":
 				schema.Type = processList(value, true)
+			case "title":
+				schema.Title = value
 			}
 		}
 	}

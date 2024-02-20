@@ -15,7 +15,7 @@ empty: # @schema type: [string, null]
 replicas: 2 # @schema minimum: 1 ; maximum: 10 ; multipleOf: 2
 
 # Strings
-fullnameOverride: bar # @schema pattern: ^[a-z]$ ; minLength: 1 ; maxLength: 10
+fullnameOverride: bar # @schema pattern: ^[a-z]$ ; title: My title
 
 # Arrays
 tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
