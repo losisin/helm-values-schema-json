@@ -37,6 +37,8 @@ The following annotations are supported:
     * [minProperties](#minproperties)
     * [maxProperties](#maxproperties)
     * [required](#required)
+* [Meta-Data Annotations](#meta-data-annotations)
+    * [title](#title)
 
 ## Validation Keywords for Any Instance Type
 
@@ -363,4 +365,21 @@ image:
     ],
     "type": "object"
 }
+```
+
+## Meta-Data Annotations
+
+### title
+
+String. [section 9.1](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.1)
+
+```yaml
+fullnameOverride: bar # @schema title: My title
+```
+
+```json
+"fullnameOverride": {
+    "title": "My title",
+    "type": "string"
+},
 ```
