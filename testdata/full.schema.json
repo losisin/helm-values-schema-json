@@ -89,9 +89,8 @@
             ]
         },
         "fullnameOverride": {
-            "maxLength": 10,
-            "minLength": 1,
             "pattern": "^[a-z]$",
+            "title": "My title",
             "type": "string"
         },
         "image": {

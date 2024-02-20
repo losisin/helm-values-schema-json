@@ -290,8 +290,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set string",
 			schema:           &Schema{},
-			comment:          "# @schema pattern:^abv$;minLength:2;maxLength:10",
-			expectedSchema:   &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
+			comment:          "# @schema pattern:^abv$;title:My Title;minLength:2;maxLength:10",
+			expectedSchema:   &Schema{Pattern: "^abv$", Title: "My Title", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
 			expectedRequired: false,
 		},
 		{
@@ -308,18 +308,6 @@ func TestProcessComment(t *testing.T) {
 			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
 			expectedRequired: false,
 		},
-		// {
-		// 	name: "Set required",
-		// 	schema: &Schema{
-		// 		Type: "object",
-		// 		Properties: map[string]*Schema{
-		// 			"shared": {Type: "string"},
-		// 		},
-		// 	},
-		// 	comment:          "# @schema required:true",
-		// 	expectedSchema:   &Schema{Required: []string{"shared"}},
-		// 	expectedRequired: true,
-		// },
 	}
 
 	for _, tt := range tests {

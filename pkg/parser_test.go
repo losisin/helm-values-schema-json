@@ -21,7 +21,7 @@ func schemasEqual(a, b *Schema) bool {
 		return a == b
 	}
 	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems {
+	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title {
 		return false
 	}
 	// Compare pointer fields
@@ -138,9 +138,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "string properties",
-			dest: &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
-			src:  &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
-			want: &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			dest: &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			src:  &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			want: &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
 		},
 		{
 			name: "array properties",
@@ -232,6 +232,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Maximum:    float64Ptr(10),
 				Minimum:    float64Ptr(1),
 				Pattern:    "^abc",
+				Title:      "My Title",
 				Enum:       []interface{}{1, 2, 3},
 			},
 			want: map[string]interface{}{
@@ -240,6 +241,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				"maximum":    10.0,
 				"minimum":    1.0,
 				"pattern":    "^abc",
+				"title":      "My Title",
 				"enum":       []interface{}{1, 2, 3},
 			},
 		},
