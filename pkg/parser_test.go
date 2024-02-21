@@ -257,7 +257,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertSchemaToMap(tt.schema)
+			got, err := convertSchemaToMap(tt.schema, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertSchemaToMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -304,7 +304,7 @@ func TestConvertSchemaToMapFail(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := convertSchemaToMap(tc.schema)
+			_, err := convertSchemaToMap(tc.schema, false)
 			tc.expectedErr(t, err)
 		})
 	}
