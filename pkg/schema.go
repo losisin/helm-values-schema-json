@@ -11,7 +11,6 @@ import (
 type Schema struct {
 	Type          interface{}        `json:"type,omitempty"`
 	Enum          []any              `json:"enum,omitempty"`
-	Title         string             `json:"title,omitempty"`
 	MultipleOf    *float64           `json:"multipleOf,omitempty"`
 	Maximum       *float64           `json:"maximum,omitempty"`
 	Minimum       *float64           `json:"minimum,omitempty"`
@@ -26,6 +25,8 @@ type Schema struct {
 	Required      []string           `json:"required,omitempty"`
 	Items         *Schema            `json:"items,omitempty"`
 	Properties    map[string]*Schema `json:"properties,omitempty"`
+	Title         string             `json:"title,omitempty"`
+	ReadOnly      bool               `json:"readOnly,omitempty"`
 }
 
 func getKind(value string) string {
@@ -160,6 +161,10 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				schema.Type = processList(value, true)
 			case "title":
 				schema.Title = value
+			case "readOnly":
+				if v, err := strconv.ParseBool(value); err == nil {
+					schema.ReadOnly = v
+				}
 			}
 		}
 	}

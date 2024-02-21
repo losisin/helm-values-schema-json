@@ -21,7 +21,7 @@ func schemasEqual(a, b *Schema) bool {
 		return a == b
 	}
 	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title {
+	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.ReadOnly != b.ReadOnly {
 		return false
 	}
 	// Compare pointer fields
@@ -138,9 +138,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "string properties",
-			dest: &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
-			src:  &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
-			want: &Schema{Type: "string", Pattern: "^abc", Title: "My Title", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			dest: &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			src:  &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+			want: &Schema{Type: "string", Pattern: "^abc", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
 		},
 		{
 			name: "array properties",
@@ -153,6 +153,12 @@ func TestMergeSchemas(t *testing.T) {
 			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
 			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
 			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
+		},
+		{
+			name: "meta-data properties",
+			dest: &Schema{Type: "object", Title: "My Title", ReadOnly: true},
+			src:  &Schema{Type: "object", Title: "My Title", ReadOnly: true},
+			want: &Schema{Type: "object", Title: "My Title", ReadOnly: true},
 		},
 	}
 
@@ -211,6 +217,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				MinItems:    uint64Ptr(1),
 				MaxItems:    uint64Ptr(2),
 				UniqueItems: true,
+				ReadOnly:    true,
 			},
 			want: map[string]interface{}{
 				"type": "array",
@@ -222,6 +229,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				"minItems":    uint64(1),
 				"maxItems":    uint64(2),
 				"uniqueItems": true,
+				"readOnly":    true,
 			},
 		},
 		{
