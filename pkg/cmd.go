@@ -16,6 +16,7 @@ func ParseFlags(progname string, args []string) (config *Config, output string, 
 	flags.Var(&conf.input, "input", "Multiple yaml files as inputs (comma-separated)")
 	flags.StringVar(&conf.outputPath, "output", "values.schema.json", "Output file path")
 	flags.IntVar(&conf.draft, "draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
+	flags.BoolVar(&conf.noAdditionalProperties, "noAdditionalProperties", false, "Set this flag to disallow additional properties")
 
 	err = flags.Parse(args)
 	if err != nil {

@@ -4,9 +4,10 @@ import "strings"
 
 // Save values of parsed flags in Config
 type Config struct {
-	input      multiStringFlag
-	outputPath string
-	draft      int
+	input                  multiStringFlag
+	outputPath             string
+	draft                  int
+	noAdditionalProperties bool
 
 	args []string
 }
