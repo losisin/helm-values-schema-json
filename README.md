@@ -93,6 +93,8 @@ usage: helm schema [-input STR] [-draft INT] [-output STR]
     	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
   -input value
     	Multiple yamlFiles as inputs (comma-separated)
+  -noAdditionalProperties
+        Set this flag to disallow additional properties
   -output string
     	Output file path (default "values.schema.json")
 ```
