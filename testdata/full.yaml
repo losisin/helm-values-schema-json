@@ -1,7 +1,7 @@
 # Required
 image:
   repository: nginx # @schema required: true
-  tag: latest
+  tag: latest # @schema readOnly: true
   pullPolicy: Always
 nameOverride: foo # @schema required: true
 

@@ -53,6 +53,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Title != "" {
 		dest.Title = src.Title
 	}
+	if src.ReadOnly {
+		dest.ReadOnly = src.ReadOnly
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -142,6 +145,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.Title != "" {
 		schemaMap["title"] = schema.Title
+	}
+	if schema.ReadOnly {
+		schemaMap["readOnly"] = schema.ReadOnly
 	}
 
 	// Arrays

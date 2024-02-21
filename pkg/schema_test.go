@@ -276,8 +276,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set enum",
 			schema:           &Schema{},
-			comment:          "# @schema enum:[one, two, null]",
-			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}},
+			comment:          "# @schema enum:[one, two, null];readOnly:true",
+			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}, ReadOnly: true},
 			expectedRequired: false,
 		},
 		{

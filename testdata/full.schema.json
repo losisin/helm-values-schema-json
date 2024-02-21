@@ -102,6 +102,7 @@
                     "type": "string"
                 },
                 "tag": {
+                    "readOnly": true,
                     "type": "string"
                 }
             },

@@ -383,3 +383,22 @@ fullnameOverride: bar # @schema title: My title
     "type": "string"
 },
 ```
+
+### readOnly
+
+```yaml
+image:
+  tag: latest # @schema readOnly: true
+```
+
+```json
+"image": {
+    "properties": {
+        "tag": {
+            "readOnly": true,
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
