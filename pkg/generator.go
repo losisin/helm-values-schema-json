@@ -52,9 +52,10 @@ func GenerateJsonSchema(config *Config) error {
 
 		// Create a temporary Schema to merge from the nodes
 		tempSchema := &Schema{
-			Type:       "object",
-			Properties: properties,
-			Required:   required,
+			Type:                 "object",
+			Properties:           properties,
+			Required:             required,
+			AdditionalProperties: &config.noAdditionalProperties,
 		}
 
 		// Merge with existing data
@@ -63,7 +64,7 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	// Convert merged Schema into a JSON Schema compliant map
-	jsonSchemaMap, err := convertSchemaToMap(mergedSchema)
+	jsonSchemaMap, err := convertSchemaToMap(mergedSchema, config.noAdditionalProperties)
 	if err != nil {
 		return err
 	}
