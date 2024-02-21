@@ -386,6 +386,8 @@ fullnameOverride: bar # @schema title: My title
 
 ### readOnly
 
+Boolean. [section 9.4](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.4)
+
 ```yaml
 image:
   tag: latest # @schema readOnly: true
