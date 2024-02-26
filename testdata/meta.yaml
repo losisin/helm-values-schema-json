@@ -1,0 +1,14 @@
+fullnameOverride: "" # @schema title: Full name override ; default: baz
+
+image:
+  repository: "" # @schema default: "nginx"
+  tag: latest # @schema readOnly: true
+
+metrics:
+  enabled: false # @schema default: true
+
+replicas: 1 # @schema default: 2
+
+tolerations: [] # @schema default: [{"key":"foo","operator":"Equal","value":"bar","effect":"NoSchedule"}]
+
+nodeSelector: {} # @schema default: {"cloud.google.com/gke-nodepool": "e2-standard-8-spot"}

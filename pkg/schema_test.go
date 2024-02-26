@@ -276,8 +276,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set enum",
 			schema:           &Schema{},
-			comment:          "# @schema enum:[one, two, null];readOnly:true",
-			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}, ReadOnly: true},
+			comment:          "# @schema enum:[one, two, null]",
+			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}},
 			expectedRequired: false,
 		},
 		{
@@ -290,8 +290,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set string",
 			schema:           &Schema{},
-			comment:          "# @schema pattern:^abv$;title:My Title;minLength:2;maxLength:10",
-			expectedSchema:   &Schema{Pattern: "^abv$", Title: "My Title", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
+			comment:          "# @schema pattern:^abv$;minLength:2;maxLength:10",
+			expectedSchema:   &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
 			expectedRequired: false,
 		},
 		{
@@ -306,6 +306,13 @@ func TestProcessComment(t *testing.T) {
 			schema:           &Schema{},
 			comment:          "# @schema minProperties:1;maxProperties:10",
 			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set meta-data",
+			schema:           &Schema{},
+			comment:          "# @schema title:My Title;readOnly:false;default:\"foo\"",
+			expectedSchema:   &Schema{Title: "My Title", ReadOnly: false, Default: "foo"},
 			expectedRequired: false,
 		},
 	}

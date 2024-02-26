@@ -1,0 +1,54 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "fullnameOverride": {
+            "title": "Full name override",
+            "type": "string"
+        },
+        "image": {
+            "properties": {
+                "repository": {
+                    "default": "nginx",
+                    "type": "string"
+                },
+                "tag": {
+                    "readOnly": true,
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "metrics": {
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "nodeSelector": {
+            "default": {
+                "cloud.google.com/gke-nodepool": "e2-standard-8-spot"
+            },
+            "properties": {},
+            "type": "object"
+        },
+        "replicas": {
+            "default": 2,
+            "type": "integer"
+        },
+        "tolerations": {
+            "default": [
+                {
+                    "effect": "NoSchedule",
+                    "key": "foo",
+                    "operator": "Equal",
+                    "value": "bar"
+                }
+            ],
+            "type": "array"
+        }
+    },
+    "type": "object"
+}

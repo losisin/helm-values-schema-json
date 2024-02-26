@@ -39,6 +39,8 @@ The following annotations are supported:
     * [required](#required)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title](#title)
+    * [default](#default)
+    * [readOnly](#readonly)
 
 ## Validation Keywords for Any Instance Type
 
@@ -382,6 +384,28 @@ fullnameOverride: bar # @schema title: My title
     "title": "My title",
     "type": "string"
 },
+```
+
+### default
+
+Any JSON value. [section 9.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.2)
+
+```yaml
+tolerations: [] # @schema default: [{"key":"foo","operator":"Equal","value":"bar","effect":"NoSchedule"}]
+```
+
+```json
+"tolerations": {
+    "default": [
+        {
+            "effect": "NoSchedule",
+            "key": "foo",
+            "operator": "Equal",
+            "value": "bar"
+        }
+    ],
+    "type": "array"
+}
 ```
 
 ### readOnly

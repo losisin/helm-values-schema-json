@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type Schema struct {
 	Properties    map[string]*Schema `json:"properties,omitempty"`
 	Title         string             `json:"title,omitempty"`
 	ReadOnly      bool               `json:"readOnly,omitempty"`
+	Default       interface{}        `json:"default,omitempty"`
 }
 
 func getKind(value string) string {
@@ -164,6 +166,11 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 			case "readOnly":
 				if v, err := strconv.ParseBool(value); err == nil {
 					schema.ReadOnly = v
+				}
+			case "default":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.Default = jsonObject
 				}
 			}
 		}
