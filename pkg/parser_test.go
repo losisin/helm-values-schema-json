@@ -156,9 +156,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", ReadOnly: true},
-			src:  &Schema{Type: "object", Title: "My Title", ReadOnly: true},
-			want: &Schema{Type: "object", Title: "My Title", ReadOnly: true},
+			dest: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
+			src:  &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
+			want: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
 		},
 	}
 
@@ -242,6 +242,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Pattern:    "^abc",
 				Title:      "My Title",
 				Enum:       []interface{}{1, 2, 3},
+				Default:    "default",
 			},
 			want: map[string]interface{}{
 				"type":       "integer",
@@ -251,6 +252,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				"pattern":    "^abc",
 				"title":      "My Title",
 				"enum":       []interface{}{1, 2, 3},
+				"default":    "default",
 			},
 		},
 	}
