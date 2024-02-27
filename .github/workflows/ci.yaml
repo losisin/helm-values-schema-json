@@ -30,6 +30,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4
         with:
           args: --timeout 5m0s
+          skip-cache: true
       - name: Run tests
         run: make test-all
       - name: Install plugin
