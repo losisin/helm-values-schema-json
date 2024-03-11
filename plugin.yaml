@@ -1,5 +1,5 @@
 name: "schema"
-version: "1.2.1"
+version: "1.2.2"
 usage: "generate values.schema.json from values yaml"
 description: "Helm plugin for generating values.schema.json from multiple values files."
 ignoreFlags: false
