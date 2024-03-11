@@ -172,6 +172,10 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.Default = jsonObject
 				}
+			case "item":
+				schema.Items = &Schema{
+					Type: value,
+				}
 			}
 		}
 	}
