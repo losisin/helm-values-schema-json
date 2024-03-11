@@ -297,8 +297,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set array",
 			schema:           &Schema{},
-			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true",
-			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
+			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:boolean",
+			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "boolean"}},
 			expectedRequired: false,
 		},
 		{

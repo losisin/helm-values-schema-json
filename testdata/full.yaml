@@ -18,6 +18,8 @@ replicas: 2 # @schema minimum: 1 ; maximum: 10 ; multipleOf: 2
 fullnameOverride: bar # @schema pattern: ^[a-z]$ ; title: My title
 
 # Arrays
+imagePullSecrets: [] # @schema item: object
+
 tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
   - key: "bar"
     operator: "Equal"

@@ -111,6 +111,12 @@
             ],
             "type": "object"
         },
+        "imagePullSecrets": {
+            "items": {
+                "type": "object"
+            },
+            "type": "array"
+        },
         "nameOverride": {
             "type": "string"
         },
