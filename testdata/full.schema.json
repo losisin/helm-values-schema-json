@@ -89,6 +89,7 @@
             ]
         },
         "fullnameOverride": {
+            "description": "My description",
             "pattern": "^[a-z]$",
             "title": "My title",
             "type": "string"

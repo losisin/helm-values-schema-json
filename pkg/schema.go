@@ -27,6 +27,7 @@ type Schema struct {
 	Items         *Schema            `json:"items,omitempty"`
 	Properties    map[string]*Schema `json:"properties,omitempty"`
 	Title         string             `json:"title,omitempty"`
+	Description   string             `json:"description,omitempty"`
 	ReadOnly      bool               `json:"readOnly,omitempty"`
 	Default       interface{}        `json:"default,omitempty"`
 }
@@ -163,6 +164,8 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				schema.Type = processList(value, true)
 			case "title":
 				schema.Title = value
+			case "description":
+				schema.Description = value
 			case "readOnly":
 				if v, err := strconv.ParseBool(value); err == nil {
 					schema.ReadOnly = v

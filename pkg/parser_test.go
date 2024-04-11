@@ -21,7 +21,7 @@ func schemasEqual(a, b *Schema) bool {
 		return a == b
 	}
 	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.ReadOnly != b.ReadOnly {
+	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.Description != b.Description || a.ReadOnly != b.ReadOnly {
 		return false
 	}
 	// Compare pointer fields
@@ -156,9 +156,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
-			src:  &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
-			want: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
 		},
 	}
 
@@ -235,24 +235,26 @@ func TestConvertSchemaToMap(t *testing.T) {
 		{
 			name: "with all scalar types",
 			schema: &Schema{
-				Type:       "integer",
-				MultipleOf: float64Ptr(3),
-				Maximum:    float64Ptr(10),
-				Minimum:    float64Ptr(1),
-				Pattern:    "^abc",
-				Title:      "My Title",
-				Enum:       []interface{}{1, 2, 3},
-				Default:    "default",
+				Type:        "integer",
+				MultipleOf:  float64Ptr(3),
+				Maximum:     float64Ptr(10),
+				Minimum:     float64Ptr(1),
+				Pattern:     "^abc",
+				Title:       "My Title",
+				Description: "some description",
+				Enum:        []interface{}{1, 2, 3},
+				Default:     "default",
 			},
 			want: map[string]interface{}{
-				"type":       "integer",
-				"multipleOf": 3.0,
-				"maximum":    10.0,
-				"minimum":    1.0,
-				"pattern":    "^abc",
-				"title":      "My Title",
-				"enum":       []interface{}{1, 2, 3},
-				"default":    "default",
+				"type":        "integer",
+				"multipleOf":  3.0,
+				"maximum":     10.0,
+				"minimum":     1.0,
+				"pattern":     "^abc",
+				"title":       "My Title",
+				"description": "some description",
+				"enum":        []interface{}{1, 2, 3},
+				"default":     "default",
 			},
 		},
 	}

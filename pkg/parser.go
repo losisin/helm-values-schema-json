@@ -53,6 +53,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Title != "" {
 		dest.Title = src.Title
 	}
+	if src.Description != "" {
+		dest.Description = src.Description
+	}
 	if src.ReadOnly {
 		dest.ReadOnly = src.ReadOnly
 	}
@@ -148,6 +151,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.Title != "" {
 		schemaMap["title"] = schema.Title
+	}
+	if schema.Description != "" {
+		schemaMap["description"] = schema.Description
 	}
 	if schema.ReadOnly {
 		schemaMap["readOnly"] = schema.ReadOnly
