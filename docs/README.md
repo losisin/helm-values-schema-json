@@ -38,7 +38,7 @@ The following annotations are supported:
     * [maxProperties](#maxproperties)
     * [required](#required)
 * [Meta-Data Annotations](#meta-data-annotations)
-    * [title](#title)
+    * [title and description](#title-and-description)
     * [default](#default)
     * [readOnly](#readonly)
 
@@ -371,17 +371,21 @@ image:
 
 ## Meta-Data Annotations
 
-### title
+### title and description
 
 String. [section 9.1](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.1)
 
 ```yaml
-fullnameOverride: bar # @schema title: My title
+fullnameOverride: bar # @schema title: My title ; description: My description
+```
+
+```json
 ```
 
 ```json
 "fullnameOverride": {
     "title": "My title",
+    "description": "My description",
     "type": "string"
 },
 ```

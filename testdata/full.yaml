@@ -15,7 +15,7 @@ empty: # @schema type: [string, null]
 replicas: 2 # @schema minimum: 1 ; maximum: 10 ; multipleOf: 2
 
 # Strings
-fullnameOverride: bar # @schema pattern: ^[a-z]$ ; title: My title
+fullnameOverride: bar # @schema pattern: ^[a-z]$ ; title: My title ; description: My description
 
 # Arrays
 imagePullSecrets: [] # @schema item: object

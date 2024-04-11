@@ -311,8 +311,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set meta-data",
 			schema:           &Schema{},
-			comment:          "# @schema title:My Title;readOnly:false;default:\"foo\"",
-			expectedSchema:   &Schema{Title: "My Title", ReadOnly: false, Default: "foo"},
+			comment:          "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
+			expectedSchema:   &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
 			expectedRequired: false,
 		},
 	}
