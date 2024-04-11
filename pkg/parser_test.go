@@ -21,7 +21,7 @@ func schemasEqual(a, b *Schema) bool {
 		return a == b
 	}
 	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.ReadOnly != b.ReadOnly {
+	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.Description != b.Description || a.ReadOnly != b.ReadOnly {
 		return false
 	}
 	// Compare pointer fields
@@ -156,9 +156,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
-			src:  &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
-			want: &Schema{Type: "object", Title: "My Title", ReadOnly: true, Default: "default value"},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
 		},
 	}
 
