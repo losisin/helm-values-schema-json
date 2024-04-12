@@ -39,7 +39,7 @@ affinity:
           - antarctica-west1
     preferredDuringSchedulingIgnoredDuringExecution:
     - weight: 1
-      preference:
+      preference: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
         matchExpressions:
         - key: another-node-label-key
           operator: In

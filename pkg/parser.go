@@ -50,6 +50,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.MinProperties != nil {
 		dest.MinProperties = src.MinProperties
 	}
+	if src.PatternProperties != nil {
+		dest.PatternProperties = src.PatternProperties
+	}
 	if src.Title != "" {
 		dest.Title = src.Title
 	}
@@ -148,6 +151,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.MinProperties != nil {
 		schemaMap["minProperties"] = *schema.MinProperties
+	}
+	if schema.PatternProperties != nil {
+		schemaMap["patternProperties"] = schema.PatternProperties
 	}
 	if schema.Title != "" {
 		schemaMap["title"] = schema.Title

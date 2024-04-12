@@ -10,26 +10,27 @@ import (
 )
 
 type Schema struct {
-	Type          interface{}        `json:"type,omitempty"`
-	Enum          []any              `json:"enum,omitempty"`
-	MultipleOf    *float64           `json:"multipleOf,omitempty"`
-	Maximum       *float64           `json:"maximum,omitempty"`
-	Minimum       *float64           `json:"minimum,omitempty"`
-	MaxLength     *uint64            `json:"maxLength,omitempty"`
-	MinLength     *uint64            `json:"minLength,omitempty"`
-	Pattern       string             `json:"pattern,omitempty"`
-	MaxItems      *uint64            `json:"maxItems,omitempty"`
-	MinItems      *uint64            `json:"minItems,omitempty"`
-	UniqueItems   bool               `json:"uniqueItems,omitempty"`
-	MaxProperties *uint64            `json:"maxProperties,omitempty"`
-	MinProperties *uint64            `json:"minProperties,omitempty"`
-	Required      []string           `json:"required,omitempty"`
-	Items         *Schema            `json:"items,omitempty"`
-	Properties    map[string]*Schema `json:"properties,omitempty"`
-	Title         string             `json:"title,omitempty"`
-	Description   string             `json:"description,omitempty"`
-	ReadOnly      bool               `json:"readOnly,omitempty"`
-	Default       interface{}        `json:"default,omitempty"`
+	Type              interface{}        `json:"type,omitempty"`
+	Enum              []any              `json:"enum,omitempty"`
+	MultipleOf        *float64           `json:"multipleOf,omitempty"`
+	Maximum           *float64           `json:"maximum,omitempty"`
+	Minimum           *float64           `json:"minimum,omitempty"`
+	MaxLength         *uint64            `json:"maxLength,omitempty"`
+	MinLength         *uint64            `json:"minLength,omitempty"`
+	Pattern           string             `json:"pattern,omitempty"`
+	MaxItems          *uint64            `json:"maxItems,omitempty"`
+	MinItems          *uint64            `json:"minItems,omitempty"`
+	UniqueItems       bool               `json:"uniqueItems,omitempty"`
+	MaxProperties     *uint64            `json:"maxProperties,omitempty"`
+	MinProperties     *uint64            `json:"minProperties,omitempty"`
+	PatternProperties interface{}        `json:"patternProperties,omitempty"`
+	Required          []string           `json:"required,omitempty"`
+	Items             *Schema            `json:"items,omitempty"`
+	Properties        map[string]*Schema `json:"properties,omitempty"`
+	Title             string             `json:"title,omitempty"`
+	Description       string             `json:"description,omitempty"`
+	ReadOnly          bool               `json:"readOnly,omitempty"`
+	Default           interface{}        `json:"default,omitempty"`
 }
 
 func getKind(value string) string {
@@ -155,6 +156,11 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 			case "minProperties":
 				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
 					schema.MinProperties = &v
+				}
+			case "patternProperties":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.PatternProperties = jsonObject
 				}
 			case "required":
 				if strings.TrimSpace(value) == "true" {
