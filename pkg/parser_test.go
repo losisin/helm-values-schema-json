@@ -95,12 +95,13 @@ func TestMergeSchemas(t *testing.T) {
 			dest: &Schema{Type: "object", Properties: map[string]*Schema{
 				"foo": {Type: "integer"},
 			}},
-			src: &Schema{Type: "object", Properties: map[string]*Schema{
-				"bar": {Type: "string"},
+			src: &Schema{Type: "object", PatternProperties: map[string]*Schema{
+				"^[a-z]$": {Type: "integer"},
 			}},
 			want: &Schema{Type: "object", Properties: map[string]*Schema{
 				"foo": {Type: "integer"},
-				"bar": {Type: "string"},
+			}, PatternProperties: map[string]*Schema{
+				"^[a-z]$": {Type: "integer"},
 			}},
 		},
 		{
@@ -150,9 +151,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
 		},
 		{
 			name: "meta-data properties",

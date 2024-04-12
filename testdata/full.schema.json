@@ -11,6 +11,11 @@
                             "items": {
                                 "properties": {
                                     "preference": {
+                                        "patternProperties": {
+                                            "^[a-z]$": {
+                                                "type": "string"
+                                            }
+                                        },
                                         "properties": {
                                             "matchExpressions": {
                                                 "items": {
