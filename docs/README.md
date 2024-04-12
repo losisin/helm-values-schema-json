@@ -170,7 +170,7 @@ This will generate following schema:
 String that is valid regular expression, according to the ECMA-262 regular expression dialect. [section 6.3.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.3.3)
 
 ```yaml
-nameOverride: "myapp" # @schema patter:^[a-z]+$
+nameOverride: "myapp" # @schema pattern:^[a-z]+$
 ```
 
 This will generate following schema:
