@@ -31,6 +31,8 @@ jobs:
         with:
           args: --timeout 5m0s
           skip-cache: true
+      - name: Check code
+        run: make check
       - name: Run tests
         run: make test-all
       - name: Install plugin
