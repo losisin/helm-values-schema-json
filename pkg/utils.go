@@ -7,6 +7,7 @@ type Config struct {
 	input      multiStringFlag
 	outputPath string
 	draft      int
+	indent     int
 
 	args []string
 }

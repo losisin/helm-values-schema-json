@@ -13,13 +13,16 @@ func TestParseFlagsPass(t *testing.T) {
 		conf Config
 	}{
 		{[]string{"-input", "values.yaml"},
-			Config{input: multiStringFlag{"values.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
+			Config{input: multiStringFlag{"values.yaml"}, outputPath: "values.schema.json", draft: 2020, indent: 4, args: []string{}}},
 
-		{[]string{"-input", "values1.yaml values2.yaml"},
-			Config{input: multiStringFlag{"values1.yaml values2.yaml"}, outputPath: "values.schema.json", draft: 2020, args: []string{}}},
+		{[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
+			Config{input: multiStringFlag{"values1.yaml values2.yaml"}, outputPath: "values.schema.json", draft: 2020, indent: 2, args: []string{}}},
+
+		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
+			Config{input: multiStringFlag{"values.yaml"}, outputPath: "my.schema.json", draft: 2019, indent: 2, args: []string{}}},
 
 		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019"},
-			Config{input: multiStringFlag{"values.yaml"}, outputPath: "my.schema.json", draft: 2019, args: []string{}}},
+			Config{input: multiStringFlag{"values.yaml"}, outputPath: "my.schema.json", draft: 2019, indent: 4, args: []string{}}},
 	}
 
 	for _, tt := range tests {

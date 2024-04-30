@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -16,6 +17,15 @@ func GenerateJsonSchema(config *Config) error {
 	if err != nil {
 		return err
 	}
+
+	// Determine the indentation string based on the number of spaces
+	if config.indent <= 0 {
+		return errors.New("indentation must be a positive number")
+	}
+	if config.indent%2 != 0 {
+		return errors.New("indentation must be an even number")
+	}
+	indentString := strings.Repeat(" ", config.indent)
 
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
@@ -70,10 +80,11 @@ func GenerateJsonSchema(config *Config) error {
 	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
 
 	// If validation is successful, marshal the schema and save to the file
-	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", "    ")
+	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", indentString)
 	if err != nil {
 		return err
 	}
+	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
 	outputPath := config.outputPath

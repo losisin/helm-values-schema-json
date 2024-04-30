@@ -58,7 +58,7 @@ First [install pre-commit](https://pre-commit.com/#install) and then create or u
 ```yaml
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v1.2.4
+    rev: v1.3.0
     hooks:
       - id: helm-schema
         args: ["-input", "values.yaml"]
@@ -92,6 +92,8 @@ $ helm schema -help
 usage: helm schema [-input STR] [-draft INT] [-output STR]
   -draft int
     	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+  -indent int
+    	Indentation spaces (even number) (default 4)
   -input value
     	Multiple yamlFiles as inputs (comma-separated)
   -output string
