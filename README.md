@@ -92,6 +92,8 @@ $ helm schema -help
 usage: helm schema [-input STR] [-draft INT] [-output STR]
   -draft int
     	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+  -indent int
+    	Indentation spaces (even number) (default 4)
   -input value
     	Multiple yamlFiles as inputs (comma-separated)
   -output string
