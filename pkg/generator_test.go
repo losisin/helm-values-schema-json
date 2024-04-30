@@ -17,6 +17,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 		outputPath: "../testdata/output.json",
 		draft:      2020,
+		indent:     4,
 	}
 
 	err := GenerateJsonSchema(config)
@@ -56,10 +57,31 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("invalid draft version"),
 		},
 		{
+			name: "Negative indentation number",
+			config: &Config{
+				input:      []string{"../testdata/basic.yaml"},
+				draft:      2020,
+				outputPath: "testdata/failure/output_readonly_schema.json",
+				indent:     0,
+			},
+			expectedErr: errors.New("indentation must be a positive number"),
+		},
+		{
+			name: "Odd indentation number",
+			config: &Config{
+				input:      []string{"../testdata/basic.yaml"},
+				draft:      2020,
+				outputPath: "testdata/failure/output_readonly_schema.json",
+				indent:     1,
+			},
+			expectedErr: errors.New("indentation must be an even number"),
+		},
+		{
 			name: "Missing file",
 			config: &Config{
-				input: []string{"missing.yaml"},
-				draft: 2020,
+				input:  []string{"missing.yaml"},
+				draft:  2020,
+				indent: 4,
 			},
 			expectedErr: errors.New("error reading YAML file(s)"),
 		},
@@ -69,6 +91,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				input:      []string{"../testdata/fail"},
 				outputPath: "testdata/failure/output_readonly_schema.json",
 				draft:      2020,
+				indent:     4,
 			},
 			expectedErr: errors.New("error unmarshaling YAML"),
 		},
@@ -78,6 +101,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				input:      []string{"../testdata/basic.yaml"},
 				outputPath: "testdata/failure/output_readonly_schema.json",
 				draft:      2020,
+				indent:     4,
 			},
 			expectedErr: errors.New("error writing schema to file"),
 		},

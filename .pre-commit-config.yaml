@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v1.2.4
+    rev: v1.3.0
     hooks:
       - id: helm-schema
         args:
@@ -10,3 +10,5 @@ repos:
           - --output=values.schema.json
           # Draft version (4, 6, 7, 2019, or 2020) (default 2020)
           - --draft=2020
+          # Indentation spaces (even number)
+          - --indent=4
