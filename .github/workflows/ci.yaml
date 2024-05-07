@@ -27,7 +27,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v5
+        uses: golangci/golangci-lint-action@v6
         with:
           args: --timeout 5m0s
           skip-cache: true
