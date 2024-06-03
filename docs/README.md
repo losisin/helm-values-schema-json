@@ -374,7 +374,7 @@ image:
 
 ### patternProperties
 
-JSON string added "AS IS" to the node. [documentation](https://json-schema.org/understanding-json-schema/reference/object#patternProperties)
+JSON string added "AS IS" to the node. [section 10.3.2.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.2)
 
 ```yaml
 image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
@@ -399,7 +399,7 @@ image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
 
 ### additionalProperties
 
-Boolean. [documentation](https://json-schema.org/understanding-json-schema/reference/object#additionalproperties)
+Boolean. [section 10.3.2.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.3)
 
 ```yaml
 image: # @schema additionalProperties: false
