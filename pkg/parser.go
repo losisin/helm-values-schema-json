@@ -65,6 +65,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Default != nil {
 		dest.Default = src.Default
 	}
+	if src.AdditionalProperties != nil {
+		dest.AdditionalProperties = src.AdditionalProperties
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -166,6 +169,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.Default != nil {
 		schemaMap["default"] = schema.Default
+	}
+	if schema.AdditionalProperties != nil {
+		schemaMap["additionalProperties"] = *schema.AdditionalProperties
 	}
 
 	// Arrays

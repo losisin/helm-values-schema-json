@@ -3,7 +3,7 @@
 JSON schema is partially implemented in this tool. It uses line comments to add annotations for the schema because head comments are frequently used by humans and tools like helm-docs. Multiple annotations can be added to a single line sepparated by semi-colon. For example:
 
 ```yaml
-nameOverride: "myapp" # @schema maxLength:10;patter:^[a-z]+$
+nameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
 ```
 
 This will generate following schema:
@@ -37,6 +37,8 @@ The following annotations are supported:
     * [minProperties](#minproperties)
     * [maxProperties](#maxproperties)
     * [required](#required)
+    * [patternProperties](#patternproperties)
+    * [additionalProperties](#additionalproperties)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [default](#default)
@@ -365,6 +367,52 @@ image:
         "repository",
         "tag"
     ],
+    "type": "object"
+}
+```
+
+### patternProperties
+
+JSON string added "AS IS" to the node. [documentation](https://json-schema.org/understanding-json-schema/reference/object#patternProperties)
+
+```yaml
+image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
+  repository: "nginx"
+```
+
+```json
+"image": {
+    "patternProperties": {
+        "^[a-z]$": {
+            "type": "string"
+        }
+    },
+    "properties": {
+        "repository": {
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
+
+### additionalProperties
+
+Boolean. [documentation](https://json-schema.org/understanding-json-schema/reference/object#additionalproperties)
+
+```yaml
+image: # @schema additionalProperties: false
+  repository: "nginx"
+```
+
+```json
+"image": {
+    "additionalProperties": false,
+    "properties": {
+        "repository": {
+            "type": "string"
+        }
+    },
     "type": "object"
 }
 ```
