@@ -62,9 +62,12 @@ func GenerateJsonSchema(config *Config) error {
 
 		// Create a temporary Schema to merge from the nodes
 		tempSchema := &Schema{
-			Type:       "object",
-			Properties: properties,
-			Required:   required,
+			Type:        "object",
+			Properties:  properties,
+			Required:    required,
+			Title:       config.SchemaRoot.Title,
+			Description: config.SchemaRoot.Description,
+			ID:          config.SchemaRoot.ID,
 		}
 
 		// Merge with existing data

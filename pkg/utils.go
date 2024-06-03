@@ -2,6 +2,13 @@ package pkg
 
 import "strings"
 
+// SchemaRoot struct defines root object of schema
+type SchemaRoot struct {
+	ID          string
+	Title       string
+	Description string
+}
+
 // Save values of parsed flags in Config
 type Config struct {
 	input      multiStringFlag
@@ -9,10 +16,12 @@ type Config struct {
 	draft      int
 	indent     int
 
+	SchemaRoot SchemaRoot
+
 	args []string
 }
 
-// Define a custom flag type to accept multiple yamlFiles
+// Define a custom flag type to accept multiple yaml files
 type multiStringFlag []string
 
 func (m *multiStringFlag) String() string {

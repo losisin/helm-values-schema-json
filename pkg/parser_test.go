@@ -161,9 +161,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
-			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
-			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value"},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema"},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema"},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema"},
 		},
 	}
 
@@ -201,6 +201,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 					},
 				},
 				Required: []string{"foo"},
+				ID:       "http://example.com/schema",
 			},
 			want: map[string]interface{}{
 				"type":          "object",
@@ -212,6 +213,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 					},
 				},
 				"required": []string{"foo"},
+				"$id":      "http://example.com/schema",
 			},
 		},
 		{
