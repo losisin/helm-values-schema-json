@@ -28,7 +28,7 @@ tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
 
 # Objects
 affinity:
-  nodeAffinity: # @schema minProperties: 1 ; maxProperties: 2
+  nodeAffinity: # @schema minProperties: 1 ; maxProperties: 2 ; additionalProperties: false
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
       - matchExpressions:

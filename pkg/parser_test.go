@@ -15,6 +15,10 @@ func float64Ptr(f float64) *float64 {
 	return &f
 }
 
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 // schemasEqual is a helper function to compare two Schema objects.
 func schemasEqual(a, b *Schema) bool {
 	if a == nil || b == nil {
@@ -151,9 +155,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
 		},
 		{
 			name: "meta-data properties",
@@ -214,7 +218,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 			name: "with nested items",
 			schema: &Schema{
 				Type:        "array",
-				Items:       &Schema{Type: "string", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10)},
+				Items:       &Schema{Type: "string", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10), AdditionalProperties: boolPtr(false)},
 				MinItems:    uint64Ptr(1),
 				MaxItems:    uint64Ptr(2),
 				UniqueItems: true,
@@ -223,9 +227,10 @@ func TestConvertSchemaToMap(t *testing.T) {
 			want: map[string]interface{}{
 				"type": "array",
 				"items": map[string]interface{}{
-					"type":      "string",
-					"minLength": uint64(1),
-					"maxLength": uint64(10),
+					"type":                 "string",
+					"minLength":            uint64(1),
+					"maxLength":            uint64(10),
+					"additionalProperties": false,
 				},
 				"minItems":    uint64(1),
 				"maxItems":    uint64(2),

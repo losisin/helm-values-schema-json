@@ -304,8 +304,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set object",
 			schema:           &Schema{},
-			comment:          "# @schema minProperties:1;maxProperties:10",
-			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10)},
+			comment:          "# @schema minProperties:1;maxProperties:10;additionalProperties:false",
+			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: boolPtr(false)},
 			expectedRequired: false,
 		},
 		{

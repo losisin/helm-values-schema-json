@@ -4,6 +4,7 @@
         "affinity": {
             "properties": {
                 "nodeAffinity": {
+                    "additionalProperties": false,
                     "maxProperties": 2,
                     "minProperties": 1,
                     "properties": {
