@@ -39,7 +39,7 @@ The following annotations are supported:
     * [required](#required)
     * [patternProperties](#patternproperties)
     * [additionalProperties](#additionalproperties)
-    * [$id](#$id)
+    * [$id](#id)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [default](#default)
