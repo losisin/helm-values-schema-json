@@ -118,6 +118,8 @@ This will read `values.yaml`, set draft version to `2020-12` and save outpout to
 
 ### Extended
 
+#### Multiple values files
+
 Merge multiple values files, set json-schema draft version explicitly and save output to `my.schema.json`:
 
 `values_1.yaml`
@@ -212,6 +214,8 @@ Output will be something like this:
     }
 }
 ```
+
+#### Root JSON object properties
 
 Adding ID, title and description to the schema:
 
