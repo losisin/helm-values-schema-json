@@ -42,7 +42,21 @@ checksum:
 
 changelog:
   sort: asc
+  groups:
+    - title: Added
+      regexp: '^.*?feature(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Fixed"
+      regexp: '^.*?bug|fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Updated
+      regexp: '^.*?Bump|chore(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Docs
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Other
+      order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
+      - "^Merge pull request #" # exclude merge commits
