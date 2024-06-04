@@ -32,6 +32,7 @@ type Schema struct {
 	ReadOnly             bool               `json:"readOnly,omitempty"`
 	Default              interface{}        `json:"default,omitempty"`
 	AdditionalProperties *bool              `json:"additionalProperties"`
+	ID                   string             `json:"$id,omitempty"`
 }
 
 func getKind(value string) string {
@@ -190,6 +191,8 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				if v, err := strconv.ParseBool(value); err == nil {
 					schema.AdditionalProperties = &v
 				}
+			case "$id":
+				schema.ID = value
 			}
 		}
 	}

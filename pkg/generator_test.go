@@ -18,6 +18,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 		outputPath: "../testdata/output.json",
 		draft:      2020,
 		indent:     4,
+		SchemaRoot: SchemaRoot{
+			ID:          "",
+			Title:       "",
+			Description: "",
+		},
 	}
 
 	err := GenerateJsonSchema(config)

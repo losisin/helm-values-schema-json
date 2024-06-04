@@ -95,9 +95,15 @@ usage: helm schema [-input STR] [-draft INT] [-output STR]
   -indent int
     	Indentation spaces (even number) (default 4)
   -input value
-    	Multiple yamlFiles as inputs (comma-separated)
+    	Multiple yaml files as inputs (comma-separated)
   -output string
     	Output file path (default "values.schema.json")
+  -schemaRoot.description string
+    	JSON schema description
+  -schemaRoot.id string
+    	JSON schema ID
+  -schemaRoot.title string
+    	JSON schema title
 ```
 
 ### Basic
@@ -111,6 +117,8 @@ $ helm schema -input values.yaml
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
 
 ### Extended
+
+#### Multiple values files
 
 Merge multiple values files, set json-schema draft version explicitly and save output to `my.schema.json`:
 
@@ -204,6 +212,51 @@ Output will be something like this:
             }
         }
     }
+}
+```
+
+#### Root JSON object properties
+
+Adding ID, title and description to the schema:
+
+`basic.yaml`
+
+```yaml
+image:
+  repository: nginx
+  tag: latest
+  pullPolicy: Always
+```
+
+```bash
+$ helm schema -input basic.yaml -schemaRoot.id "https://example.com/schema" -schemaRoot.title "My schema" -schemaRoot.description "This is my schema"
+```
+
+Generated schema will be:
+
+```json
+{
+  "$id": "https://example.com/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "This is my schema",
+  "properties": {
+      "image": {
+          "properties": {
+              "pullPolicy": {
+                  "type": "string"
+              },
+              "repository": {
+                  "type": "string"
+              },
+              "tag": {
+                  "type": "string"
+              }
+          },
+          "type": "object"
+      }
+  },
+  "title": "My schema",
+  "type": "object"
 }
 ```
 

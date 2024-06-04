@@ -23,6 +23,9 @@ func TestParseFlagsPass(t *testing.T) {
 
 		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019"},
 			Config{input: multiStringFlag{"values.yaml"}, outputPath: "my.schema.json", draft: 2019, indent: 4, args: []string{}}},
+
+		{[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
+			Config{input: multiStringFlag{"values.yaml"}, outputPath: "values.schema.json", draft: 2020, indent: 4, SchemaRoot: SchemaRoot{ID: "http://example.com/schema", Title: "MySchema", Description: "My schema description"}, args: []string{}}},
 	}
 
 	for _, tt := range tests {

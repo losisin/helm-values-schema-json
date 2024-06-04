@@ -39,6 +39,7 @@ The following annotations are supported:
     * [required](#required)
     * [patternProperties](#patternproperties)
     * [additionalProperties](#additionalproperties)
+    * [$id](#id)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [default](#default)
@@ -373,7 +374,7 @@ image:
 
 ### patternProperties
 
-JSON string added "AS IS" to the node. [documentation](https://json-schema.org/understanding-json-schema/reference/object#patternProperties)
+JSON string added "AS IS" to the node. [section 10.3.2.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.2)
 
 ```yaml
 image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
@@ -398,7 +399,7 @@ image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
 
 ### additionalProperties
 
-Boolean. [documentation](https://json-schema.org/understanding-json-schema/reference/object#additionalproperties)
+Boolean. [section 10.3.2.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.3)
 
 ```yaml
 image: # @schema additionalProperties: false
@@ -417,6 +418,35 @@ image: # @schema additionalProperties: false
 }
 ```
 
+### $id
+
+String. [section 8.2.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-8.2.1)
+
+```yaml
+image: # @schema $id: https://example.com/schema.json
+  repository: nginx
+  tag: latest
+  pullPolicy: Always
+```
+
+```json
+"image": {
+    "$id": "https://example.com/schema.json",
+    "properties": {
+        "pullPolicy": {
+            "type": "string"
+        },
+        "repository": {
+            "type": "string"
+        },
+        "tag": {
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
+
 ## Meta-Data Annotations
 
 ### title and description
@@ -425,9 +455,6 @@ String. [section 9.1](https://json-schema.org/draft/2020-12/json-schema-validati
 
 ```yaml
 fullnameOverride: bar # @schema title: My title ; description: My description
-```
-
-```json
 ```
 
 ```json

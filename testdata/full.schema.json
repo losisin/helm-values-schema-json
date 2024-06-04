@@ -12,6 +12,7 @@
                             "items": {
                                 "properties": {
                                     "preference": {
+                                        "$id": "https://example.com/schema.json",
                                         "patternProperties": {
                                             "^[a-z]$": {
                                                 "type": "string"
