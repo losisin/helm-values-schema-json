@@ -4,7 +4,7 @@ repos:
     hooks:
       - id: helm-schema
         args:
-          # Single or multiple yamlFiles as inputs (comma-separated)
+          # Single or multiple yaml files as inputs (comma-separated)
           - --input=values.yaml
           # Output file path (default "values.schema.json")
           - --output=values.schema.json
