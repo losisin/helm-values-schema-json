@@ -82,6 +82,10 @@ func GenerateJsonSchema(config *Config) error {
 	}
 	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
 
+	if config.SchemaRoot.AdditionalProperties.IsSet() {
+		jsonSchemaMap["additionalProperties"] = config.SchemaRoot.AdditionalProperties.Value()
+	}
+
 	// If validation is successful, marshal the schema and save to the file
 	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", indentString)
 	if err != nil {

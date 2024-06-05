@@ -1,12 +1,17 @@
 package pkg
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // SchemaRoot struct defines root object of schema
 type SchemaRoot struct {
-	ID          string
-	Title       string
-	Description string
+	ID                   string
+	Title                string
+	Description          string
+	AdditionalProperties BoolFlag
 }
 
 // Save values of parsed flags in Config
@@ -34,6 +39,41 @@ func (m *multiStringFlag) Set(value string) error {
 		*m = append(*m, v)
 	}
 	return nil
+}
+
+// Custom BoolFlag type that tracks if it was explicitly set
+type BoolFlag struct {
+	set   bool
+	value bool
+}
+
+func (b *BoolFlag) String() string {
+	if b.set {
+		return fmt.Sprintf("%t", b.value)
+	}
+	return "not set"
+}
+
+func (b *BoolFlag) Set(value string) error {
+	if value == "true" {
+		b.value = true
+	} else if value == "false" {
+		b.value = false
+	} else {
+		return errors.New("invalid boolean value")
+	}
+	b.set = true
+	return nil
+}
+
+// Accessor method to check if the flag was explicitly set
+func (b *BoolFlag) IsSet() bool {
+	return b.set
+}
+
+// Accessor method to get the value of the flag
+func (b *BoolFlag) Value() bool {
+	return b.value
 }
 
 func uniqueStringAppend(dest []string, src ...string) []string {

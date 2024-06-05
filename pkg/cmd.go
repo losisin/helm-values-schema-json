@@ -22,6 +22,7 @@ func ParseFlags(progname string, args []string) (config *Config, output string, 
 	flags.StringVar(&conf.SchemaRoot.ID, "schemaRoot.id", "", "JSON schema ID")
 	flags.StringVar(&conf.SchemaRoot.Title, "schemaRoot.title", "", "JSON schema title")
 	flags.StringVar(&conf.SchemaRoot.Description, "schemaRoot.description", "", "JSON schema description")
+	flags.Var(&conf.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties", "JSON schema additional properties (true/false)")
 
 	err = flags.Parse(args)
 	if err != nil {
