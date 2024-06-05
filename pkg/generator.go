@@ -12,6 +12,11 @@ import (
 
 // Generate JSON schema
 func GenerateJsonSchema(config *Config) error {
+	// Check if the input flag is set
+	if len(config.input) == 0 {
+		return errors.New("input flag is required")
+	}
+
 	// Determine the schema URL based on the draft version
 	schemaURL, err := getSchemaURL(config.draft)
 	if err != nil {

@@ -55,6 +55,15 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		expectedErr error
 	}{
 		{
+			name: "Missing input flag",
+			config: &Config{
+				input:  nil,
+				draft:  2020,
+				indent: 0,
+			},
+			expectedErr: errors.New("input flag is required"),
+		},
+		{
 			name: "Invalid draft version",
 			config: &Config{
 				input: []string{"../testdata/basic.yaml"},
