@@ -98,6 +98,8 @@ usage: helm schema [-input STR] [-draft INT] [-output STR]
     	Multiple yaml files as inputs (comma-separated)
   -output string
     	Output file path (default "values.schema.json")
+  -schemaRoot.additionalProperties value
+    	JSON schema additional properties (true/false)
   -schemaRoot.description string
     	JSON schema description
   -schemaRoot.id string

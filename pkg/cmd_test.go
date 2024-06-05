@@ -71,6 +71,7 @@ func TestParseFlagsFail(t *testing.T) {
 		{[]string{"-input"}, "flag needs an argument"},
 		{[]string{"-draft", "foo"}, "invalid value"},
 		{[]string{"-foo"}, "flag provided but not defined"},
+		{[]string{"-schemaRoot.additionalProperties", "null"}, "invalid boolean value"},
 	}
 
 	for _, tt := range tests {

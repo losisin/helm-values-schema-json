@@ -3,6 +3,7 @@ package pkg
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -129,6 +130,75 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				err := tt.cleanupFunc()
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
+	tests := []struct {
+		name                    string
+		additionalPropertiesSet bool
+		additionalProperties    bool
+		expected                interface{}
+	}{
+		{
+			name:                    "AdditionalProperties set to true",
+			additionalPropertiesSet: true,
+			additionalProperties:    true,
+			expected:                true,
+		},
+		{
+			name:                    "AdditionalProperties set to false",
+			additionalPropertiesSet: true,
+			additionalProperties:    false,
+			expected:                false,
+		},
+		{
+			name:                    "AdditionalProperties not set",
+			additionalPropertiesSet: false,
+			expected:                nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			additionalPropertiesFlag := &BoolFlag{}
+			if tt.additionalPropertiesSet {
+				if err := additionalPropertiesFlag.Set(fmt.Sprintf("%t", tt.additionalProperties)); err != nil {
+					t.Fatalf("Failed to set additionalPropertiesFlag: %v", err)
+				}
+			}
+
+			config := &Config{
+				input:      []string{"../testdata/empty.yaml"},
+				outputPath: "../testdata/empty.schema.json",
+				draft:      2020,
+				indent:     4,
+				SchemaRoot: SchemaRoot{
+					ID:                   "",
+					Title:                "",
+					Description:          "",
+					AdditionalProperties: *additionalPropertiesFlag,
+				},
+			}
+
+			err := GenerateJsonSchema(config)
+			assert.NoError(t, err)
+
+			generatedBytes, err := os.ReadFile(config.outputPath)
+			assert.NoError(t, err)
+
+			var generatedSchema map[string]interface{}
+			err = json.Unmarshal(generatedBytes, &generatedSchema)
+			assert.NoError(t, err)
+
+			if tt.expected == nil {
+				_, exists := generatedSchema["additionalProperties"]
+				assert.False(t, exists, "additionalProperties should not be present in the generated schema")
+			} else {
+				assert.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
+			}
+
+			os.Remove(config.outputPath)
 		})
 	}
 }
