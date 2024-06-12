@@ -26,6 +26,7 @@ type Schema struct {
 	PatternProperties    interface{}        `json:"patternProperties,omitempty"`
 	Required             []string           `json:"required,omitempty"`
 	Items                *Schema            `json:"items,omitempty"`
+	ItemsEnum            []any              `json:"itemsEnum,omitempty"`
 	Properties           map[string]*Schema `json:"properties,omitempty"`
 	Title                string             `json:"title,omitempty"`
 	Description          string             `json:"description,omitempty"`
@@ -187,6 +188,11 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				schema.Items = &Schema{
 					Type: value,
 				}
+			case "itemEnum":
+				if schema.Items == nil {
+					schema.Items = &Schema{}
+				}
+				schema.Items.Enum = processList(value, false)
 			case "additionalProperties":
 				if v, err := strconv.ParseBool(value); err == nil {
 					schema.AdditionalProperties = &v
