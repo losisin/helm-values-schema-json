@@ -302,6 +302,20 @@ func TestProcessComment(t *testing.T) {
 			expectedRequired: false,
 		},
 		{
+			name:             "Set array only item enum",
+			schema:           &Schema{},
+			comment:          "# @schema itemEnum:[1,2]",
+			expectedSchema:   &Schema{Items: &Schema{Enum: []any{"1", "2"}}},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set array item type and enum",
+			schema:           &Schema{},
+			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:string;itemEnum:[\"one\",\"two\"]",
+			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "string", Enum: []any{"one", "two"}}},
+			expectedRequired: false,
+		},
+		{
 			name:             "Set object",
 			schema:           &Schema{},
 			comment:          "# @schema minProperties:1;maxProperties:10;additionalProperties:false;$id:https://example.com/schema",
