@@ -21,6 +21,7 @@ The following annotations are supported:
     * [Type](#type)
     * [Multiple types](#multiple-types)
     * [Enum](#enum)
+    * [ItemEnum](#itemEnum)
 * [Strings](#strings)
     * [maxLength](#maxlength)
     * [minLength](#minlength)
@@ -120,7 +121,7 @@ Always returns array of strings. Special case is `null` where instead of string,
 ```yaml
 service: ClusterIP # @schema enum:[ClusterIP, LoadBalancer, null]
 ```
-    
+
 ```json
 "service": {
     "enum": [
@@ -129,6 +130,31 @@ service: ClusterIP # @schema enum:[ClusterIP, LoadBalancer, null]
         null
     ],
     "type": "string"
+}
+```
+
+### ItemEnum
+
+This is a special key that apply [enum](#enum) on items of an array.
+
+```yaml
+port: [80, 443] # @schema itemEnum:[80, 8080, 443, 8443]
+```
+
+```json
+"port": {
+    "items": {
+        "type": "number",
+        "enum": [
+            "80",
+            "443",
+            "8080",
+            "8443"
+        ]
+    },
+    "type": [
+        "array"
+    ]
 }
 ```
 
@@ -193,7 +219,7 @@ Number greater than `0`. [section 6.2.1](https://json-schema.org/draft/2020-12/j
 ```yaml
 replicas: 2 # @schema multipleOf:2
 ```
- 
+
 ```json
 "replicas": {
     "multipleOf": 2,
@@ -208,7 +234,7 @@ Number. [section 6.2.2](https://json-schema.org/draft/2020-12/json-schema-valida
 ```yaml
 replicas: 2 # @schema maximum:10
 ```
- 
+
 ```json
 "replicas": {
     "maximum": 10,
@@ -223,7 +249,7 @@ Number. [section 6.2.4](https://json-schema.org/draft/2020-12/json-schema-valida
 ```yaml
 replicas: 5 # @schema minimum:2
 ```
- 
+
 ```json
 "replicas": {
     "minimum": 2,
