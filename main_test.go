@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"log"
 	"os"
 	"testing"
 
@@ -47,17 +48,23 @@ func TestMain(t *testing.T) {
 			args: []string{"schema", "-input", "testdata/basic.yaml"},
 			setup: func() {
 				if _, err := os.Stat("schema.yaml"); err == nil {
-					os.Rename("schema.yaml", "schema.yaml.bak")
+					if err := os.Rename("schema.yaml", "schema.yaml.bak"); err != nil {
+						log.Fatalf("Error renaming file: %v", err)
+					}
 				}
 
 				file, _ := os.Create("schema.yaml")
 				defer file.Close()
-				file.WriteString("draft: invalid\n")
+				if _, err := file.WriteString("draft: invalid\n"); err != nil {
+					log.Fatalf("Error writing to file: %v", err)
+				}
 			},
 			cleanup: func() {
 				if _, err := os.Stat("schema.yaml.bak"); err == nil {
 					os.Remove("schema.yaml")
-					os.Rename("schema.yaml.bak", "schema.yaml")
+					if err := os.Rename("schema.yaml.bak", "schema.yaml"); err != nil {
+						log.Fatalf("Error renaming file: %v", err)
+					}
 				} else {
 					os.Remove("schema.yaml")
 				}
