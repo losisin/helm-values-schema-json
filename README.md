@@ -58,7 +58,7 @@ First [install pre-commit](https://pre-commit.com/#install) and then create or u
 ```yaml
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v1.4.1
+    rev: v1.5.0
     hooks:
       - id: helm-schema
         args: ["-input", "values.yaml"]
@@ -108,7 +108,35 @@ Usage: helm schema [options...] <arguments>
     	JSON schema title
 ```
 
-### Basic
+### Configuration file
+
+This plugin will look for it's configuration file called `schema.yaml` in the current working directory. All options available from CLI can be set in this file. Example:
+
+```yaml
+# Required
+input:
+  - schema.yaml
+
+draft: 2020
+indent: 4
+output: values.schema.json
+
+schemaRoot:
+  id: https://example.com/schema
+  title: Helm Values Schema
+  description: Schema for Helm values
+  additionalProperties: true
+```
+
+Then, just run the plugin without any arguments:
+
+```bash
+$ helm schema
+```
+
+### CLI
+
+#### Basic
 
 In most cases you will want to run the plugin with default options:
 
@@ -118,9 +146,9 @@ $ helm schema -input values.yaml
 
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
 
-### Extended
+#### Extended
 
-#### Multiple values files
+##### Multiple values files
 
 Merge multiple values files, set json-schema draft version explicitly and save output to `my.schema.json`:
 
@@ -217,7 +245,7 @@ Output will be something like this:
 }
 ```
 
-#### Root JSON object properties
+##### Root JSON object properties
 
 Adding ID, title and description to the schema:
 
