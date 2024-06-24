@@ -59,4 +59,4 @@ changelog:
       order: 999
   filters:
     exclude:
-      - "^Merge pull request #" # exclude merge commits
+      - "^Merge" # exclude merge commits

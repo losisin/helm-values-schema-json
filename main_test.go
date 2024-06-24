@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"log"
 	"os"
 	"testing"
 
@@ -13,6 +14,8 @@ func TestMain(t *testing.T) {
 	tests := []struct {
 		name          string
 		args          []string
+		setup         func()
+		cleanup       func()
 		expectedError string
 		expectedOut   string
 	}{
@@ -40,6 +43,35 @@ func TestMain(t *testing.T) {
 			expectedOut:   "error reading YAML file(s)",
 			expectedError: "",
 		},
+		{
+			name: "ErrorLoadingConfigFile",
+			args: []string{"schema", "-input", "testdata/basic.yaml"},
+			setup: func() {
+				if _, err := os.Stat("schema.yaml"); err == nil {
+					if err := os.Rename("schema.yaml", "schema.yaml.bak"); err != nil {
+						log.Fatalf("Error renaming file: %v", err)
+					}
+				}
+
+				file, _ := os.Create("schema.yaml")
+				defer file.Close()
+				if _, err := file.WriteString("draft: invalid\n"); err != nil {
+					log.Fatalf("Error writing to file: %v", err)
+				}
+			},
+			cleanup: func() {
+				if _, err := os.Stat("schema.yaml.bak"); err == nil {
+					os.Remove("schema.yaml")
+					if err := os.Rename("schema.yaml.bak", "schema.yaml"); err != nil {
+						log.Fatalf("Error renaming file: %v", err)
+					}
+				} else {
+					os.Remove("schema.yaml")
+				}
+			},
+			expectedOut:   "",
+			expectedError: "Error loading config file",
+		},
 	}
 
 	for _, tt := range tests {
@@ -47,7 +79,12 @@ func TestMain(t *testing.T) {
 			originalArgs := os.Args
 			originalStdout := os.Stdout
 
-			defer os.Remove("values.schema.json")
+			if tt.setup != nil {
+				tt.setup()
+			}
+			if tt.cleanup != nil {
+				defer tt.cleanup()
+			}
 
 			r, w, _ := os.Pipe()
 			os.Stdout = w
@@ -70,9 +107,9 @@ func TestMain(t *testing.T) {
 
 			out := buf.String()
 
-			assert.Contains(t, out, tt.expectedOut)
-			if tt.expectedError != "" {
-				assert.Contains(t, out, tt.expectedError)
+			assert.Contains(t, out, tt.expectedError)
+			if tt.expectedOut != "" {
+				assert.Contains(t, out, tt.expectedOut)
 			}
 		})
 	}
