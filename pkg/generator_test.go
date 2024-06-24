@@ -12,13 +12,13 @@ import (
 
 func TestGenerateJsonSchema(t *testing.T) {
 	config := &Config{
-		input: []string{
+		Input: []string{
 			"../testdata/full.yaml",
 			"../testdata/empty.yaml",
 		},
-		outputPath: "../testdata/output.json",
-		draft:      2020,
-		indent:     4,
+		OutputPath: "../testdata/output.json",
+		Draft:      2020,
+		Indent:     4,
 		SchemaRoot: SchemaRoot{
 			ID:          "",
 			Title:       "",
@@ -29,7 +29,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 	err := GenerateJsonSchema(config)
 	assert.NoError(t, err)
 
-	generatedBytes, err := os.ReadFile(config.outputPath)
+	generatedBytes, err := os.ReadFile(config.OutputPath)
 	assert.NoError(t, err)
 
 	templateBytes, err := os.ReadFile("../testdata/full.schema.json")
@@ -43,7 +43,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 	assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
 
-	os.Remove(config.outputPath)
+	os.Remove(config.OutputPath)
 }
 
 func TestGenerateJsonSchema_Errors(t *testing.T) {
@@ -57,66 +57,66 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Missing input flag",
 			config: &Config{
-				input:  nil,
-				draft:  2020,
-				indent: 0,
+				Input:  nil,
+				Draft:  2020,
+				Indent: 0,
 			},
 			expectedErr: errors.New("input flag is required"),
 		},
 		{
 			name: "Invalid draft version",
 			config: &Config{
-				input: []string{"../testdata/basic.yaml"},
-				draft: 5,
+				Input: []string{"../testdata/basic.yaml"},
+				Draft: 5,
 			},
 			expectedErr: errors.New("invalid draft version"),
 		},
 		{
 			name: "Negative indentation number",
 			config: &Config{
-				input:      []string{"../testdata/basic.yaml"},
-				draft:      2020,
-				outputPath: "testdata/failure/output_readonly_schema.json",
-				indent:     0,
+				Input:      []string{"../testdata/basic.yaml"},
+				Draft:      2020,
+				OutputPath: "testdata/failure/output_readonly_schema.json",
+				Indent:     0,
 			},
 			expectedErr: errors.New("indentation must be a positive number"),
 		},
 		{
 			name: "Odd indentation number",
 			config: &Config{
-				input:      []string{"../testdata/basic.yaml"},
-				draft:      2020,
-				outputPath: "testdata/failure/output_readonly_schema.json",
-				indent:     1,
+				Input:      []string{"../testdata/basic.yaml"},
+				Draft:      2020,
+				OutputPath: "testdata/failure/output_readonly_schema.json",
+				Indent:     1,
 			},
 			expectedErr: errors.New("indentation must be an even number"),
 		},
 		{
 			name: "Missing file",
 			config: &Config{
-				input:  []string{"missing.yaml"},
-				draft:  2020,
-				indent: 4,
+				Input:  []string{"missing.yaml"},
+				Draft:  2020,
+				Indent: 4,
 			},
 			expectedErr: errors.New("error reading YAML file(s)"),
 		},
 		{
 			name: "Fail Unmarshal",
 			config: &Config{
-				input:      []string{"../testdata/fail"},
-				outputPath: "testdata/failure/output_readonly_schema.json",
-				draft:      2020,
-				indent:     4,
+				Input:      []string{"../testdata/fail"},
+				OutputPath: "testdata/failure/output_readonly_schema.json",
+				Draft:      2020,
+				Indent:     4,
 			},
 			expectedErr: errors.New("error unmarshaling YAML"),
 		},
 		{
 			name: "Read-only filesystem",
 			config: &Config{
-				input:      []string{"../testdata/basic.yaml"},
-				outputPath: "testdata/failure/output_readonly_schema.json",
-				draft:      2020,
-				indent:     4,
+				Input:      []string{"../testdata/basic.yaml"},
+				OutputPath: "testdata/failure/output_readonly_schema.json",
+				Draft:      2020,
+				Indent:     4,
 			},
 			expectedErr: errors.New("error writing schema to file"),
 		},
@@ -178,10 +178,10 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			}
 
 			config := &Config{
-				input:      []string{"../testdata/empty.yaml"},
-				outputPath: "../testdata/empty.schema.json",
-				draft:      2020,
-				indent:     4,
+				Input:      []string{"../testdata/empty.yaml"},
+				OutputPath: "../testdata/empty.schema.json",
+				Draft:      2020,
+				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "",
 					Title:                "",
@@ -193,7 +193,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			err := GenerateJsonSchema(config)
 			assert.NoError(t, err)
 
-			generatedBytes, err := os.ReadFile(config.outputPath)
+			generatedBytes, err := os.ReadFile(config.OutputPath)
 			assert.NoError(t, err)
 
 			var generatedSchema map[string]interface{}
@@ -207,7 +207,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 				assert.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
 			}
 
-			os.Remove(config.outputPath)
+			os.Remove(config.OutputPath)
 		})
 	}
 }

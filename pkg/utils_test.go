@@ -3,7 +3,10 @@ package pkg
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestMultiStringFlagString(t *testing.T) {
@@ -240,6 +243,60 @@ func TestBoolFlag_GetValue(t *testing.T) {
 			}
 			if got := b.Value(); got != tt.expected {
 				t.Errorf("BoolFlag.GetValue() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestBoolFlag_UnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name          string
+		yamlData      string
+		expectedValue bool
+		expectedSet   bool
+		expectedErr   string
+	}{
+		{
+			name:          "Unmarshal true",
+			yamlData:      "true",
+			expectedValue: true,
+			expectedSet:   true,
+			expectedErr:   "",
+		},
+		{
+			name:          "Unmarshal false",
+			yamlData:      "false",
+			expectedValue: false,
+			expectedSet:   true,
+			expectedErr:   "",
+		},
+		{
+			name:          "Unmarshal invalid",
+			yamlData:      "invalid",
+			expectedValue: false,
+			expectedSet:   false,
+			expectedErr:   "cannot unmarshal !!str",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b BoolFlag
+
+			err := yaml.Unmarshal([]byte(tt.yamlData), &b)
+
+			if tt.expectedErr == "" && err != nil {
+				t.Errorf("BoolFlag.UnmarshalYAML() unexpected error: %v", err)
+				return
+			}
+			if tt.expectedErr != "" && !strings.Contains(err.Error(), tt.expectedErr) {
+				t.Errorf("BoolFlag.UnmarshalYAML() error = %v, expected to contain %q", err, tt.expectedErr)
+			}
+			if b.value != tt.expectedValue {
+				t.Errorf("BoolFlag.UnmarshalYAML() value = %v, expected %v", b.value, tt.expectedValue)
+			}
+			if b.set != tt.expectedSet {
+				t.Errorf("BoolFlag.UnmarshalYAML() set = %v, expected %v", b.set, tt.expectedSet)
 			}
 		})
 	}

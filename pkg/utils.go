@@ -8,22 +8,26 @@ import (
 
 // SchemaRoot struct defines root object of schema
 type SchemaRoot struct {
-	ID                   string
-	Title                string
-	Description          string
-	AdditionalProperties BoolFlag
+	ID                   string   `yaml:"id"`
+	Title                string   `yaml:"title"`
+	Description          string   `yaml:"description"`
+	AdditionalProperties BoolFlag `yaml:"additionalProperties"`
 }
 
 // Save values of parsed flags in Config
 type Config struct {
-	input      multiStringFlag
-	outputPath string
-	draft      int
-	indent     int
+	Input      multiStringFlag `yaml:"input"`
+	OutputPath string          `yaml:"output"`
+	Draft      int             `yaml:"draft"`
+	Indent     int             `yaml:"indent"`
 
-	SchemaRoot SchemaRoot
+	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 
-	args []string
+	Args []string `yaml:"-"`
+
+	OutputPathSet bool
+	DraftSet      bool
+	IndentSet     bool
 }
 
 // Define a custom flag type to accept multiple yaml files
@@ -66,14 +70,22 @@ func (b *BoolFlag) Set(value string) error {
 	return nil
 }
 
-// Accessor method to check if the flag was explicitly set
 func (b *BoolFlag) IsSet() bool {
 	return b.set
 }
 
-// Accessor method to get the value of the flag
 func (b *BoolFlag) Value() bool {
 	return b.value
+}
+
+func (b *BoolFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var boolValue bool
+	if err := unmarshal(&boolValue); err != nil {
+		return err
+	}
+	b.value = boolValue
+	b.set = true
+	return nil
 }
 
 func uniqueStringAppend(dest []string, src ...string) []string {

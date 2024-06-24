@@ -89,7 +89,7 @@ This is a great tool for adding git hooks to your project. You can find it's doc
 
 ```bash
 $ helm schema -help
-usage: helm schema [-input STR] [-draft INT] [-output STR]
+Usage: helm schema [options...] <arguments>
   -draft int
     	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
   -indent int

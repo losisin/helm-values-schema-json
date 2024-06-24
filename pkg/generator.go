@@ -13,30 +13,30 @@ import (
 // Generate JSON schema
 func GenerateJsonSchema(config *Config) error {
 	// Check if the input flag is set
-	if len(config.input) == 0 {
+	if len(config.Input) == 0 {
 		return errors.New("input flag is required")
 	}
 
 	// Determine the schema URL based on the draft version
-	schemaURL, err := getSchemaURL(config.draft)
+	schemaURL, err := getSchemaURL(config.Draft)
 	if err != nil {
 		return err
 	}
 
 	// Determine the indentation string based on the number of spaces
-	if config.indent <= 0 {
+	if config.Indent <= 0 {
 		return errors.New("indentation must be a positive number")
 	}
-	if config.indent%2 != 0 {
+	if config.Indent%2 != 0 {
 		return errors.New("indentation must be an even number")
 	}
-	indentString := strings.Repeat(" ", config.indent)
+	indentString := strings.Repeat(" ", config.Indent)
 
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
 
 	// Iterate over the input YAML files
-	for _, filePath := range config.input {
+	for _, filePath := range config.Input {
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
@@ -99,7 +99,7 @@ func GenerateJsonSchema(config *Config) error {
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	outputPath := config.outputPath
+	outputPath := config.OutputPath
 	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
 		return errors.New("error writing schema to file")
 	}
