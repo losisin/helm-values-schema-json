@@ -245,6 +245,20 @@ input:
 	}
 }
 
+func TestLoadConfig_PermissionDenied(t *testing.T) {
+	restrictedDir := "/restricted"
+	configFilePath := restrictedDir + "/restricted.yaml"
+
+	readFileFunc = func(filename string) ([]byte, error) {
+		return nil, os.ErrPermission
+	}
+	defer func() { readFileFunc = os.ReadFile }()
+
+	conf, err := LoadConfig(configFilePath)
+	assert.ErrorIs(t, err, os.ErrPermission, "Expected permission denied error")
+	assert.Nil(t, conf, "Expected config to be nil for permission denied error")
+}
+
 func TestMergeConfig(t *testing.T) {
 	tests := []struct {
 		name           string

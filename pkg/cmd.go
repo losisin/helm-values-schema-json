@@ -50,8 +50,10 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 }
 
 // LoadConfig loads configuration from a YAML file
+var readFileFunc = os.ReadFile
+
 func LoadConfig(configPath string) (*Config, error) {
-	data, err := os.ReadFile(configPath)
+	data, err := readFileFunc(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Return an empty config if the file does not exist
