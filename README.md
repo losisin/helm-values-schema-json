@@ -110,12 +110,12 @@ Usage: helm schema [options...] <arguments>
 
 ### Configuration file
 
-This plugin will look for it's configuration file called `schema.yaml` in the current working directory. All options available from CLI can be set in this file. Example:
+This plugin will look for it's configuration file called `.schema.yaml` in the current working directory. All options available from CLI can be set in this file. Example:
 
 ```yaml
 # Required
 input:
-  - schema.yaml
+  - values.yaml
 
 draft: 2020
 indent: 4
