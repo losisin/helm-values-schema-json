@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// Load configuration from a YAML file
-	fileConfig, err := pkg.LoadConfig("schema.yaml")
+	fileConfig, err := pkg.LoadConfig(".schema.yaml")
 	if err != nil {
 		fmt.Println("Error loading config file:", err)
 	}
