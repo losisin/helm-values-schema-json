@@ -329,6 +329,13 @@ func TestProcessComment(t *testing.T) {
 			expectedSchema:   &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
 			expectedRequired: false,
 		},
+		{
+			name:             "Set skipProperties",
+			schema:           &Schema{},
+			comment:          "# @schema skipProperties:true",
+			expectedSchema:   &Schema{SkipProperties: true},
+			expectedRequired: false,
+		},
 	}
 
 	for _, tt := range tests {
