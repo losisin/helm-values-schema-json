@@ -125,6 +125,9 @@
             },
             "type": "array"
         },
+        "labels": {
+            "type": "object"
+        },
         "nameOverride": {
             "type": "string"
         },

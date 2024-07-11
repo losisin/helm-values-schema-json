@@ -26,6 +26,10 @@ tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
     value: "baz"
     effect: "NoSchedule"
 
+labels:  # @schema skipProperties:true
+  hello: world
+  foo: bar
+
 # Objects
 affinity:
   nodeAffinity: # @schema minProperties: 1 ; maxProperties: 2 ; additionalProperties: false

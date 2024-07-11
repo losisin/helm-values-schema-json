@@ -33,6 +33,7 @@ type Schema struct {
 	ReadOnly             bool               `json:"readOnly,omitempty"`
 	Default              interface{}        `json:"default,omitempty"`
 	AdditionalProperties *bool              `json:"additionalProperties"`
+	SkipProperties       bool               `json:"skipProperties,omitempty"`
 	ID                   string             `json:"$id,omitempty"`
 }
 
@@ -125,6 +126,10 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 			case "maximum":
 				if v, err := strconv.ParseFloat(value, 64); err == nil {
 					schema.Maximum = &v
+				}
+			case "skipProperties":
+				if v, err := strconv.ParseBool(value); err == nil && v {
+					schema.SkipProperties = true
 				}
 			case "minimum":
 				if v, err := strconv.ParseFloat(value, 64); err == nil {
@@ -246,6 +251,9 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 	}
 
 	propIsRequired := processComment(schema, getComment(keyNode, valNode))
+	if schema.SkipProperties {
+		schema.Properties = nil
+	}
 
 	return schema, propIsRequired
 }
