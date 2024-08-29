@@ -1,5 +1,9 @@
 {
+    "$id": "https://example.com/schema",
+    "$ref": "schema/product.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": true,
+    "description": "Schema for Helm values",
     "properties": {
         "affinity": {
             "properties": {
@@ -145,6 +149,29 @@
             ],
             "type": "string"
         },
+        "subchart": {
+            "$ref": "https://example.com/schema.json",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "properties": {
+                        "bar": {
+                            "type": "string"
+                        },
+                        "foo": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
         "tolerations": {
             "items": {
                 "properties": {
@@ -172,5 +199,6 @@
     "required": [
         "nameOverride"
     ],
+    "title": "Helm Values Schema",
     "type": "object"
 }

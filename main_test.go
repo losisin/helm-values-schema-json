@@ -111,6 +111,7 @@ func TestMain(t *testing.T) {
 			if tt.expectedOut != "" {
 				assert.Contains(t, out, tt.expectedOut)
 			}
+			os.Remove("values.schema.json")
 		})
 	}
 }

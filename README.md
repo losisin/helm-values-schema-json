@@ -104,6 +104,8 @@ Usage: helm schema [options...] <arguments>
     	JSON schema description
   -schemaRoot.id string
     	JSON schema ID
+  -schemaRoot.ref string
+    	JSON schema URI reference
   -schemaRoot.title string
     	JSON schema title
 ```
@@ -259,34 +261,36 @@ image:
 ```
 
 ```bash
-$ helm schema -input basic.yaml -schemaRoot.id "https://example.com/schema" -schemaRoot.title "My schema" -schemaRoot.description "This is my schema"
+$ helm schema -input values.yaml -schemaRoot.id "https://example.com/schema" -schemaRoot.ref "schema/product.json" -schemaRoot.title "My schema" -schemaRoot.description "This is my schema"
 ```
 
 Generated schema will be:
 
 ```json
 {
-  "$id": "https://example.com/schema",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "This is my schema",
-  "properties": {
-      "image": {
-          "properties": {
-              "pullPolicy": {
-                  "type": "string"
-              },
-              "repository": {
-                  "type": "string"
-              },
-              "tag": {
-                  "type": "string"
-              }
-          },
-          "type": "object"
-      }
-  },
-  "title": "My schema",
-  "type": "object"
+    "$id": "https://example.com/schema",
+    "$ref": "schema/product.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": true,
+    "description": "This is my schema",
+    "properties": {
+        "image": {
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "title": "My schema",
+    "type": "object"
 }
 ```
 

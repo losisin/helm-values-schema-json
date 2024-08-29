@@ -63,7 +63,7 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
+		{[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
 			Config{
 				Input:      multiStringFlag{"values.yaml"},
 				OutputPath: "values.schema.json",
@@ -71,6 +71,7 @@ func TestParseFlagsPass(t *testing.T) {
 				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:          "http://example.com/schema",
+					Ref:         "schema/product.json",
 					Title:       "MySchema",
 					Description: "My schema description",
 				},
