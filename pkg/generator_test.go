@@ -20,10 +20,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 		Draft:      2020,
 		Indent:     4,
 		SchemaRoot: SchemaRoot{
-			ID:          "",
-			Ref:         "",
-			Title:       "",
-			Description: "",
+			ID:                   "https://example.com/schema",
+			Ref:                  "schema/product.json",
+			Title:                "Helm Values Schema",
+			Description:          "Schema for Helm values",
+			AdditionalProperties: BoolFlag{set: true, value: true},
 		},
 	}
 
