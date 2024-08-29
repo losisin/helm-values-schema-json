@@ -73,6 +73,7 @@ func GenerateJsonSchema(config *Config) error {
 			Title:       config.SchemaRoot.Title,
 			Description: config.SchemaRoot.Description,
 			ID:          config.SchemaRoot.ID,
+			Ref:         config.SchemaRoot.Ref,
 		}
 
 		// Merge with existing data

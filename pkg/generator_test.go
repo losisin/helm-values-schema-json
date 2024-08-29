@@ -21,6 +21,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 		Indent:     4,
 		SchemaRoot: SchemaRoot{
 			ID:          "",
+			Ref:         "",
 			Title:       "",
 			Description: "",
 		},

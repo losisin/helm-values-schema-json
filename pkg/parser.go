@@ -71,6 +71,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.ID != "" {
 		dest.ID = src.ID
 	}
+	if src.Ref != "" {
+		dest.Ref = src.Ref
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -178,6 +181,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.ID != "" {
 		schemaMap["$id"] = schema.ID
+	}
+	if schema.Ref != "" {
+		schemaMap["$ref"] = schema.Ref
 	}
 
 	// Arrays

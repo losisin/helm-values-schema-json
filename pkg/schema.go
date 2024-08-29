@@ -35,6 +35,7 @@ type Schema struct {
 	AdditionalProperties *bool              `json:"additionalProperties"`
 	SkipProperties       bool               `json:"skipProperties,omitempty"`
 	ID                   string             `json:"$id,omitempty"`
+	Ref                  string             `json:"$ref,omitempty"`
 }
 
 func getKind(value string) string {
@@ -204,6 +205,8 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				}
 			case "$id":
 				schema.ID = value
+			case "$ref":
+				schema.Ref = value
 			}
 		}
 	}

@@ -9,6 +9,7 @@ import (
 // SchemaRoot struct defines root object of schema
 type SchemaRoot struct {
 	ID                   string   `yaml:"id"`
+	Ref                  string   `yaml:"ref"`
 	Title                string   `yaml:"title"`
 	Description          string   `yaml:"description"`
 	AdditionalProperties BoolFlag `yaml:"additionalProperties"`

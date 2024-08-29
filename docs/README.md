@@ -40,7 +40,9 @@ The following annotations are supported:
     * [required](#required)
     * [patternProperties](#patternproperties)
     * [additionalProperties](#additionalproperties)
+* [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
+    * [$ref](#ref)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [default](#default)
@@ -444,6 +446,8 @@ image: # @schema additionalProperties: false
 }
 ```
 
+## Base URI, Anchors, and Dereferencing
+
 ### $id
 
 String. [section 8.2.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-8.2.1)
@@ -467,6 +471,45 @@ image: # @schema $id: https://example.com/schema.json
         },
         "tag": {
             "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
+
+### $ref
+
+String. [section 8.2.3.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-8.2.3.1)
+
+```yaml
+subchart: # @schema $ref: https://example.com/schema.json
+  enabled: true
+  name: subchart
+  values:
+    foo: bar
+    bar: baz
+```
+
+```json
+"subchart": {
+    "$ref": "https://example.com/schema.json",
+    "properties": {
+        "enabled": {
+            "type": "boolean"
+        },
+        "name": {
+            "type": "string"
+        },
+        "values": {
+            "properties": {
+                "bar": {
+                    "type": "string"
+                },
+                "foo": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
         }
     },
     "type": "object"
