@@ -336,13 +336,21 @@ func TestProcessComment(t *testing.T) {
 			expectedSchema:   &Schema{SkipProperties: true},
 			expectedRequired: false,
 		},
+		{
+			name:             "Set hidden",
+			schema:           &Schema{},
+			comment:          "# @schema hidden:true",
+			expectedSchema:   &Schema{},
+			expectedRequired: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isRequired := processComment(tt.schema, tt.comment)
-			assert.Equal(t, tt.expectedRequired, isRequired)
+			var required bool
+			processComment(tt.schema, tt.comment)
 			assert.Equal(t, tt.expectedSchema, tt.schema)
+			assert.Equal(t, tt.expectedRequired, required)
 		})
 	}
 }
