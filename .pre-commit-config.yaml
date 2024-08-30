@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/losisin/helm-values-schema-json
-    rev: v1.5.2
+    rev: v1.5.3
     hooks:
       - id: helm-schema
         args:
