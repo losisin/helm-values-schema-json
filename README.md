@@ -85,7 +85,7 @@ This is a great tool for adding git hooks to your project. You can find it's doc
 },
 ```
 
-### CI/CD
+### CI/CD fail-on-diff
 
 You can use this plugin in your CI/CD pipeline to ensure that the schema is always up-to-date. Here is an example for GitLab [#82](https://github.com/losisin/helm-values-schema-json/issues/82):
 
