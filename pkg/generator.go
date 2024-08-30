@@ -63,7 +63,6 @@ func GenerateJsonSchema(config *Config) error {
 			// Exclude hidden nodes
 			if schema != nil && !schema.Hidden {
 				if schema.SkipProperties && schema.Type == "object" {
-					// Apply skipProperties logic for objects
 					schema.Properties = nil
 				}
 				properties[keyNode.Value] = schema

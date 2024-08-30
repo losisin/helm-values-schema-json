@@ -273,13 +273,11 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	// Process comments and determine if the node is required or hidden
 	propIsRequired, isHidden := processComment(schema, getComment(keyNode, valNode))
 	if isHidden {
 		return nil, false
 	}
 
-	// If schema is of type object and SkipProperties is true, set Properties to nil
 	if schema.SkipProperties && schema.Type == "object" {
 		schema.Properties = nil
 	}

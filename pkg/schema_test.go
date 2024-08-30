@@ -399,6 +399,29 @@ func TestParseNode(t *testing.T) {
 			},
 			expectedType: "string",
 		},
+		{
+			name: "parse object node with skipProperties:true",
+			valNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "key",
+					},
+					{
+						Kind: yaml.MappingNode,
+						Content: []*yaml.Node{
+							{Kind: yaml.ScalarNode, Value: "nestedKey"},
+							{Kind: yaml.ScalarNode, Value: "nestedValue"},
+						},
+						LineComment: "# @schema skipProperties:true",
+					},
+				},
+			},
+			expectedType:  "object",
+			expectedProps: map[string]*Schema{"key": {Type: "object", Properties: nil, SkipProperties: true}},
+			expectedReq:   nil,
+		},
 	}
 
 	for _, tt := range tests {
