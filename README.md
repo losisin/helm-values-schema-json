@@ -85,6 +85,24 @@ This is a great tool for adding git hooks to your project. You can find it's doc
 },
 ```
 
+### CI/CD
+
+You can use this plugin in your CI/CD pipeline to ensure that the schema is always up-to-date. Here is an example for GitLab [#82](https://github.com/losisin/helm-values-schema-json/issues/82):
+
+```yaml
+schema-check:
+  script:
+    - cd path/to/helm/chart
+    - helm schema -output generated-schema.json
+    - CURRENT_SCHEMA=$(cat values.schema.json)
+    - GENERATED_SCHEMA=$(cat generated-schema.json)
+    - |
+      if [ "$CURRENT_SCHEMA" != "$GENERATED_SCHEMA" ]; then
+        echo "Schema must be re-generated! Run 'helm schema' in the helm-chart directory" 1>&2
+        exit 1
+      fi
+```
+
 ## Usage
 
 ```bash
