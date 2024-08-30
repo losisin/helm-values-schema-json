@@ -336,13 +336,21 @@ func TestProcessComment(t *testing.T) {
 			expectedSchema:   &Schema{SkipProperties: true},
 			expectedRequired: false,
 		},
+		{
+			name:             "Set hidden",
+			schema:           &Schema{},
+			comment:          "# @schema hidden:true",
+			expectedSchema:   &Schema{},
+			expectedRequired: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isRequired := processComment(tt.schema, tt.comment)
-			assert.Equal(t, tt.expectedRequired, isRequired)
+			var required bool
+			processComment(tt.schema, tt.comment)
 			assert.Equal(t, tt.expectedSchema, tt.schema)
+			assert.Equal(t, tt.expectedRequired, required)
 		})
 	}
 }
@@ -390,6 +398,29 @@ func TestParseNode(t *testing.T) {
 				Style: yaml.DoubleQuotedStyle,
 			},
 			expectedType: "string",
+		},
+		{
+			name: "parse object node with skipProperties:true",
+			valNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind:  yaml.ScalarNode,
+						Value: "key",
+					},
+					{
+						Kind: yaml.MappingNode,
+						Content: []*yaml.Node{
+							{Kind: yaml.ScalarNode, Value: "nestedKey"},
+							{Kind: yaml.ScalarNode, Value: "nestedValue"},
+						},
+						LineComment: "# @schema skipProperties:true",
+					},
+				},
+			},
+			expectedType:  "object",
+			expectedProps: map[string]*Schema{"key": {Type: "object", Properties: nil, SkipProperties: true}},
+			expectedReq:   nil,
 		},
 	}
 

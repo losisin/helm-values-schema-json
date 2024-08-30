@@ -59,9 +59,16 @@ func GenerateJsonSchema(config *Config) error {
 			keyNode := rootNode.Content[i]
 			valNode := rootNode.Content[i+1]
 			schema, isRequired := parseNode(keyNode, valNode)
-			properties[keyNode.Value] = schema
-			if isRequired {
-				required = append(required, keyNode.Value)
+
+			// Exclude hidden nodes
+			if schema != nil && !schema.Hidden {
+				if schema.SkipProperties && schema.Type == "object" {
+					schema.Properties = nil
+				}
+				properties[keyNode.Value] = schema
+				if isRequired {
+					required = append(required, keyNode.Value)
+				}
 			}
 		}
 

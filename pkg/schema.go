@@ -34,6 +34,7 @@ type Schema struct {
 	Default              interface{}        `json:"default,omitempty"`
 	AdditionalProperties *bool              `json:"additionalProperties"`
 	SkipProperties       bool               `json:"skipProperties,omitempty"`
+	Hidden               bool               `json:"-"`
 	ID                   string             `json:"$id,omitempty"`
 	Ref                  string             `json:"$ref,omitempty"`
 }
@@ -105,8 +106,9 @@ func processList(comment string, stringsOnly bool) []interface{} {
 	return list
 }
 
-func processComment(schema *Schema, comment string) (isRequired bool) {
+func processComment(schema *Schema, comment string) (isRequired bool, isHidden bool) {
 	isRequired = false
+	isHidden = false
 
 	parts := strings.Split(strings.TrimPrefix(comment, "# @schema "), ";")
 	for _, part := range parts {
@@ -173,7 +175,7 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				}
 			case "required":
 				if strings.TrimSpace(value) == "true" {
-					isRequired = strings.TrimSpace(value) == "true"
+					isRequired = true
 				}
 			case "type":
 				schema.Type = processList(value, true)
@@ -207,11 +209,15 @@ func processComment(schema *Schema, comment string) (isRequired bool) {
 				schema.ID = value
 			case "$ref":
 				schema.Ref = value
+			case "hidden":
+				if v, err := strconv.ParseBool(value); err == nil && v {
+					isHidden = true
+				}
 			}
 		}
 	}
 
-	return isRequired
+	return isRequired, isHidden
 }
 
 func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
@@ -224,12 +230,20 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 		for i := 0; i < len(valNode.Content); i += 2 {
 			childKeyNode := valNode.Content[i]
 			childValNode := valNode.Content[i+1]
-			childSchema, isRequired := parseNode(childKeyNode, childValNode)
-			properties[childKeyNode.Value] = childSchema
-			if isRequired {
-				required = append(required, childKeyNode.Value)
+			childSchema, childRequired := parseNode(childKeyNode, childValNode)
+
+			// Exclude hidden child schemas
+			if childSchema != nil && !childSchema.Hidden {
+				if childSchema.SkipProperties && childSchema.Type == "object" {
+					childSchema.Properties = nil
+				}
+				properties[childKeyNode.Value] = childSchema
+				if childRequired {
+					required = append(required, childKeyNode.Value)
+				}
 			}
 		}
+
 		schema.Type = "object"
 		schema.Properties = properties
 
@@ -239,10 +253,11 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 
 	case yaml.SequenceNode:
 		schema.Type = "array"
-
 		if len(valNode.Content) > 0 {
 			itemSchema, _ := parseNode(nil, valNode.Content[0])
-			schema.Items = itemSchema
+			if itemSchema != nil && !itemSchema.Hidden {
+				schema.Items = itemSchema
+			}
 		}
 
 	case yaml.ScalarNode:
@@ -253,8 +268,12 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	propIsRequired := processComment(schema, getComment(keyNode, valNode))
-	if schema.SkipProperties {
+	propIsRequired, isHidden := processComment(schema, getComment(keyNode, valNode))
+	if isHidden {
+		return nil, false
+	}
+
+	if schema.SkipProperties && schema.Type == "object" {
 		schema.Properties = nil
 	}
 

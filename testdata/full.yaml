@@ -49,9 +49,13 @@ affinity:
           operator: In
           values:
           - another-node-label-value
+
 subchart: # @schema $ref: https://example.com/schema.json
   enabled: true
   name: subchart
   values:
     foo: bar
     bar: baz
+
+monitoring: # @schema hidden: true
+  enabled: true 
