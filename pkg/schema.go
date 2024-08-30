@@ -244,14 +244,9 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 			}
 		}
 
-		if !schema.Hidden {
-			schema.Type = "object"
-			if schema.SkipProperties {
-				schema.Properties = nil
-			} else {
-				schema.Properties = properties
-			}
-		}
+		schema.Type = "object"
+		schema.Properties = properties
+
 		if len(required) > 0 {
 			schema.Required = required
 		}
