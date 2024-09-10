@@ -265,6 +265,9 @@ Output will be something like this:
 }
 ```
 
+> [!NOTE]
+> When using multiple values files as input, the plugin follows Helm's behavior. This means that if the same yaml keys are present in multiple files, the latter file will take precedence over the former. The same applies to annotations in comments. Therefore, the order of the input files is important.
+
 ##### Root JSON object properties
 
 Adding ID, title and description to the schema:
