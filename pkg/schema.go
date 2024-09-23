@@ -27,6 +27,7 @@ type Schema struct {
 	Required             []string           `json:"required,omitempty"`
 	Items                *Schema            `json:"items,omitempty"`
 	ItemsEnum            []any              `json:"itemsEnum,omitempty"`
+	ItemProperties       map[string]*Schema `json:"itemProperties,omitempty"`
 	Properties           map[string]*Schema `json:"properties,omitempty"`
 	Title                string             `json:"title,omitempty"`
 	Description          string             `json:"description,omitempty"`
@@ -195,6 +196,13 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 			case "item":
 				schema.Items = &Schema{
 					Type: value,
+				}
+			case "itemProperties":
+				if schema.Items.Type == "object" {
+					var itemProps map[string]*Schema
+					if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
+						schema.Items.Properties = itemProps
+					}
 				}
 			case "itemEnum":
 				if schema.Items == nil {

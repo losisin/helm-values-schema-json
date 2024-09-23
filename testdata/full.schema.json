@@ -125,9 +125,17 @@
         },
         "imagePullSecrets": {
             "items": {
+                "properties": {
+                    "key": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
-            "type": "array"
+            "type": [
+                "array",
+                "null"
+            ]
         },
         "labels": {
             "type": "object"
