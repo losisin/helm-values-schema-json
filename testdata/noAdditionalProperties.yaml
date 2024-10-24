@@ -1,0 +1,4 @@
+object: {}
+objectWithAdditionalPropertiesAllowed: {} # @schema additionalProperties: true
+objectOfObjects: {} # @schema patternProperties: { "^.*$": {"type": "object" } }
+objectOfObjectsWithInnerAdditionalPropertiesAllowed: {} # @schema patternProperties: { "^.*$": {"type": "object", "additionalProperties": true }}

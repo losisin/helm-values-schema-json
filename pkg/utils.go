@@ -17,10 +17,11 @@ type SchemaRoot struct {
 
 // Save values of parsed flags in Config
 type Config struct {
-	Input      multiStringFlag `yaml:"input"`
-	OutputPath string          `yaml:"output"`
-	Draft      int             `yaml:"draft"`
-	Indent     int             `yaml:"indent"`
+	Input                  multiStringFlag `yaml:"input"`
+	OutputPath             string          `yaml:"output"`
+	Draft                  int             `yaml:"draft"`
+	Indent                 int             `yaml:"indent"`
+	NoAdditionalProperties BoolFlag        `yaml:"noAdditionalProperties"`
 
 	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 

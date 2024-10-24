@@ -1,0 +1,39 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+        "object": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+        },
+        "objectOfObjects": {
+            "additionalProperties": false,
+            "patternProperties": {
+                "^.*$": {
+                    "additionalProperties": false,
+                    "type": "object"
+                }
+            },
+            "properties": {},
+            "type": "object"
+        },
+        "objectOfObjectsWithInnerAdditionalPropertiesAllowed": {
+            "additionalProperties": false,
+            "patternProperties": {
+                "^.*$": {
+                    "additionalProperties": true,
+                    "type": "object"
+                }
+            },
+            "properties": {},
+            "type": "object"
+        },
+        "objectWithAdditionalPropertiesAllowed": {
+            "additionalProperties": true,
+            "properties": {},
+            "type": "object"
+        }
+    },
+    "type": "object"
+}

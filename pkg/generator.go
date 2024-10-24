@@ -89,7 +89,7 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	// Convert merged Schema into a JSON Schema compliant map
-	jsonSchemaMap, err := convertSchemaToMap(mergedSchema)
+	jsonSchemaMap, err := convertSchemaToMap(mergedSchema, config.NoAdditionalProperties.value)
 	if err != nil {
 		return err
 	}
@@ -97,6 +97,8 @@ func GenerateJsonSchema(config *Config) error {
 
 	if config.SchemaRoot.AdditionalProperties.IsSet() {
 		jsonSchemaMap["additionalProperties"] = config.SchemaRoot.AdditionalProperties.Value()
+	} else if config.NoAdditionalProperties.value {
+		jsonSchemaMap["additionalProperties"] = false
 	}
 
 	// If validation is successful, marshal the schema and save to the file

@@ -116,6 +116,8 @@ Usage: helm schema [options...] <arguments>
     	Multiple yaml files as inputs (comma-separated)
   -output string
     	Output file path (default "values.schema.json")
+  -noAdditionalProperties value
+         Default additionalProperties to false for all objects in the schema (true/false)
   -schemaRoot.additionalProperties value
     	JSON schema additional properties (true/false)
   -schemaRoot.description string
