@@ -11,41 +11,68 @@ import (
 )
 
 func TestGenerateJsonSchema(t *testing.T) {
-	config := &Config{
-		Input: []string{
-			"../testdata/full.yaml",
-			"../testdata/empty.yaml",
+	tests := []struct {
+		name               string
+		config             *Config
+		templateSchemaFile string
+	}{
+		{
+			name: "full json schema",
+			config: &Config{
+				Input: []string{
+					"../testdata/full.yaml",
+					"../testdata/empty.yaml",
+				},
+				OutputPath: "../testdata/output.json",
+				Draft:      2020,
+				Indent:     4,
+				SchemaRoot: SchemaRoot{
+					ID:                   "https://example.com/schema",
+					Ref:                  "schema/product.json",
+					Title:                "Helm Values Schema",
+					Description:          "Schema for Helm values",
+					AdditionalProperties: BoolFlag{set: true, value: true},
+				},
+			},
+			templateSchemaFile: "../testdata/full.schema.json",
 		},
-		OutputPath: "../testdata/output.json",
-		Draft:      2020,
-		Indent:     4,
-		SchemaRoot: SchemaRoot{
-			ID:                   "https://example.com/schema",
-			Ref:                  "schema/product.json",
-			Title:                "Helm Values Schema",
-			Description:          "Schema for Helm values",
-			AdditionalProperties: BoolFlag{set: true, value: true},
+		{
+			name: "full json schema",
+			config: &Config{
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: BoolFlag{set: true, value: true},
+				Input: []string{
+					"../testdata/noAdditionalProperties.yaml",
+				},
+				OutputPath: "../testdata/output1.json",
+			},
+			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
 	}
 
-	err := GenerateJsonSchema(config)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := GenerateJsonSchema(tt.config)
+			assert.NoError(t, err)
 
-	generatedBytes, err := os.ReadFile(config.OutputPath)
-	assert.NoError(t, err)
+			generatedBytes, err := os.ReadFile(tt.config.OutputPath)
+			assert.NoError(t, err)
 
-	templateBytes, err := os.ReadFile("../testdata/full.schema.json")
-	assert.NoError(t, err)
+			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
+			assert.NoError(t, err)
 
-	var generatedSchema, templateSchema map[string]interface{}
-	err = json.Unmarshal(generatedBytes, &generatedSchema)
-	assert.NoError(t, err)
-	err = json.Unmarshal(templateBytes, &templateSchema)
-	assert.NoError(t, err)
+			var generatedSchema, templateSchema map[string]interface{}
+			err = json.Unmarshal(generatedBytes, &generatedSchema)
+			assert.NoError(t, err)
+			err = json.Unmarshal(templateBytes, &templateSchema)
+			assert.NoError(t, err)
 
-	assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
+			assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
 
-	os.Remove(config.OutputPath)
+			os.Remove(tt.config.OutputPath)
+		})
+	}
 }
 
 func TestGenerateJsonSchema_Errors(t *testing.T) {
@@ -149,6 +176,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 		name                    string
 		additionalPropertiesSet bool
 		additionalProperties    bool
+		noAdditionalProperties  bool
 		expected                interface{}
 	}{
 		{
@@ -168,22 +196,42 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			additionalPropertiesSet: false,
 			expected:                nil,
 		},
+		{
+			name:                    "AdditionalProperties not set, but NoAdditionalProperties set",
+			additionalPropertiesSet: false,
+			noAdditionalProperties:  true,
+			expected:                false,
+		},
+		{
+			name:                    "NoAdditionalProperties set, but AdditionalProperties set to true",
+			additionalPropertiesSet: true,
+			additionalProperties:    true,
+			noAdditionalProperties:  true,
+			expected:                true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			additionalPropertiesFlag := &BoolFlag{}
+			noAdditionalPropertiesFlag := &BoolFlag{}
 			if tt.additionalPropertiesSet {
 				if err := additionalPropertiesFlag.Set(fmt.Sprintf("%t", tt.additionalProperties)); err != nil {
 					t.Fatalf("Failed to set additionalPropertiesFlag: %v", err)
 				}
 			}
+			if tt.noAdditionalProperties {
+				if err := noAdditionalPropertiesFlag.Set(fmt.Sprintf("%t", tt.noAdditionalProperties)); err != nil {
+					t.Fatalf("Failed to set noAdditionalPropertiesFlag: %v", err)
+				}
+			}
 
 			config := &Config{
-				Input:      []string{"../testdata/empty.yaml"},
-				OutputPath: "../testdata/empty.schema.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:                  []string{"../testdata/empty.yaml"},
+				OutputPath:             "../testdata/empty.schema.json",
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: *noAdditionalPropertiesFlag,
 				SchemaRoot: SchemaRoot{
 					ID:                   "",
 					Title:                "",

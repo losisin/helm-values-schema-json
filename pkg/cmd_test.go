@@ -270,10 +270,11 @@ func TestMergeConfig(t *testing.T) {
 		{
 			name: "FlagConfigOverridesFileConfig",
 			fileConfig: &Config{
-				Input:      multiStringFlag{"fileInput.yaml"},
-				OutputPath: "fileOutput.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:                  multiStringFlag{"fileInput.yaml"},
+				OutputPath:             "fileOutput.json",
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: BoolFlag{set: true, value: true},
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Title:                "fileTitle",
@@ -282,10 +283,11 @@ func TestMergeConfig(t *testing.T) {
 				},
 			},
 			flagConfig: &Config{
-				Input:      multiStringFlag{"flagInput.yaml"},
-				OutputPath: "flagOutput.json",
-				Draft:      2019,
-				Indent:     2,
+				Input:                  multiStringFlag{"flagInput.yaml"},
+				OutputPath:             "flagOutput.json",
+				Draft:                  2019,
+				Indent:                 2,
+				NoAdditionalProperties: BoolFlag{set: true, value: false},
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Title:                "flagTitle",
@@ -297,10 +299,11 @@ func TestMergeConfig(t *testing.T) {
 				IndentSet:     true,
 			},
 			expectedConfig: &Config{
-				Input:      multiStringFlag{"flagInput.yaml"},
-				OutputPath: "flagOutput.json",
-				Draft:      2019,
-				Indent:     2,
+				Input:                  multiStringFlag{"flagInput.yaml"},
+				OutputPath:             "flagOutput.json",
+				Draft:                  2019,
+				Indent:                 2,
+				NoAdditionalProperties: BoolFlag{set: true, value: false},
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Title:                "flagTitle",

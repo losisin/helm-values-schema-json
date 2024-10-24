@@ -23,7 +23,7 @@ type Schema struct {
 	UniqueItems          bool               `json:"uniqueItems,omitempty"`
 	MaxProperties        *uint64            `json:"maxProperties,omitempty"`
 	MinProperties        *uint64            `json:"minProperties,omitempty"`
-	PatternProperties    interface{}        `json:"patternProperties,omitempty"`
+	PatternProperties    map[string]*Schema `json:"patternProperties,omitempty"`
 	Required             []string           `json:"required,omitempty"`
 	Items                *Schema            `json:"items,omitempty"`
 	ItemsEnum            []any              `json:"itemsEnum,omitempty"`
@@ -170,7 +170,7 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 					schema.MinProperties = &v
 				}
 			case "patternProperties":
-				var jsonObject interface{}
+				var jsonObject map[string]*Schema
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.PatternProperties = jsonObject
 				}

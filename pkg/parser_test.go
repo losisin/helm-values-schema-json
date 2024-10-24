@@ -271,7 +271,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertSchemaToMap(tt.schema)
+			got, err := convertSchemaToMap(tt.schema, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertSchemaToMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -299,6 +299,11 @@ func TestConvertSchemaToMapFail(t *testing.T) {
 		Properties: map[string]*Schema{"circular": recursiveSchema},
 	}
 
+	schemaWithPatternPropertiesError := &Schema{
+		Type:              "object",
+		PatternProperties: map[string]*Schema{"circular": recursiveSchema},
+	}
+
 	tests := []struct {
 		name        string
 		schema      *Schema
@@ -314,11 +319,16 @@ func TestConvertSchemaToMapFail(t *testing.T) {
 			schema:      schemaWithPropertiesError,
 			expectedErr: assert.Error,
 		},
+		{
+			name:        "Error with recursive patternProperties",
+			schema:      schemaWithPatternPropertiesError,
+			expectedErr: assert.Error,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := convertSchemaToMap(tc.schema)
+			_, err := convertSchemaToMap(tc.schema, false)
 			tc.expectedErr(t, err)
 		})
 	}

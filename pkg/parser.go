@@ -103,11 +103,11 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	return dest
 }
 
-func convertSchemaToMap(schema *Schema) (map[string]interface{}, error) {
-	return convertSchemaToMapRec(schema, make(map[uintptr]bool))
+func convertSchemaToMap(schema *Schema, noAdditionalProperties bool) (map[string]interface{}, error) {
+	return convertSchemaToMapRec(schema, make(map[uintptr]bool), noAdditionalProperties)
 }
 
-func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string]interface{}, error) {
+func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]interface{}, error) {
 	if schema == nil {
 		return nil, nil
 	}
@@ -161,9 +161,6 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	if schema.MinProperties != nil {
 		schemaMap["minProperties"] = *schema.MinProperties
 	}
-	if schema.PatternProperties != nil {
-		schemaMap["patternProperties"] = schema.PatternProperties
-	}
 	if schema.Title != "" {
 		schemaMap["title"] = schema.Title
 	}
@@ -178,6 +175,8 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	}
 	if schema.AdditionalProperties != nil {
 		schemaMap["additionalProperties"] = *schema.AdditionalProperties
+	} else if noAdditionalProperties && schema.Type == "object" {
+		schemaMap["additionalProperties"] = false
 	}
 	if schema.ID != "" {
 		schemaMap["$id"] = schema.ID
@@ -196,7 +195,7 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 
 	// Nested Schemas
 	if schema.Items != nil {
-		itemsMap, err := convertSchemaToMapRec(schema.Items, visited)
+		itemsMap, err := convertSchemaToMapRec(schema.Items, visited, noAdditionalProperties)
 		if err != nil {
 			return nil, err
 		}
@@ -205,13 +204,25 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool) (map[string
 	if schema.Properties != nil {
 		propertiesMap := make(map[string]interface{})
 		for propName, propSchema := range schema.Properties {
-			propMap, err := convertSchemaToMapRec(propSchema, visited)
+			propMap, err := convertSchemaToMapRec(propSchema, visited, noAdditionalProperties)
 			if err != nil {
 				return nil, err
 			}
 			propertiesMap[propName] = propMap
 		}
 		schemaMap["properties"] = propertiesMap
+	}
+
+	if schema.PatternProperties != nil {
+		patternPropertiesMap := make(map[string]interface{})
+		for propName, propSchema := range schema.PatternProperties {
+			propMap, err := convertSchemaToMapRec(propSchema, visited, noAdditionalProperties)
+			if err != nil {
+				return nil, err
+			}
+			patternPropertiesMap[propName] = propMap
+		}
+		schemaMap["patternProperties"] = patternPropertiesMap
 	}
 
 	delete(visited, ptr)
