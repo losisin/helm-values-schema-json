@@ -1,6 +1,6 @@
 # Annotations from comments
 
-JSON schema is partially implemented in this tool. It uses line comments to add annotations for the schema because head comments are frequently used by humans and tools like helm-docs. Multiple annotations can be added to a single line sepparated by semi-colon. For example:
+JSON schema is partially implemented in this tool. It uses line comments to add annotations for the schema because head comments are frequently used by humans and tools like helm-docs. Multiple annotations can be added to a single line separated by semicolon. For example:
 
 ```yaml
 nameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
@@ -31,6 +31,7 @@ The following annotations are supported:
     * [maximum](#maximum)
     * [minimum](#minimum)
 * [Arrays](#arrays)
+    * [item](#item)
     * [maxItems](#maxitems)
     * [minItems](#minitems)
     * [uniqueItems](#uniqueitems)
@@ -118,7 +119,7 @@ app: &app
 
 ### Enum
 
-Always returns array of strings. Special case is `null` where instead of string, it is treated as valid inpput type.  [section 6.1.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2)
+Always returns array of strings. Special case is `null` where instead of string, it is treated as valid input type. [section 6.1.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2)
 
 ```yaml
 service: ClusterIP # @schema enum:[ClusterIP, LoadBalancer, null]
@@ -261,6 +262,24 @@ replicas: 5 # @schema minimum:2
 
 ## Arrays
 
+### item
+
+Define the item type of empty arrays.
+
+```yaml
+imagePullSecrets: [] # @schema item: object
+```
+
+This will generate following schema:
+
+```json
+"imagePullSecrets": {
+    "items": {
+        "type": "object"
+    }
+}
+```
+
 ### maxItems
 
 Non-negative integer. [section 6.4.1](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.4.1)
@@ -370,7 +389,7 @@ nodeSelector: # @schema minProperties:1
 
 ### required
 
-Array of unique strings appened to the parent node. [section 6.5.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.3)
+Array of unique strings appended to the parent node. [section 6.5.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.3)
 
 ```yaml
 image:
