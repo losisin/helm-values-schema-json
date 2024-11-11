@@ -1,5 +1,9 @@
 {
+    "$id": "https://example.com/schema",
+    "$ref": "schema/product.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": true,
+    "description": "Schema for Helm values",
     "properties": {
         "fullnameOverride": {
             "title": "Full name override",
@@ -50,5 +54,6 @@
             "type": "array"
         }
     },
+    "title": "Helm Values Schema",
     "type": "object"
 }

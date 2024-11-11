@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -37,7 +38,7 @@ func GenerateJsonSchema(config *Config) error {
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Input {
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(filepath.Clean(filePath))
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
 		}
@@ -110,7 +111,7 @@ func GenerateJsonSchema(config *Config) error {
 
 	// Write the JSON schema to the output file
 	outputPath := config.OutputPath
-	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
+	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
 		return errors.New("error writing schema to file")
 	}
 
