@@ -33,6 +33,15 @@ jobs:
           skip-cache: true
       - name: Check code
         run: make check
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: ./...
+      - name: Run Bearer scan
+        uses: bearer/bearer-action@v2
+        with:
+          scanner: secrets,sast
+          diff: true
       - name: Run tests
         run: make test-all
       - name: Install plugin
