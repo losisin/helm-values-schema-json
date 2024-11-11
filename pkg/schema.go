@@ -261,11 +261,18 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 
 	case yaml.SequenceNode:
 		schema.Type = "array"
-		if len(valNode.Content) > 0 {
-			itemSchema, _ := parseNode(nil, valNode.Content[0])
+
+		mergedItemSchema := &Schema{}
+
+		for _, itemNode := range valNode.Content {
+			itemSchema, _ := parseNode(nil, itemNode)
 			if itemSchema != nil && !itemSchema.Hidden {
-				schema.Items = itemSchema
+				mergedItemSchema = mergeSchemas(mergedItemSchema, itemSchema)
 			}
+		}
+
+		if mergedItemSchema != nil {
+			schema.Items = mergedItemSchema
 		}
 
 	case yaml.ScalarNode:
