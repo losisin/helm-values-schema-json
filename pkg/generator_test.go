@@ -37,7 +37,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateSchemaFile: "../testdata/full.schema.json",
 		},
 		{
-			name: "full json schema",
+			name: "noAdditionalProperties",
 			config: &Config{
 				Draft:                  2020,
 				Indent:                 4,
