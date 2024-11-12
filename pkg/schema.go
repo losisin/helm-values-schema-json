@@ -263,15 +263,17 @@ func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
 		schema.Type = "array"
 
 		mergedItemSchema := &Schema{}
+		hasItems := false
 
 		for _, itemNode := range valNode.Content {
 			itemSchema, _ := parseNode(nil, itemNode)
 			if itemSchema != nil && !itemSchema.Hidden {
 				mergedItemSchema = mergeSchemas(mergedItemSchema, itemSchema)
+				hasItems = true
 			}
 		}
 
-		if mergedItemSchema != nil {
+		if hasItems {
 			schema.Items = mergedItemSchema
 		}
 
