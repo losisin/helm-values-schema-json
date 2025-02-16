@@ -48,6 +48,11 @@ The following annotations are supported:
     * [title and description](#title-and-description)
     * [default](#default)
     * [readOnly](#readonly)
+* [Schema Composition](#schema-composition)
+    * [allOf](#allof)
+    * [anyOf](#anyof)
+    * [oneOf](#oneof)
+    * [not](#not)
 
 ## Validation Keywords for Any Instance Type
 
@@ -590,6 +595,123 @@ image:
         "tag": {
             "readOnly": true,
             "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
+
+## Schema Composition
+
+Keywords for Applying Subschemas With Logic. Field `"type"` is dropped and you MUST declare it as part of the schema provided for the keyword.
+
+### allOf
+
+Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.1)
+
+```yaml
+image:
+  digest: sha256:1234567890 # @schema allOf: [{"type": "string"}, {"minLength": 14}]
+```
+
+```json
+"image": {
+    "properties": {
+        "digest": {
+            "allOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "minLength": 14
+                }
+            ]
+        }
+    },
+    "type": "object"
+}
+```
+
+### anyOf
+
+Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.2)
+
+```yaml
+cluster:
+  enabled: true
+  nodes: 3 # @schema anyOf: [{"type": "number", "multipleOf": 3}, {"type": "number", "multipleOf": 5}]
+```
+
+```json
+"cluster": {
+    "properties": {
+        "enabled": {
+            "type": "boolean"
+        },
+        "nodes": {
+            "anyOf": [
+                {
+                    "multipleOf": 3,
+                    "type": "number"
+                },
+                {
+                    "multipleOf": 5,
+                    "type": "number"
+                }
+            ]
+        }
+    },
+    "type": "object"
+}
+```
+
+### oneOf
+
+Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.3)
+
+```yaml
+MY_SECRET:
+  ref: "secret-reference-in-manager"
+  version: # @schema oneOf: [{"type": "string"}, {"type": "number"}]
+```
+
+```json
+"MY_SECRET": {
+    "properties": {
+        "ref": {
+            "type": "string"
+        },
+        "version": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "number"
+                }
+            ]
+        }
+    },
+    "type": "object"
+}
+```
+
+### not
+
+A valid JSON Schema. [section 10.2.1.4](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.4)
+
+```yaml
+image:
+  tag: latest # @schema not: {"type": "object"}
+```
+
+```json
+"image": {
+    "properties": {
+        "tag": {
+            "not": {
+                "type": "object"
+            }
         }
     },
     "type": "object"

@@ -59,7 +59,9 @@
                     "type": "string"
                 },
                 "tag": {
-                    "type": "string"
+                    "not": {
+                        "type": "object"
+                    }
                 }
             },
             "type": "object"
