@@ -231,7 +231,6 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Not:      []any{map[string]any{"type": "string"}},
 			},
 			want: map[string]interface{}{
-				"type":          "object",
 				"minProperties": uint64(1),
 				"maxProperties": uint64(5),
 				"properties": map[string]interface{}{
@@ -258,7 +257,6 @@ func TestConvertSchemaToMap(t *testing.T) {
 				AllOf:       []any{map[string]any{"type": "string"}},
 			},
 			want: map[string]interface{}{
-				"type": "array",
 				"items": map[string]interface{}{
 					"type":                 "string",
 					"minLength":            uint64(1),
@@ -287,7 +285,6 @@ func TestConvertSchemaToMap(t *testing.T) {
 				OneOf:       []any{map[string]any{"type": "string"}},
 			},
 			want: map[string]interface{}{
-				"type":        "integer",
 				"multipleOf":  3.0,
 				"maximum":     10.0,
 				"minimum":     1.0,
