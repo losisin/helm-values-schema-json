@@ -343,6 +343,34 @@ func TestProcessComment(t *testing.T) {
 			expectedSchema:   &Schema{},
 			expectedRequired: false,
 		},
+		{
+			name:             "Set allOf",
+			schema:           &Schema{},
+			comment:          "# @schema allOf:[{\"type\":\"string\"}]",
+			expectedSchema:   &Schema{AllOf: []any{map[string]any{"type": "string"}}},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set anyOf",
+			schema:           &Schema{},
+			comment:          "# @schema anyOf:[{\"type\":\"string\"}]",
+			expectedSchema:   &Schema{AnyOf: []any{map[string]any{"type": "string"}}},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set oneOf",
+			schema:           &Schema{},
+			comment:          "# @schema oneOf:[{\"type\":\"string\"}]",
+			expectedSchema:   &Schema{OneOf: []any{map[string]any{"type": "string"}}},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set not",
+			schema:           &Schema{},
+			comment:          "# @schema not:[{\"type\":\"string\"}]",
+			expectedSchema:   &Schema{Not: []any{map[string]any{"type": "string"}}},
+			expectedRequired: false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -74,6 +74,18 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Ref != "" {
 		dest.Ref = src.Ref
 	}
+	if src.AllOf != nil {
+		dest.AllOf = src.AllOf
+	}
+	if src.AnyOf != nil {
+		dest.AnyOf = src.AnyOf
+	}
+	if src.OneOf != nil {
+		dest.OneOf = src.OneOf
+	}
+	if src.Not != nil {
+		dest.Not = src.Not
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -183,6 +195,22 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 	}
 	if schema.Ref != "" {
 		schemaMap["$ref"] = schema.Ref
+	}
+	if schema.AllOf != nil {
+		delete(schemaMap, "type")
+		schemaMap["allOf"] = schema.AllOf
+	}
+	if schema.AnyOf != nil {
+		delete(schemaMap, "type")
+		schemaMap["anyOf"] = schema.AnyOf
+	}
+	if schema.OneOf != nil {
+		delete(schemaMap, "type")
+		schemaMap["oneOf"] = schema.OneOf
+	}
+	if schema.Not != nil {
+		delete(schemaMap, "type")
+		schemaMap["not"] = schema.Not
 	}
 
 	// Arrays

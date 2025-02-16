@@ -1,0 +1,70 @@
+{
+    "$id": "https://example.com/schema",
+    "$ref": "schema/product.json",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": true,
+    "description": "Schema for Helm values",
+    "properties": {
+        "MY_SECRET": {
+            "properties": {
+                "ref": {
+                    "type": "string"
+                },
+                "version": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "number"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "cluster": {
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "nodes": {
+                    "anyOf": [
+                        {
+                            "multipleOf": 3,
+                            "type": "number"
+                        },
+                        {
+                            "multipleOf": 5,
+                            "type": "number"
+                        }
+                    ]
+                }
+            },
+            "type": "object"
+        },
+        "image": {
+            "properties": {
+                "digest": {
+                    "allOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "minLength": 14
+                        }
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        }
+    },
+    "title": "Helm Values Schema",
+    "type": "object"
+}
