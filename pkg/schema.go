@@ -38,6 +38,10 @@ type Schema struct {
 	Hidden               bool               `json:"-"`
 	ID                   string             `json:"$id,omitempty"`
 	Ref                  string             `json:"$ref,omitempty"`
+	AllOf                interface{}        `json:"allOf,omitempty"`
+	AnyOf                interface{}        `json:"anyOf,omitempty"`
+	OneOf                interface{}        `json:"oneOf,omitempty"`
+	Not                  interface{}        `json:"not,omitempty"`
 }
 
 func getKind(value string) string {
@@ -220,6 +224,26 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 			case "hidden":
 				if v, err := strconv.ParseBool(value); err == nil && v {
 					isHidden = true
+				}
+			case "allOf":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.AllOf = jsonObject
+				}
+			case "anyOf":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.AnyOf = jsonObject
+				}
+			case "oneOf":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.OneOf = jsonObject
+				}
+			case "not":
+				var jsonObject interface{}
+				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+					schema.Not = jsonObject
 				}
 			}
 		}

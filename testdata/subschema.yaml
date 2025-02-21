@@ -1,0 +1,13 @@
+# Schema composition
+MY_SECRET:
+  ref: "secret-reference-in-manager"
+  version: # @schema oneOf: [{"type": "string"}, {"type": "number"}]
+
+image:
+  repository: nginx
+  tag: latest # @schema not: {"type": "object"}
+  digest: sha256:1234567890 # @schema allOf: [{"type": "string"}, {"minLength": 14}]
+
+cluster:
+  enabled: true
+  nodes: 3 # @schema anyOf: [{"type": "number", "multipleOf": 3}, {"type": "number", "multipleOf": 5}]
