@@ -30,7 +30,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           args: --timeout 5m0s
-          skip-cache: true
+          skip-cache: false
       - name: Check code
         run: make check
       - name: Run Gosec Security Scanner
