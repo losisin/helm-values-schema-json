@@ -95,6 +95,7 @@ func GenerateJsonSchema(config *Config) error {
 		return err
 	}
 	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
+	jsonSchemaMap["type"] = "object"
 
 	if config.SchemaRoot.AdditionalProperties.IsSet() {
 		jsonSchemaMap["additionalProperties"] = config.SchemaRoot.AdditionalProperties.Value()
