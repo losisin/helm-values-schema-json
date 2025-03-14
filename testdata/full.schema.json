@@ -178,7 +178,8 @@
                     "type": "object"
                 }
             },
-            "type": "object"
+            "type": "object",
+            "unevaluatedProperties": false
         },
         "tolerations": {
             "items": {

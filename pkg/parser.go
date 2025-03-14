@@ -68,6 +68,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.AdditionalProperties != nil {
 		dest.AdditionalProperties = src.AdditionalProperties
 	}
+	if src.UnevaluatedProperties != nil {
+		dest.UnevaluatedProperties = src.UnevaluatedProperties
+	}
 	if src.ID != "" {
 		dest.ID = src.ID
 	}
@@ -189,6 +192,9 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 		schemaMap["additionalProperties"] = *schema.AdditionalProperties
 	} else if noAdditionalProperties && schema.Type == "object" {
 		schemaMap["additionalProperties"] = false
+	}
+	if schema.UnevaluatedProperties != nil {
+		schemaMap["unevaluatedProperties"] = *schema.UnevaluatedProperties
 	}
 	if schema.ID != "" {
 		schemaMap["$id"] = schema.ID

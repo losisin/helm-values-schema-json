@@ -10,38 +10,39 @@ import (
 )
 
 type Schema struct {
-	Type                 interface{}        `json:"type,omitempty"`
-	Enum                 []any              `json:"enum,omitempty"`
-	MultipleOf           *float64           `json:"multipleOf,omitempty"`
-	Maximum              *float64           `json:"maximum,omitempty"`
-	Minimum              *float64           `json:"minimum,omitempty"`
-	MaxLength            *uint64            `json:"maxLength,omitempty"`
-	MinLength            *uint64            `json:"minLength,omitempty"`
-	Pattern              string             `json:"pattern,omitempty"`
-	MaxItems             *uint64            `json:"maxItems,omitempty"`
-	MinItems             *uint64            `json:"minItems,omitempty"`
-	UniqueItems          bool               `json:"uniqueItems,omitempty"`
-	MaxProperties        *uint64            `json:"maxProperties,omitempty"`
-	MinProperties        *uint64            `json:"minProperties,omitempty"`
-	PatternProperties    map[string]*Schema `json:"patternProperties,omitempty"`
-	Required             []string           `json:"required,omitempty"`
-	Items                *Schema            `json:"items,omitempty"`
-	ItemsEnum            []any              `json:"itemsEnum,omitempty"`
-	ItemProperties       map[string]*Schema `json:"itemProperties,omitempty"`
-	Properties           map[string]*Schema `json:"properties,omitempty"`
-	Title                string             `json:"title,omitempty"`
-	Description          string             `json:"description,omitempty"`
-	ReadOnly             bool               `json:"readOnly,omitempty"`
-	Default              interface{}        `json:"default,omitempty"`
-	AdditionalProperties *bool              `json:"additionalProperties"`
-	SkipProperties       bool               `json:"skipProperties,omitempty"`
-	Hidden               bool               `json:"-"`
-	ID                   string             `json:"$id,omitempty"`
-	Ref                  string             `json:"$ref,omitempty"`
-	AllOf                interface{}        `json:"allOf,omitempty"`
-	AnyOf                interface{}        `json:"anyOf,omitempty"`
-	OneOf                interface{}        `json:"oneOf,omitempty"`
-	Not                  interface{}        `json:"not,omitempty"`
+	Type                  interface{}        `json:"type,omitempty"`
+	Enum                  []any              `json:"enum,omitempty"`
+	MultipleOf            *float64           `json:"multipleOf,omitempty"`
+	Maximum               *float64           `json:"maximum,omitempty"`
+	Minimum               *float64           `json:"minimum,omitempty"`
+	MaxLength             *uint64            `json:"maxLength,omitempty"`
+	MinLength             *uint64            `json:"minLength,omitempty"`
+	Pattern               string             `json:"pattern,omitempty"`
+	MaxItems              *uint64            `json:"maxItems,omitempty"`
+	MinItems              *uint64            `json:"minItems,omitempty"`
+	UniqueItems           bool               `json:"uniqueItems,omitempty"`
+	MaxProperties         *uint64            `json:"maxProperties,omitempty"`
+	MinProperties         *uint64            `json:"minProperties,omitempty"`
+	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty"`
+	Required              []string           `json:"required,omitempty"`
+	Items                 *Schema            `json:"items,omitempty"`
+	ItemsEnum             []any              `json:"itemsEnum,omitempty"`
+	ItemProperties        map[string]*Schema `json:"itemProperties,omitempty"`
+	Properties            map[string]*Schema `json:"properties,omitempty"`
+	Title                 string             `json:"title,omitempty"`
+	Description           string             `json:"description,omitempty"`
+	ReadOnly              bool               `json:"readOnly,omitempty"`
+	Default               interface{}        `json:"default,omitempty"`
+	AdditionalProperties  *bool              `json:"additionalProperties"`
+	UnevaluatedProperties *bool              `json:"unevaluatedProperties"`
+	SkipProperties        bool               `json:"skipProperties,omitempty"`
+	Hidden                bool               `json:"-"`
+	ID                    string             `json:"$id,omitempty"`
+	Ref                   string             `json:"$ref,omitempty"`
+	AllOf                 interface{}        `json:"allOf,omitempty"`
+	AnyOf                 interface{}        `json:"anyOf,omitempty"`
+	OneOf                 interface{}        `json:"oneOf,omitempty"`
+	Not                   interface{}        `json:"not,omitempty"`
 }
 
 func getKind(value string) string {
@@ -216,6 +217,10 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 			case "additionalProperties":
 				if v, err := strconv.ParseBool(value); err == nil {
 					schema.AdditionalProperties = &v
+				}
+			case "unevaluatedProperties":
+				if v, err := strconv.ParseBool(value); err == nil {
+					schema.UnevaluatedProperties = &v
 				}
 			case "$id":
 				schema.ID = value

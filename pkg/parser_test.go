@@ -155,9 +155,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false)},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
 		},
 		{
 			name: "meta-data properties",
@@ -216,9 +216,10 @@ func TestConvertSchemaToMap(t *testing.T) {
 		{
 			name: "with properties",
 			schema: &Schema{
-				Type:          "object",
-				MinProperties: uint64Ptr(1),
-				MaxProperties: uint64Ptr(5),
+				Type:                  "object",
+				MinProperties:         uint64Ptr(1),
+				MaxProperties:         uint64Ptr(5),
+				UnevaluatedProperties: boolPtr(false),
 				Properties: map[string]*Schema{
 					"foo": {
 						Type: "string",
@@ -231,8 +232,9 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Not:      []any{map[string]any{"type": "string"}},
 			},
 			want: map[string]interface{}{
-				"minProperties": uint64(1),
-				"maxProperties": uint64(5),
+				"minProperties":         uint64(1),
+				"maxProperties":         uint64(5),
+				"unevaluatedProperties": false,
 				"properties": map[string]interface{}{
 					"foo": map[string]interface{}{
 						"type": "string",
