@@ -41,6 +41,7 @@ The following annotations are supported:
     * [required](#required)
     * [patternProperties](#patternproperties)
     * [additionalProperties](#additionalproperties)
+    * [unevaluatedProperties](#unevaluatedproperties)
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
     * [$ref](#ref)
@@ -470,11 +471,27 @@ image: # @schema additionalProperties: false
 }
 ```
 
-## Base URI, Anchors, and Dereferencing
+### unevaluatedProperties
 
-### $id
+Boolean. [section 10.3.2.4](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-11.3)
 
-String. [section 8.2.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-8.2.1)
+```yaml
+image: # @schema unevaluatedProperties: false
+  repository: "nginx"
+```
+
+```json
+"image": {
+    "unevaluatedProperties": false,
+    "properties": {
+        "repository": {
+            "type": "string"
+        }
+    },
+    "type": "object"
+}
+```
+
 
 ```yaml
 image: # @schema $id: https://example.com/schema.json

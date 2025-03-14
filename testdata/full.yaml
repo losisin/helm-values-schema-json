@@ -50,7 +50,7 @@ affinity:
           values:
           - another-node-label-value
 
-subchart: # @schema $ref: https://example.com/schema.json
+subchart: # @schema $ref: https://example.com/schema.json ; unevaluatedProperties: false
   enabled: true
   name: subchart
   values:

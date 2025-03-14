@@ -332,8 +332,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:             "Set skipProperties",
 			schema:           &Schema{},
-			comment:          "# @schema skipProperties:true",
-			expectedSchema:   &Schema{SkipProperties: true},
+			comment:          "# @schema skipProperties:true;unevaluatedProperties:false",
+			expectedSchema:   &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
 			expectedRequired: false,
 		},
 		{
