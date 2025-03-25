@@ -13,8 +13,7 @@ Helm plugin for generating `values.schema.json` from single or multiple values f
 ## Installation
 
 ```bash
-$ helm plugin install https://github.com/losisin/helm-values-schema-json.git
-Installed plugin: schema
+helm plugin install https://github.com/losisin/helm-values-schema-json.git
 ```
 
 ## Features
