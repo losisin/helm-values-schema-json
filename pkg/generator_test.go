@@ -70,7 +70,9 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 			assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
 
-			os.Remove(tt.config.OutputPath)
+			if err := os.Remove(tt.config.OutputPath); err != nil && !os.IsNotExist(err) {
+				t.Errorf("failed to remove values.schema.json: %v", err)
+			}
 		})
 	}
 }
@@ -257,7 +259,9 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 				assert.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
 			}
 
-			os.Remove(config.OutputPath)
+			if err := os.Remove(config.OutputPath); err != nil && !os.IsNotExist(err) {
+				t.Errorf("failed to remove values.schema.json: %v", err)
+			}
 		})
 	}
 }
