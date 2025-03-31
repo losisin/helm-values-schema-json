@@ -224,7 +224,11 @@ input:
 			if tt.configContent != "" {
 				tmpFile, err := os.CreateTemp("", "config-*.yaml")
 				assert.NoError(t, err)
-				defer os.Remove(tmpFile.Name())
+				defer func() {
+					if err := os.Remove(tmpFile.Name()); err != nil && !os.IsNotExist(err) {
+						t.Errorf("failed to remove temporary file %s: %v", tmpFile.Name(), err)
+					}
+				}()
 				_, err = tmpFile.Write([]byte(tt.configContent))
 				assert.NoError(t, err)
 				configFilePath = tmpFile.Name()

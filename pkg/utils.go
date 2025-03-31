@@ -61,11 +61,12 @@ func (b *BoolFlag) String() string {
 }
 
 func (b *BoolFlag) Set(value string) error {
-	if value == "true" {
+	switch value {
+	case "true":
 		b.value = true
-	} else if value == "false" {
+	case "false":
 		b.value = false
-	} else {
+	default:
 		return errors.New("invalid boolean value")
 	}
 	b.set = true

@@ -54,19 +54,27 @@ func TestMain(t *testing.T) {
 				}
 
 				file, _ := os.Create(".schema.yaml")
-				defer file.Close()
+				defer func() {
+					if err := file.Close(); err != nil {
+						log.Fatalf("Error closing file: %v", err)
+					}
+				}()
 				if _, err := file.WriteString("draft: invalid\n"); err != nil {
 					log.Fatalf("Error writing to file: %v", err)
 				}
 			},
 			cleanup: func() {
 				if _, err := os.Stat(".schema.yaml.bak"); err == nil {
-					os.Remove(".schema.yaml")
+					if err := os.Remove(".schema.yaml"); err != nil && !os.IsNotExist(err) {
+						log.Fatalf("Error removing file: %v", err)
+					}
 					if err := os.Rename(".schema.yaml.bak", ".schema.yaml"); err != nil {
 						log.Fatalf("Error renaming file: %v", err)
 					}
 				} else {
-					os.Remove(".schema.yaml")
+					if err := os.Remove(".schema.yaml"); err != nil && !os.IsNotExist(err) {
+						log.Fatalf("Error removing file: %v", err)
+					}
 				}
 			},
 			expectedOut:   "",
@@ -91,10 +99,19 @@ func TestMain(t *testing.T) {
 
 			os.Args = tt.args
 
+			errCh := make(chan error, 1)
+
 			go func() {
 				main()
-				w.Close()
+				if err := w.Close(); err != nil {
+					errCh <- err
+				}
+				close(errCh)
 			}()
+
+			if err := <-errCh; err != nil {
+				t.Errorf("Error closing pipe: %v", err)
+			}
 
 			var buf bytes.Buffer
 			_, err := io.Copy(&buf, r)
@@ -111,7 +128,9 @@ func TestMain(t *testing.T) {
 			if tt.expectedOut != "" {
 				assert.Contains(t, out, tt.expectedOut)
 			}
-			os.Remove("values.schema.json")
+			if err := os.Remove("values.schema.json"); err != nil && !os.IsNotExist(err) {
+				t.Errorf("failed to remove values.schema.json: %v", err)
+			}
 		})
 	}
 }
