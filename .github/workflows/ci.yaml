@@ -34,7 +34,7 @@ jobs:
       - name: Check code
         run: make check
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@v2.22.2
+        uses: securego/gosec@v2.22.3
         with:
           args: ./...
       - name: Bearer
