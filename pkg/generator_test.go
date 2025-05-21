@@ -134,6 +134,35 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundleNestedWithoutID.schema.json",
 		},
+		{
+			name: "bundleFragment",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundleFragment.yaml",
+				},
+				OutputPath: "../testdata/bundleFragment_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleFragment.schema.json",
+		},
+		{
+			name: "bundleFragmentWithoutID",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "..",
+				Input: []string{
+					"../testdata/bundleFragment.yaml",
+				},
+				OutputPath: "../testdata/bundleFragmentWithoutID_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleFragmentWithoutID.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
@@ -231,6 +260,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:     4,
 			},
 			expectedErr: errors.New("error writing schema to file"),
+		},
+		{
+			name: "bundle wrong root path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: ".",
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("path escapes from parent"),
 		},
 	}
 
