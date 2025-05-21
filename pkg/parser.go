@@ -102,6 +102,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	// Recursive calls for nested structures
 	dest.Properties = mergeSchemasMap(dest.Properties, src.Properties)
 	dest.Defs = mergeSchemasMap(dest.Defs, src.Defs)
+	dest.Definitions = mergeSchemasMap(dest.Definitions, src.Definitions)
 
 	// 'required' array is combined uniquely
 	dest.Required = uniqueStringAppend(dest.Required, src.Required...)
@@ -226,6 +227,13 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 			return nil, err
 		}
 		schemaMap["$defs"] = m
+	}
+	if schema.Definitions != nil {
+		m, err := convertSchemaMapToMapRec(schema.Definitions, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["definitions"] = m
 	}
 	if schema.AllOf != nil {
 		delete(schemaMap, "type")

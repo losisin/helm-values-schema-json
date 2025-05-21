@@ -46,6 +46,10 @@ type Schema struct {
 	AnyOf                 interface{}        `json:"anyOf,omitempty"`
 	OneOf                 interface{}        `json:"oneOf,omitempty"`
 	Not                   interface{}        `json:"not,omitempty"`
+
+	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
+	// but the field is kept in this struct to allow bundled schemas to use them.
+	Definitions map[string]*Schema `json:"definitions,omitempty"`
 }
 
 func getKind(value string) string {
