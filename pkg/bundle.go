@@ -56,17 +56,17 @@ func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 
 func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) error {
 	for key, subSchema := range schema.Properties {
-		if err := bundleSchemaRec(ctx, loader, schema, subSchema); err != nil {
+		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
 			return fmt.Errorf("properties[%q]: %w", key, err)
 		}
 	}
 	for key, subSchema := range schema.PatternProperties {
-		if err := bundleSchemaRec(ctx, loader, schema, subSchema); err != nil {
+		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
 			return fmt.Errorf("patternProperties[%q]: %w", key, err)
 		}
 	}
 	for key, subSchema := range schema.Defs {
-		if err := bundleSchemaRec(ctx, loader, schema, subSchema); err != nil {
+		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
 			return fmt.Errorf("$defs[%q]: %w", key, err)
 		}
 	}
@@ -103,7 +103,8 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 		root.Defs = map[string]*Schema{}
 	}
 	root.Defs[name] = loaded
-	return nil
+
+	return bundleSchemaRec(ctx, loader, root, loaded)
 }
 
 func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
@@ -243,10 +244,7 @@ var _ Loader = CacheLoader{}
 
 // Load implements [Loader].
 func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	refClone := *ref
-	refClone.User = nil
-	refClone.Fragment = ""
-	urlString := refClone.String()
+	urlString := bundleRefURLToID(ref)
 	if schema := loader.schemas[urlString]; schema != nil {
 		return schema, nil
 	}

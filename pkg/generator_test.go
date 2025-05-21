@@ -90,6 +90,20 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundleRemote.schema.json",
 		},
+		{
+			name: "bundleNested",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundleNested.yaml",
+				},
+				OutputPath: "../testdata/bundleNested_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleNested.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
@@ -103,7 +117,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
 			require.NoError(t, err)
 
-			t.Logf("Actual output:\n%s\n", templateBytes)
+			t.Logf("Generated output:\n%s\n", generatedBytes)
 
 			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 
