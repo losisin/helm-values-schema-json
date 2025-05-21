@@ -75,7 +75,7 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 		}
 	}
 
-	if schema.Ref == "" {
+	if schema.Ref == "" || strings.HasPrefix(schema.Ref, "#") {
 		// Nothing to bundle
 		return nil
 	}
@@ -180,7 +180,7 @@ func bundleChangeRefsRec(root, schema *Schema) error {
 		}
 	}
 
-	if schema.Ref == "" {
+	if schema.Ref == "" || strings.HasPrefix(schema.Ref, "#") {
 		// Nothing to update
 		return nil
 	}
