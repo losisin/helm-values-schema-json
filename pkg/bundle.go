@@ -44,6 +44,10 @@ func NewDefaultLoader(client *http.Client, root *os.Root, basePath string) Loade
 	})
 }
 
+// BundleSchema will use the [Loader] to load any "$ref" references and
+// store them in "$defs".
+//
+// This function will update the schema in-place.
 func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 	if loader == nil {
 		return fmt.Errorf("nil loader")
@@ -92,19 +96,121 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 	if err != nil {
 		return err
 	}
-	baseName := path.Base(loaded.ID)
-	name := baseName
-	i := 1
-	for root.Defs[name] != nil {
-		i++
-		name = fmt.Sprintf("%s_%d", baseName, i)
-	}
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
 	}
-	root.Defs[name] = loaded
+	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
 	return bundleSchemaRec(ctx, loader, root, loaded)
+}
+
+func generateBundledName(id string, defs map[string]*Schema) string {
+	baseName := path.Base(id)
+	name := baseName
+	i := 1
+	for defs[name] != nil {
+		i++
+		name = fmt.Sprintf("%s_%d", baseName, i)
+	}
+	return name
+}
+
+// BundleRemoveIDs removes "$id" references to "$defs" and updates the "$ref"
+// to point to the "$defs" elements directly inside the same document.
+// This is non-standard behavior, but helps adding compatibility with
+// non-compliant implementations such as the JSON & YAML language servers
+// found in Visual Studio Code: https://github.com/microsoft/vscode-json-languageservice/issues/224
+//
+// For example, before:
+//
+//	{
+//	  "$schema": "https://json-schema.org/draft/2020-12/schema",
+//	  "properties": {
+//	    "foo": {
+//	      "$ref": "https://example.com/schema.json",
+//	    }
+//	  },
+//	  "$defs": {
+//	    "values.schema.json": {
+//	      "$id": "https://example.com/schema.json"
+//	    }
+//	  }
+//	}
+//
+// After:
+//
+//	{
+//	  "$schema": "https://json-schema.org/draft/2020-12/schema",
+//	  "properties": {
+//	    "foo": {
+//	      "$ref": "#/$defs/values.schema.json",
+//	    }
+//	  },
+//	  "$defs": {
+//	    "values.schema.json": {
+//	    }
+//	  }
+//	}
+//
+// This function will update the schema in-place.
+func BundleRemoveIDs(schema *Schema) error {
+	if err := bundleChangeRefsRec(schema, schema); err != nil {
+		return err
+	}
+	for _, def := range schema.Defs {
+		def.ID = ""
+	}
+	return nil
+}
+
+func bundleChangeRefsRec(root, schema *Schema) error {
+	for key, subSchema := range schema.Properties {
+		if err := bundleChangeRefsRec(root, subSchema); err != nil {
+			return fmt.Errorf("properties[%q]: %w", key, err)
+		}
+	}
+	for key, subSchema := range schema.PatternProperties {
+		if err := bundleChangeRefsRec(root, subSchema); err != nil {
+			return fmt.Errorf("patternProperties[%q]: %w", key, err)
+		}
+	}
+	for key, subSchema := range schema.Defs {
+		if err := bundleChangeRefsRec(root, subSchema); err != nil {
+			return fmt.Errorf("$defs[%q]: %w", key, err)
+		}
+	}
+
+	if schema.Ref == "" {
+		// Nothing to update
+		return nil
+	}
+
+	ref, err := url.Parse(schema.Ref)
+	if err != nil {
+		return fmt.Errorf("parse $ref=%q as URL: %w", schema.Ref, err)
+	}
+
+	name, ok := findDefNameByRef(root.Defs, ref)
+	if !ok {
+		return fmt.Errorf("no $defs found that matches $ref=%q", schema.Ref)
+	}
+
+	if ref.Fragment != "" {
+		schema.Ref = fmt.Sprintf("#/$defs/%s/%s", name, strings.TrimPrefix(ref.Fragment, "/"))
+	} else {
+		schema.Ref = fmt.Sprintf("#/$defs/%s", name)
+	}
+
+	return nil
+}
+
+func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
+	for name, def := range defs {
+		if def.ID == bundleRefURLToID(ref) {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {

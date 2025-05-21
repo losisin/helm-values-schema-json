@@ -25,6 +25,7 @@ type Config struct {
 	NoAdditionalProperties BoolFlag        `yaml:"noAdditionalProperties"`
 	Bundle                 BoolFlag        `yaml:"bundle"`
 	BundleRoot             string          `yaml:"bundleRoot"`
+	BundleWithoutID        BoolFlag        `yaml:"bundleWithoutID"`
 
 	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 

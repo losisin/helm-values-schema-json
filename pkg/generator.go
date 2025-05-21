@@ -113,6 +113,12 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
 	}
 
+	if config.Bundle.Value() && config.BundleWithoutID.Value() {
+		if err := BundleRemoveIDs(mergedSchema); err != nil {
+			return fmt.Errorf("remove bundled $id: %w", err)
+		}
+	}
+
 	// Convert merged Schema into a JSON Schema compliant map
 	jsonSchemaMap, err := convertSchemaToMap(mergedSchema, config.NoAdditionalProperties.value)
 	if err != nil {
