@@ -289,6 +289,9 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			req.Header.Add("Link", fmt.Sprintf(`<%s>; rel="describedby"`, referrer))
 		}
 	}
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "helm-values-schema-json/1")
+	}
 	resp, err := loader.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
