@@ -46,6 +46,7 @@ The following annotations are supported:
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
     * [$ref](#ref)
+    * [bundling](#bundling)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [default](#default)
@@ -563,6 +564,51 @@ subchart: # @schema $ref: https://example.com/schema.json
     },
     "type": "object"
 }
+```
+
+### bundling
+
+(Since v1.9.0)
+
+You can bundle referenced schemas, which will resolve the `$ref` and embeds the
+result in `$defs`. To enable bundling, use the command-line flags:
+
+- `--bundle true` enables bundling (default: `false`)
+
+- `--bundleRoot /some/path` sets the root directory from which file `$ref` are
+  allowed to read files from (default: current working directory)
+
+- `--bundleWithoutID true` works as a compatibility mode by disabling usage of
+  `$id` and overriding `$ref` with syntax like `"$ref": "#/$defs/schema.json"`
+  instead of retaining the original `$ref`. This is helpful for VSCode and
+  other editors using Microsoft's JSON language server as that implementation
+  [does not support the `$id` keyword](https://github.com/microsoft/vscode-json-languageservice/issues/224).
+
+  Helm does support `$id`. So this setting is only for better editor
+  integration.
+
+Bundling supports the following schemes:
+
+```yaml
+## HTTP & HTTPS
+# @schema $ref: http://example.com/schema.json
+# @schema $ref: http://example.com/schema.yaml
+# @schema $ref: https://example.com/schema.json
+# @schema $ref: https://example.com/schema.yaml
+
+## Local files
+## NOTE: "file://" only supports absolute paths
+# @schema $ref: file:///some/absolute/path.json
+# @schema $ref: file:///some/absolute/path.yaml
+# @schema $ref: /some/absolute/path.json
+# @schema $ref: /some/absolute/path.yaml
+# @schema $ref: some/relative/path.json
+# @schema $ref: some/relative/path.yaml
+# @schema $ref: ./some/relative/path.json
+# @schema $ref: ./some/relative/path.yaml
+
+## Local schema references are not bundled. They are kept as-is.
+# @schema $ref: #/properties/foobar
 ```
 
 ## Meta-Data Annotations
