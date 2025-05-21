@@ -49,6 +49,32 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
+		{
+			name: "bundleDisabled",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: false},
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundleDisabled_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleDisabled.schema.json",
+		},
+		{
+			name: "embeddedRef",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: true},
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle.schema.json",
+		},
 	}
 
 	for _, tt := range tests {

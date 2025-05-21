@@ -89,6 +89,14 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
 	}
 
+	if config.Bundle.Value() {
+		bundled, err := BundleSchema(mergedSchema)
+		if err != nil {
+			return fmt.Errorf("bundle schemas: %w", err)
+		}
+		mergedSchema = bundled
+	}
+
 	// Convert merged Schema into a JSON Schema compliant map
 	jsonSchemaMap, err := convertSchemaToMap(mergedSchema, config.NoAdditionalProperties.value)
 	if err != nil {

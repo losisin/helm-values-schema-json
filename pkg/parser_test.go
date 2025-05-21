@@ -136,6 +136,49 @@ func TestMergeSchemas(t *testing.T) {
 			},
 		},
 		{
+			name: "merge multiple defs",
+			dest: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"file:a.json": {Type: "object"},
+				},
+			},
+			src: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"file:b.json": {Type: "integer"},
+				},
+			},
+			want: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"file:a.json": {Type: "object"},
+					"file:b.json": {Type: "integer"},
+				},
+			},
+		},
+		{
+			name: "merge existing defs",
+			dest: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"shared": {Type: "integer"},
+				},
+			},
+			src: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"shared": {Type: "string", MinLength: uint64Ptr(1)},
+				},
+			},
+			want: &Schema{
+				Type: "object",
+				Defs: map[string]*Schema{
+					"shared": {Type: "string", MinLength: uint64Ptr(1)},
+				},
+			},
+		},
+		{
 			name: "numeric properties",
 			dest: &Schema{Type: "integer", MultipleOf: float64Ptr(2), Minimum: float64Ptr(1), Maximum: float64Ptr(10)},
 			src:  &Schema{Type: "integer", MultipleOf: float64Ptr(2), Minimum: float64Ptr(1), Maximum: float64Ptr(10)},
@@ -298,17 +341,56 @@ func TestConvertSchemaToMap(t *testing.T) {
 				"oneOf":       []any{map[string]any{"type": "string"}},
 			},
 		},
+		{
+			name: "with defs",
+			schema: &Schema{
+				Type:                  "object",
+				MinProperties:         uint64Ptr(1),
+				MaxProperties:         uint64Ptr(5),
+				UnevaluatedProperties: boolPtr(false),
+				ID:                    "http://example.com/schema",
+				Defs: map[string]*Schema{
+					"foo": {
+						ID:   "http://example.com/subschema",
+						Type: "string",
+						Properties: map[string]*Schema{
+							"foo": &Schema{
+								Type: "string",
+							},
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"type":                  "object",
+				"minProperties":         uint64(1),
+				"maxProperties":         uint64(5),
+				"unevaluatedProperties": false,
+				"$id":                   "http://example.com/schema",
+				"$defs": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"$id":  "http://example.com/subschema",
+						"type": "string",
+						"properties": map[string]interface{}{
+							"foo": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := convertSchemaToMap(tt.schema, false)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("convertSchemaToMap() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("convertSchemaToMap()\nerror   %v\nwantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("convertSchemaToMap() got = %v, want %v", got, tt.want)
+				t.Errorf("convertSchemaToMap()\ngot  %v\nwant %v", got, tt.want)
 			}
 		})
 	}
