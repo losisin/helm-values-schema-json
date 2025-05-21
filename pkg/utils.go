@@ -3,6 +3,7 @@ package pkg
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -22,6 +23,9 @@ type Config struct {
 	Draft                  int             `yaml:"draft"`
 	Indent                 int             `yaml:"indent"`
 	NoAdditionalProperties BoolFlag        `yaml:"noAdditionalProperties"`
+	Bundle                 BoolFlag        `yaml:"bundle"`
+	BundleRoot             string          `yaml:"bundleRoot"`
+	BundleWithoutID        BoolFlag        `yaml:"bundleWithoutID"`
 
 	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 
@@ -105,4 +109,8 @@ func uniqueStringAppend(dest []string, src ...string) []string {
 	}
 
 	return dest
+}
+
+func closeIgnoreError(closer io.Closer) {
+	_ = closer.Close()
 }

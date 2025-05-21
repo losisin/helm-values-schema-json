@@ -1,0 +1,20 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "repository": {
+            "type": "string"
+        },
+        "pullPolicy": {
+            "type": "string",
+            "description": "This sets the pull policy for images.",
+            "enum": ["IfNotPresent", "Always", "Never"]
+        },
+        "tag": {
+            "type": ["string", "null"],
+            "description": "Overrides the image tag whose default is the chart appVersion."
+        }
+    }
+}

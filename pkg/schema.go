@@ -39,10 +39,17 @@ type Schema struct {
 	Hidden                bool               `json:"-"`
 	ID                    string             `json:"$id,omitempty"`
 	Ref                   string             `json:"$ref,omitempty"`
+	Schema                string             `json:"$schema,omitempty"`
+	Comment               string             `json:"$comment,omitempty"`
+	Defs                  map[string]*Schema `json:"$defs,omitempty"`
 	AllOf                 interface{}        `json:"allOf,omitempty"`
 	AnyOf                 interface{}        `json:"anyOf,omitempty"`
 	OneOf                 interface{}        `json:"oneOf,omitempty"`
 	Not                   interface{}        `json:"not,omitempty"`
+
+	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
+	// but the field is kept in this struct to allow bundled schemas to use them.
+	Definitions map[string]*Schema `json:"definitions,omitempty"`
 }
 
 func getKind(value string) string {

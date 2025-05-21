@@ -1,0 +1,33 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+        "remote": {
+            "$ref": "https://github.com/losisin/helm-values-schema-json/raw/aaf31949cd1e9d5316dc5e6d7329819a0b745f6a/testdata/values.schema.json",
+            "properties": {
+                "nodeSelector": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            "type": "object"
+        }
+    },
+    "type": "object",
+    "$defs": {
+        "values.schema.json": {
+            "$id": "https://github.com/losisin/helm-values-schema-json/raw/aaf31949cd1e9d5316dc5e6d7329819a0b745f6a/testdata/values.schema.json",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "nodeSelector": {
+                    "type": "object",
+                    "properties": {
+                        "kubernetes.io/hostname": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

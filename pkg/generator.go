@@ -1,9 +1,11 @@
 package pkg
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +37,16 @@ func GenerateJsonSchema(config *Config) error {
 
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
+
+	bundleRoot := config.BundleRoot
+	if bundleRoot == "" {
+		bundleRoot = "."
+	}
+	root, err := os.OpenRoot(bundleRoot)
+	if err != nil {
+		return fmt.Errorf("open bundle root: %w", err)
+	}
+	defer closeIgnoreError(root)
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Input {
@@ -84,9 +96,27 @@ func GenerateJsonSchema(config *Config) error {
 			Ref:         config.SchemaRoot.Ref,
 		}
 
+		if config.Bundle.Value() {
+			ctx := context.Background()
+			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
+			if err != nil {
+				return fmt.Errorf("get relative path from bundle root to file %q: %w", filePath, err)
+			}
+			loader := NewDefaultLoader(http.DefaultClient, root, basePath)
+			if err := BundleSchema(ctx, loader, tempSchema); err != nil {
+				return fmt.Errorf("bundle schemas on %q: %w", filePath, err)
+			}
+		}
+
 		// Merge with existing data
 		mergedSchema = mergeSchemas(mergedSchema, tempSchema)
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
+	}
+
+	if config.Bundle.Value() && config.BundleWithoutID.Value() {
+		if err := BundleRemoveIDs(mergedSchema); err != nil {
+			return fmt.Errorf("remove bundled $id: %w", err)
+		}
 	}
 
 	// Convert merged Schema into a JSON Schema compliant map

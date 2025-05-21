@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateJsonSchema(t *testing.T) {
@@ -49,26 +50,135 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
+		{
+			name: "bundleDisabled",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: false},
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundleDisabled_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleDisabled.schema.json",
+		},
+		{
+			name: "bundle",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "../",
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle.schema.json",
+		},
+		{
+			name: "bundleWithoutID",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "../",
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleWithoutID.schema.json",
+		},
+		{
+			name: "bundleRemote",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: true},
+				Input: []string{
+					"../testdata/bundleRemote.yaml",
+				},
+				OutputPath: "../testdata/bundleRemote_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleRemote.schema.json",
+		},
+		{
+			name: "bundleNested",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundleNested.yaml",
+				},
+				OutputPath: "../testdata/bundleNested_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleNested.schema.json",
+		},
+		{
+			name: "bundleNestedWithoutID",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "..",
+				Input: []string{
+					"../testdata/bundleNested.yaml",
+				},
+				OutputPath: "../testdata/bundleNestedWithoutID_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleNestedWithoutID.schema.json",
+		},
+		{
+			name: "bundleFragment",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundleFragment.yaml",
+				},
+				OutputPath: "../testdata/bundleFragment_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleFragment.schema.json",
+		},
+		{
+			name: "bundleFragmentWithoutID",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "..",
+				Input: []string{
+					"../testdata/bundleFragment.yaml",
+				},
+				OutputPath: "../testdata/bundleFragmentWithoutID_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleFragmentWithoutID.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := GenerateJsonSchema(tt.config)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			generatedBytes, err := os.ReadFile(tt.config.OutputPath)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
-			var generatedSchema, templateSchema map[string]interface{}
-			err = json.Unmarshal(generatedBytes, &generatedSchema)
-			assert.NoError(t, err)
-			err = json.Unmarshal(templateBytes, &templateSchema)
-			assert.NoError(t, err)
+			t.Logf("Generated output:\n%s\n", generatedBytes)
 
-			assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
+			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 
 			if err := os.Remove(tt.config.OutputPath); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)
@@ -150,6 +260,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:     4,
 			},
 			expectedErr: errors.New("error writing schema to file"),
+		},
+		{
+			name: "bundle wrong root path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: ".",
+				Input: []string{
+					"../testdata/bundle.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("path escapes from parent"),
 		},
 	}
 
