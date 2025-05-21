@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
         "image": {
-            "$ref": "file:./bundleSubschema.schema.json",
+            "$ref": "./bundleSubschema.schema.json",
             "properties": {
                 "pullPolicy": {
                     "type": "string"

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateJsonSchema(t *testing.T) {
@@ -63,11 +64,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateSchemaFile: "../testdata/bundleDisabled.schema.json",
 		},
 		{
-			name: "embeddedRef",
+			name: "bundle",
 			config: &Config{
-				Draft:  2020,
-				Indent: 4,
-				Bundle: BoolFlag{set: true, value: true},
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "../",
 				Input: []string{
 					"../testdata/bundle.yaml",
 				},
@@ -75,26 +77,35 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle.schema.json",
 		},
+		{
+			name: "bundleRemote",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: true},
+				Input: []string{
+					"../testdata/bundleRemote.yaml",
+				},
+				OutputPath: "../testdata/bundleRemote_output.json",
+			},
+			templateSchemaFile: "../testdata/bundleRemote.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := GenerateJsonSchema(tt.config)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			generatedBytes, err := os.ReadFile(tt.config.OutputPath)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
-			var generatedSchema, templateSchema map[string]interface{}
-			err = json.Unmarshal(generatedBytes, &generatedSchema)
-			assert.NoError(t, err)
-			err = json.Unmarshal(templateBytes, &templateSchema)
-			assert.NoError(t, err)
+			t.Logf("Actual output:\n%s\n", templateBytes)
 
-			assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
+			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 
 			if err := os.Remove(tt.config.OutputPath); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)

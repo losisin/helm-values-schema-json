@@ -22,6 +22,7 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 	flags.IntVar(&conf.Indent, "indent", 4, "Indentation spaces (even number)")
 	flags.Var(&conf.NoAdditionalProperties, "noAdditionalProperties", "Default additionalProperties to false for all objects in the schema")
 	flags.Var(&conf.Bundle, "bundle", "Bundle referenced ($ref) subschemas into a single file inside $defs")
+	flags.StringVar(&conf.BundleRoot, "bundleRoot", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
 
 	// Nested SchemaRoot flags
 	flags.StringVar(&conf.SchemaRoot.ID, "schemaRoot.id", "", "JSON schema ID")
@@ -96,6 +97,9 @@ func MergeConfig(fileConfig, flagConfig *Config) *Config {
 	}
 	if flagConfig.Bundle.IsSet() {
 		mergedConfig.Bundle = flagConfig.Bundle
+	}
+	if flagConfig.BundleRoot != "" {
+		mergedConfig.BundleRoot = flagConfig.BundleRoot
 	}
 	if flagConfig.SchemaRoot.ID != "" {
 		mergedConfig.SchemaRoot.ID = flagConfig.SchemaRoot.ID

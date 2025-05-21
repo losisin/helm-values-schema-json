@@ -77,6 +77,12 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Ref != "" {
 		dest.Ref = src.Ref
 	}
+	if src.Schema != "" {
+		dest.Schema = src.Schema
+	}
+	if src.Comment != "" {
+		dest.Comment = src.Comment
+	}
 	if src.AllOf != nil {
 		dest.AllOf = src.AllOf
 	}
@@ -207,6 +213,12 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 	}
 	if schema.Ref != "" {
 		schemaMap["$ref"] = schema.Ref
+	}
+	if schema.Schema != "" {
+		schemaMap["$schema"] = schema.Schema
+	}
+	if schema.Comment != "" {
+		schemaMap["$comment"] = schema.Comment
 	}
 	if schema.Defs != nil {
 		m, err := convertSchemaMapToMapRec(schema.Defs, visited, noAdditionalProperties)

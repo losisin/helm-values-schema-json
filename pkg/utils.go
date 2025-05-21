@@ -22,7 +22,8 @@ type Config struct {
 	Draft                  int             `yaml:"draft"`
 	Indent                 int             `yaml:"indent"`
 	NoAdditionalProperties BoolFlag        `yaml:"noAdditionalProperties"`
-	Bundle                 BoolFlag        `yaml:"embedRefs"`
+	Bundle                 BoolFlag        `yaml:"bundle"`
+	BundleRoot             string          `yaml:"bundleRoot"`
 
 	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 

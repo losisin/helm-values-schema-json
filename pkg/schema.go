@@ -39,6 +39,8 @@ type Schema struct {
 	Hidden                bool               `json:"-"`
 	ID                    string             `json:"$id,omitempty"`
 	Ref                   string             `json:"$ref,omitempty"`
+	Schema                string             `json:"$schema,omitempty"`
+	Comment               string             `json:"$comment,omitempty"`
 	Defs                  map[string]*Schema `json:"$defs,omitempty"`
 	AllOf                 interface{}        `json:"allOf,omitempty"`
 	AnyOf                 interface{}        `json:"anyOf,omitempty"`
