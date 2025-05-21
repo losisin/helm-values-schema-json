@@ -3,6 +3,7 @@ package pkg
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -107,4 +108,8 @@ func uniqueStringAppend(dest []string, src ...string) []string {
 	}
 
 	return dest
+}
+
+func closeIgnoreError(closer io.Closer) {
+	_ = closer.Close()
 }

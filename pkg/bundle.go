@@ -188,7 +188,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if err != nil {
 		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
 	}
-	defer f.Close()
+	defer closeIgnoreError(f)
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
@@ -297,7 +297,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: got non-2xx status code: %s", ref, resp.Status)
 	}
-	defer resp.Body.Close()
+	defer closeIgnoreError(resp.Body)
 
 	reader := resp.Body
 	switch resp.Header.Get("Content-Encoding") {

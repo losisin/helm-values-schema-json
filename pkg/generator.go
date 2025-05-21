@@ -46,7 +46,7 @@ func GenerateJsonSchema(config *Config) error {
 	if err != nil {
 		return fmt.Errorf("open bundle root: %w", err)
 	}
-	defer root.Close()
+	defer closeIgnoreError(root)
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Input {
