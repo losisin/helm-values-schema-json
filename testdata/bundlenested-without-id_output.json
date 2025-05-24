@@ -1,9 +1,49 @@
 {
+    "$defs": {
+        "nested-subschema.schema.json": {
+            "$comment": "This subschema references some other schemas",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+                "image": {
+                    "$ref": "#/$defs/simple-subschema.schema.json",
+                    "type": null
+                }
+            },
+            "type": "object"
+        },
+        "simple-subschema.schema.json": {
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ],
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "type": "object"
+        }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
     "properties": {
         "subchart": {
-            "$ref": "#/$defs/bundleNestedSubschema.schema.json",
+            "$ref": "#/$defs/nested-subschema.schema.json",
             "properties": {
                 "replicas": {
                     "type": "integer"
@@ -12,38 +52,5 @@
             "type": "object"
         }
     },
-    "$defs": {
-        "bundleNestedSubschema.schema.json": {
-            "$comment": "This subschema references some other schemas",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "additionalProperties": false,
-            "properties": {
-                "image": {
-                    "$ref": "#/$defs/bundleSubschema.schema.json",
-                    "type": null
-                }
-            },
-            "type": "object"
-        },
-        "bundleSubschema.schema.json": {
-            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "additionalProperties": false,
-            "properties": {
-                "pullPolicy": {
-                    "description": "This sets the pull policy for images.",
-                    "enum": ["IfNotPresent", "Always", "Never"],
-                    "type": "string"
-                },
-                "repository": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Overrides the image tag whose default is the chart appVersion.",
-                    "type": ["string", "null"]
-                }
-            },
-            "type": "object"
-        }
-    }
+    "type": "object"
 }

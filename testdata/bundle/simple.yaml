@@ -1,6 +1,8 @@
-image: # @schema $ref: ./bundleSubschema.schema.json
+image: # @schema $ref: ./simple-subschema.schema.json
   repository: nginx
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
+
+imageToo: {} # @schema $ref: #/properties/image

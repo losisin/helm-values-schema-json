@@ -1,3 +1,0 @@
-image:
-  # This sets the pull policy for images.
-  pullPolicy: IfNotPresent # @schema $ref: ./bundleSubschema.schema.json#/properties/pullPolicy

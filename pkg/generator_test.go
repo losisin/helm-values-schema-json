@@ -51,34 +51,34 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
 		{
-			name: "bundleDisabled",
-			config: &Config{
-				Draft:  2020,
-				Indent: 4,
-				Bundle: BoolFlag{set: true, value: false},
-				Input: []string{
-					"../testdata/bundle.yaml",
-				},
-				OutputPath: "../testdata/bundleDisabled_output.json",
-			},
-			templateSchemaFile: "../testdata/bundleDisabled.schema.json",
-		},
-		{
-			name: "bundle",
+			name: "bundle/simple",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
 				Bundle:     BoolFlag{set: true, value: true},
 				BundleRoot: "../",
 				Input: []string{
-					"../testdata/bundle.yaml",
+					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle_output.json",
+				OutputPath: "../testdata/bundle/simple_output.json",
 			},
-			templateSchemaFile: "../testdata/bundle.schema.json",
+			templateSchemaFile: "../testdata/bundle/simple.schema.json",
 		},
 		{
-			name: "bundleWithoutID",
+			name: "bundle/simple-disabled",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: false},
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle/simple-disabled_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-disabled.schema.json",
+		},
+		{
+			name: "bundle/without-id",
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
@@ -86,41 +86,41 @@ func TestGenerateJsonSchema(t *testing.T) {
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				BundleRoot:      "../",
 				Input: []string{
-					"../testdata/bundle.yaml",
+					"../testdata/bundle/simple.yaml",
 				},
 				OutputPath: "../testdata/bundle_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleWithoutID.schema.json",
+			templateSchemaFile: "../testdata/bundle/simple-without-id.schema.json",
 		},
 		{
-			name: "bundleRemote",
+			name: "bundle/remote",
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
 				Bundle: BoolFlag{set: true, value: true},
 				Input: []string{
-					"../testdata/bundleRemote.yaml",
+					"../testdata/bundle/remote.yaml",
 				},
-				OutputPath: "../testdata/bundleRemote_output.json",
+				OutputPath: "../testdata/bundle/remote_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleRemote.schema.json",
+			templateSchemaFile: "../testdata/bundle/remote.schema.json",
 		},
 		{
-			name: "bundleNested",
+			name: "bundle/nested",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
 				Bundle:     BoolFlag{set: true, value: true},
 				BundleRoot: "..",
 				Input: []string{
-					"../testdata/bundleNested.yaml",
+					"../testdata/bundle/nested.yaml",
 				},
-				OutputPath: "../testdata/bundleNested_output.json",
+				OutputPath: "../testdata/bundle/nested_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleNested.schema.json",
+			templateSchemaFile: "../testdata/bundle/nested.schema.json",
 		},
 		{
-			name: "bundleNestedWithoutID",
+			name: "bundle/nested-without-id",
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
@@ -128,28 +128,28 @@ func TestGenerateJsonSchema(t *testing.T) {
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				BundleRoot:      "..",
 				Input: []string{
-					"../testdata/bundleNested.yaml",
+					"../testdata/bundle/nested.yaml",
 				},
-				OutputPath: "../testdata/bundleNestedWithoutID_output.json",
+				OutputPath: "../testdata/bundle/nested-without-id_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleNestedWithoutID.schema.json",
+			templateSchemaFile: "../testdata/bundle/nested-without-id.schema.json",
 		},
 		{
-			name: "bundleFragment",
+			name: "bundle/fragment",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
 				Bundle:     BoolFlag{set: true, value: true},
 				BundleRoot: "..",
 				Input: []string{
-					"../testdata/bundleFragment.yaml",
+					"../testdata/bundle/fragment.yaml",
 				},
-				OutputPath: "../testdata/bundleFragment_output.json",
+				OutputPath: "../testdata/bundle/fragment_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleFragment.schema.json",
+			templateSchemaFile: "../testdata/bundle/fragment.schema.json",
 		},
 		{
-			name: "bundleFragmentWithoutID",
+			name: "bundle/fragment-without-id",
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
@@ -157,11 +157,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				BundleRoot:      "..",
 				Input: []string{
-					"../testdata/bundleFragment.yaml",
+					"../testdata/bundle/fragment.yaml",
 				},
-				OutputPath: "../testdata/bundleFragmentWithoutID_output.json",
+				OutputPath: "../testdata/bundle/fragment-without-id_output.json",
 			},
-			templateSchemaFile: "../testdata/bundleFragmentWithoutID.schema.json",
+			templateSchemaFile: "../testdata/bundle/fragment-without-id.schema.json",
 		},
 	}
 
@@ -269,7 +269,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Bundle:     BoolFlag{set: true, value: true},
 				BundleRoot: ".",
 				Input: []string{
-					"../testdata/bundle.yaml",
+					"../testdata/bundle/simple.yaml",
 				},
 				OutputPath: "../testdata/bundle_output.json",
 			},
