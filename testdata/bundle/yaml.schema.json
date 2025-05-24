@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "image": {
-      "$ref": "./simple-subschema.schema.json",
+      "$ref": "./yaml-subschema.schema.yaml",
       "properties": {
         "pullPolicy": {
           "type": "string"
@@ -19,26 +19,26 @@
   },
   "type": "object",
   "$defs": {
-    "simple-subschema.schema.json": {
-      "$id": "./simple-subschema.schema.json",
+    "yaml-subschema.schema.yaml": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "$id": "./yaml-subschema.schema.yaml",
       "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "type": "object",
       "additionalProperties": false,
       "properties": {
+        "pullPolicy": {
+          "description": "This sets the pull policy for images.",
+          "enum": ["IfNotPresent", "Always", "Never"],
+          "type": "string"
+        },
         "repository": {
           "type": "string"
         },
-        "pullPolicy": {
-          "type": "string",
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"]
-        },
         "tag": {
-          "type": ["string", "null"],
-          "description": "Overrides the image tag whose default is the chart appVersion."
+          "description": "Overrides the image tag whose default is the chart appVersion.",
+          "type": ["string", "null"]
         }
-      }
+      },
+      "type": "object"
     }
   }
 }

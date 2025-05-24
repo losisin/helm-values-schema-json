@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -177,6 +178,20 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle/namecollision.schema.json",
 		},
+		{
+			name: "bundle/yaml",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/yaml.yaml",
+				},
+				OutputPath: "../testdata/bundle/yaml_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/yaml.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
@@ -276,6 +291,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("error writing schema to file"),
 		},
 		{
+			name: "bundle invalid root path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "\000", // null byte is invalid in both linux & windows
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("open bundle root: open \x00: invalid argument"),
+		},
+		{
 			name: "bundle wrong root path",
 			config: &Config{
 				Draft:      2020,
@@ -288,6 +317,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				OutputPath: "../testdata/bundle_output.json",
 			},
 			expectedErr: errors.New("path escapes from parent"),
+		},
+		{
+			name: "bundle fail to get relative path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: filepath.Clean("/"),
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("get relative path from bundle root to file"),
 		},
 	}
 

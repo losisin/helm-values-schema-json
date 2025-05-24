@@ -306,9 +306,6 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 }
 
 func convertSchemaSliceToMapRec(slice []*Schema, visited map[uintptr]bool, noAdditionalProperties bool) ([]any, error) {
-	if len(slice) == 0 {
-		return nil, nil
-	}
 	result := make([]any, len(slice))
 	for i, schema := range slice {
 		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
@@ -321,9 +318,6 @@ func convertSchemaSliceToMapRec(slice []*Schema, visited map[uintptr]bool, noAdd
 }
 
 func convertSchemaMapToMapRec(m map[string]*Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]any, error) {
-	if m == nil {
-		return nil, nil
-	}
 	result := make(map[string]any, len(m))
 	for name, schema := range m {
 		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)

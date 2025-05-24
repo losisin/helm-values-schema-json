@@ -72,10 +72,6 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 		return nil
 	}
 	for _, def := range root.Defs {
-		if def.ID == schema.ID {
-			// Already bundled
-			return nil
-		}
 		if def.ID == bundleRefToID(schema.Ref) {
 			// Already bundled
 			return nil
@@ -201,6 +197,9 @@ func generateBundledName(id string, defs map[string]*Schema) string {
 //
 // This function will update the schema in-place.
 func BundleRemoveIDs(schema *Schema) error {
+	if schema == nil {
+		return fmt.Errorf("nil schema")
+	}
 	if err := bundleChangeRefsRec(schema, schema); err != nil {
 		return err
 	}
@@ -251,6 +250,12 @@ func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 }
 
 func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
+	if loader == nil {
+		return nil, fmt.Errorf("nil loader")
+	}
+	if ref == "" {
+		return nil, fmt.Errorf("cannot load empty $ref")
+	}
 	refURL, err := url.Parse(ref)
 	if err != nil {
 		return nil, fmt.Errorf("parse $ref as URL: %w", err)
@@ -450,6 +455,8 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			return nil, fmt.Errorf("request $ref=%q over HTTP: create gzip reader: %w", ref, err)
 		}
 		reader = r
+	case "":
+		// Do nothing
 	default:
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported content encoding: %q", ref, errors.ErrUnsupported, resp.Header.Get("Content-Encoding"))
 	}

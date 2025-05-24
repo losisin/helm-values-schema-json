@@ -10,46 +10,46 @@ import (
 )
 
 type Schema struct {
-	Type                  interface{}        `json:"type,omitempty"`
-	Enum                  []any              `json:"enum,omitempty"`
-	MultipleOf            *float64           `json:"multipleOf,omitempty"`
-	Maximum               *float64           `json:"maximum,omitempty"`
-	Minimum               *float64           `json:"minimum,omitempty"`
-	MaxLength             *uint64            `json:"maxLength,omitempty"`
-	MinLength             *uint64            `json:"minLength,omitempty"`
-	Pattern               string             `json:"pattern,omitempty"`
-	MaxItems              *uint64            `json:"maxItems,omitempty"`
-	MinItems              *uint64            `json:"minItems,omitempty"`
-	UniqueItems           bool               `json:"uniqueItems,omitempty"`
-	MaxProperties         *uint64            `json:"maxProperties,omitempty"`
-	MinProperties         *uint64            `json:"minProperties,omitempty"`
-	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty"`
-	Required              []string           `json:"required,omitempty"`
-	Items                 *Schema            `json:"items,omitempty"`
-	ItemsEnum             []any              `json:"itemsEnum,omitempty"`
-	ItemProperties        map[string]*Schema `json:"itemProperties,omitempty"`
-	Properties            map[string]*Schema `json:"properties,omitempty"`
-	Title                 string             `json:"title,omitempty"`
-	Description           string             `json:"description,omitempty"`
-	ReadOnly              bool               `json:"readOnly,omitempty"`
-	Default               interface{}        `json:"default,omitempty"`
-	AdditionalProperties  *bool              `json:"additionalProperties"`
-	UnevaluatedProperties *bool              `json:"unevaluatedProperties"`
-	SkipProperties        bool               `json:"skipProperties,omitempty"`
-	Hidden                bool               `json:"-"`
-	ID                    string             `json:"$id,omitempty"`
-	Ref                   string             `json:"$ref,omitempty"`
-	Schema                string             `json:"$schema,omitempty"`
-	Comment               string             `json:"$comment,omitempty"`
-	Defs                  map[string]*Schema `json:"$defs,omitempty"`
-	AllOf                 []*Schema          `json:"allOf,omitempty"`
-	AnyOf                 []*Schema          `json:"anyOf,omitempty"`
-	OneOf                 []*Schema          `json:"oneOf,omitempty"`
-	Not                   *Schema            `json:"not,omitempty"`
+	Type                  interface{}        `json:"type,omitempty" yaml:"type,omitempty"`
+	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
+	MultipleOf            *float64           `json:"multipleOf,omitempty" yaml:"multipleOf,omitempty"`
+	Maximum               *float64           `json:"maximum,omitempty" yaml:"maximum,omitempty"`
+	Minimum               *float64           `json:"minimum,omitempty" yaml:"minimum,omitempty"`
+	MaxLength             *uint64            `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
+	MinLength             *uint64            `json:"minLength,omitempty" yaml:"minLength,omitempty"`
+	Pattern               string             `json:"pattern,omitempty" yaml:"pattern,omitempty"`
+	MaxItems              *uint64            `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
+	MinItems              *uint64            `json:"minItems,omitempty" yaml:"minItems,omitempty"`
+	UniqueItems           bool               `json:"uniqueItems,omitempty" yaml:"uniqueItems,omitempty"`
+	MaxProperties         *uint64            `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
+	MinProperties         *uint64            `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
+	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty" yaml:"patternProperties,omitempty"`
+	Required              []string           `json:"required,omitempty" yaml:"required,omitempty"`
+	Items                 *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
+	ItemsEnum             []any              `json:"itemsEnum,omitempty" yaml:"itemsEnum,omitempty"`
+	ItemProperties        map[string]*Schema `json:"itemProperties,omitempty" yaml:"itemProperties,omitempty"`
+	Properties            map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Title                 string             `json:"title,omitempty" yaml:"title,omitempty"`
+	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
+	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	Default               interface{}        `json:"default,omitempty" yaml:"default,omitempty"`
+	AdditionalProperties  *bool              `json:"additionalProperties" yaml:"additionalProperties"`
+	UnevaluatedProperties *bool              `json:"unevaluatedProperties" yaml:"unevaluatedProperties"`
+	SkipProperties        bool               `json:"skipProperties,omitempty" yaml:"skipProperties,omitempty"`
+	Hidden                bool               `json:"-" yaml:"-"`
+	ID                    string             `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	Schema                string             `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
+	Defs                  map[string]*Schema `json:"$defs,omitempty" yaml:"$defs,omitempty"`
+	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
+	AnyOf                 []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+	OneOf                 []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Not                   *Schema            `json:"not,omitempty" yaml:"not,omitempty"`
 
 	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
 	// but the field is kept in this struct to allow bundled schemas to use them.
-	Definitions map[string]*Schema `json:"definitions,omitempty"`
+	Definitions map[string]*Schema `json:"definitions,omitempty" yaml:"definitions,omitempty"`
 }
 
 func getKind(value string) string {

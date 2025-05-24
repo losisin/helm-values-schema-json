@@ -204,9 +204,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json"},
-			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json"},
-			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json"},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
 		},
 		{
 			name: "allOf",
@@ -380,6 +380,39 @@ func TestConvertSchemaToMap(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with definitons",
+			schema: &Schema{
+				Type: "object",
+				ID:   "http://example.com/schema",
+				Definitions: map[string]*Schema{
+					"foo": {
+						ID:   "http://example.com/subschema",
+						Type: "string",
+						Properties: map[string]*Schema{
+							"foo": &Schema{
+								Type: "string",
+							},
+						},
+					},
+				},
+			},
+			want: map[string]interface{}{
+				"type": "object",
+				"$id":  "http://example.com/schema",
+				"definitions": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"$id":  "http://example.com/subschema",
+						"type": "string",
+						"properties": map[string]interface{}{
+							"foo": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -402,39 +435,54 @@ func TestConvertSchemaToMapFail(t *testing.T) {
 		"circular": recursiveSchema,
 	}
 
-	schemaWithItemsError := &Schema{
-		Type:  "array",
-		Items: recursiveSchema,
-	}
-
-	schemaWithPropertiesError := &Schema{
-		Type:       "object",
-		Properties: map[string]*Schema{"circular": recursiveSchema},
-	}
-
-	schemaWithPatternPropertiesError := &Schema{
-		Type:              "object",
-		PatternProperties: map[string]*Schema{"circular": recursiveSchema},
-	}
-
 	tests := []struct {
 		name        string
 		schema      *Schema
 		expectedErr assert.ErrorAssertionFunc
 	}{
 		{
-			name:        "Error with recursive items",
-			schema:      schemaWithItemsError,
+			name:        "recursive items",
+			schema:      &Schema{Items: recursiveSchema},
 			expectedErr: assert.Error,
 		},
 		{
-			name:        "Error with recursive properties",
-			schema:      schemaWithPropertiesError,
+			name:        "recursive properties",
+			schema:      &Schema{Properties: map[string]*Schema{"circular": recursiveSchema}},
 			expectedErr: assert.Error,
 		},
 		{
-			name:        "Error with recursive patternProperties",
-			schema:      schemaWithPatternPropertiesError,
+			name:        "recursive patternProperties",
+			schema:      &Schema{PatternProperties: map[string]*Schema{"circular": recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive defs",
+			schema:      &Schema{Defs: map[string]*Schema{"circular": recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive definitions",
+			schema:      &Schema{Definitions: map[string]*Schema{"circular": recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive allOf",
+			schema:      &Schema{AllOf: []*Schema{recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive anyOf",
+			schema:      &Schema{AnyOf: []*Schema{recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive oneOf",
+			schema:      &Schema{OneOf: []*Schema{recursiveSchema}},
+			expectedErr: assert.Error,
+		},
+		{
+			name:        "recursive not",
+			schema:      &Schema{Not: recursiveSchema},
 			expectedErr: assert.Error,
 		},
 	}

@@ -44,8 +44,8 @@ func (m *multiStringFlag) String() string {
 }
 
 func (m *multiStringFlag) Set(value string) error {
-	values := strings.Split(value, ",")
-	for _, v := range values {
+	values := strings.SplitSeq(value, ",")
+	for v := range values {
 		*m = append(*m, v)
 	}
 	return nil
