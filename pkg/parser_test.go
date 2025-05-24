@@ -211,26 +211,26 @@ func TestMergeSchemas(t *testing.T) {
 		{
 			name: "allOf",
 			dest: &Schema{Type: "object"},
-			src:  &Schema{Type: "object", AllOf: []any{map[string]any{"type": "string"}}},
-			want: &Schema{Type: "object", AllOf: []any{map[string]any{"type": "string"}}},
+			src:  &Schema{Type: "object", AllOf: []*Schema{{Type: "string"}}},
+			want: &Schema{Type: "object", AllOf: []*Schema{{Type: "string"}}},
 		},
 		{
 			name: "anyOf",
 			dest: &Schema{Type: "object"},
-			src:  &Schema{Type: "object", AnyOf: []any{map[string]any{"type": "string"}}},
-			want: &Schema{Type: "object", AnyOf: []any{map[string]any{"type": "string"}}},
+			src:  &Schema{Type: "object", AnyOf: []*Schema{{Type: "string"}}},
+			want: &Schema{Type: "object", AnyOf: []*Schema{{Type: "string"}}},
 		},
 		{
 			name: "oneOf",
 			dest: &Schema{Type: "object"},
-			src:  &Schema{Type: "object", OneOf: []any{map[string]any{"type": "string"}}},
-			want: &Schema{Type: "object", OneOf: []any{map[string]any{"type": "string"}}},
+			src:  &Schema{Type: "object", OneOf: []*Schema{{Type: "string"}}},
+			want: &Schema{Type: "object", OneOf: []*Schema{{Type: "string"}}},
 		},
 		{
 			name: "not",
 			dest: &Schema{Type: "object"},
-			src:  &Schema{Type: "object", Not: []any{map[string]any{"type": "string"}}},
-			want: &Schema{Type: "object", Not: []any{map[string]any{"type": "string"}}},
+			src:  &Schema{Type: "object", Not: &Schema{Type: "string"}},
+			want: &Schema{Type: "object", Not: &Schema{Type: "string"}},
 		},
 	}
 
@@ -271,8 +271,8 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Required: []string{"foo"},
 				ID:       "http://example.com/schema",
 				Ref:      "schema/product.json",
-				AnyOf:    []any{map[string]any{"type": "string"}},
-				Not:      []any{map[string]any{"type": "string"}},
+				AnyOf:    []*Schema{{Type: "string"}},
+				Not:      &Schema{Type: "string"},
 			},
 			want: map[string]interface{}{
 				"minProperties":         uint64(1),
@@ -287,7 +287,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				"$id":      "http://example.com/schema",
 				"$ref":     "schema/product.json",
 				"anyOf":    []any{map[string]any{"type": "string"}},
-				"not":      []any{map[string]any{"type": "string"}},
+				"not":      map[string]any{"type": "string"},
 			},
 		},
 		{
@@ -299,7 +299,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				MaxItems:    uint64Ptr(2),
 				UniqueItems: true,
 				ReadOnly:    true,
-				AllOf:       []any{map[string]any{"type": "string"}},
+				AllOf:       []*Schema{{Type: "string"}},
 			},
 			want: map[string]interface{}{
 				"items": map[string]interface{}{
@@ -327,7 +327,7 @@ func TestConvertSchemaToMap(t *testing.T) {
 				Description: "some description",
 				Enum:        []interface{}{1, 2, 3},
 				Default:     "default",
-				OneOf:       []any{map[string]any{"type": "string"}},
+				OneOf:       []*Schema{{Type: "string"}},
 			},
 			want: map[string]interface{}{
 				"multipleOf":  3.0,

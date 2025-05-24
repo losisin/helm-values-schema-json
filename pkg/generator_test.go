@@ -163,6 +163,20 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle/fragment-without-id.schema.json",
 		},
+		{
+			name: "bundle/namecollision",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/namecollision.yaml",
+				},
+				OutputPath: "../testdata/bundle/namecollision_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/namecollision.schema.json",
+		},
 	}
 
 	for _, tt := range tests {

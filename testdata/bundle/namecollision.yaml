@@ -1,0 +1,2 @@
+dir1: {} # @schema $ref: ./dir1/namecollision-subschema.schema.json
+dir2: {} # @schema $ref: ./dir2/namecollision-subschema.schema.json

@@ -42,10 +42,10 @@ type Schema struct {
 	Schema                string             `json:"$schema,omitempty"`
 	Comment               string             `json:"$comment,omitempty"`
 	Defs                  map[string]*Schema `json:"$defs,omitempty"`
-	AllOf                 interface{}        `json:"allOf,omitempty"`
-	AnyOf                 interface{}        `json:"anyOf,omitempty"`
-	OneOf                 interface{}        `json:"oneOf,omitempty"`
-	Not                   interface{}        `json:"not,omitempty"`
+	AllOf                 []*Schema          `json:"allOf,omitempty"`
+	AnyOf                 []*Schema          `json:"anyOf,omitempty"`
+	OneOf                 []*Schema          `json:"oneOf,omitempty"`
+	Not                   *Schema            `json:"not,omitempty"`
 
 	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
 	// but the field is kept in this struct to allow bundled schemas to use them.
@@ -238,22 +238,22 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 					isHidden = true
 				}
 			case "allOf":
-				var jsonObject interface{}
+				var jsonObject []*Schema
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.AllOf = jsonObject
 				}
 			case "anyOf":
-				var jsonObject interface{}
+				var jsonObject []*Schema
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.AnyOf = jsonObject
 				}
 			case "oneOf":
-				var jsonObject interface{}
+				var jsonObject []*Schema
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.OneOf = jsonObject
 				}
 			case "not":
-				var jsonObject interface{}
+				var jsonObject *Schema
 				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 					schema.Not = jsonObject
 				}

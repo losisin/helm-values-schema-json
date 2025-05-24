@@ -237,19 +237,35 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 	}
 	if schema.AllOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["allOf"] = schema.AllOf
+		s, err := convertSchemaSliceToMapRec(schema.AllOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["allOf"] = s
 	}
 	if schema.AnyOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["anyOf"] = schema.AnyOf
+		s, err := convertSchemaSliceToMapRec(schema.AnyOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["anyOf"] = s
 	}
 	if schema.OneOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["oneOf"] = schema.OneOf
+		s, err := convertSchemaSliceToMapRec(schema.OneOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["oneOf"] = s
 	}
 	if schema.Not != nil {
 		delete(schemaMap, "type")
-		schemaMap["not"] = schema.Not
+		m, err := convertSchemaToMapRec(schema.Not, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["not"] = m
 	}
 
 	// Arrays
@@ -289,11 +305,26 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 	return schemaMap, nil
 }
 
-func convertSchemaMapToMapRec(m map[string]*Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]interface{}, error) {
+func convertSchemaSliceToMapRec(slice []*Schema, visited map[uintptr]bool, noAdditionalProperties bool) ([]any, error) {
+	if len(slice) == 0 {
+		return nil, nil
+	}
+	result := make([]any, len(slice))
+	for i, schema := range slice {
+		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = propMap
+	}
+	return result, nil
+}
+
+func convertSchemaMapToMapRec(m map[string]*Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]any, error) {
 	if m == nil {
 		return nil, nil
 	}
-	result := make(map[string]interface{})
+	result := make(map[string]any, len(m))
 	for name, schema := range m {
 		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
 		if err != nil {
