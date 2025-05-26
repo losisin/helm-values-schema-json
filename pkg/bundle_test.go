@@ -360,7 +360,6 @@ func TestIterSubschemas_order(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			// Run multiple times to ensure we dont get lucky with the ordering
 			for range 10 {
 				var ids []string
@@ -416,9 +415,9 @@ func TestFileLoader_Error(t *testing.T) {
 
 	root, err := os.OpenRoot("../testdata/bundle")
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		root.Close()
-	})
+	defer func() {
+		require.NoError(t, root.Close())
+	}()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -533,7 +532,8 @@ func TestHTTPLoader(t *testing.T) {
 					w.Header().Add("Content-Type", tt.responseType)
 				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
+				_, err := w.Write([]byte(tt.response))
+				require.NoError(t, err)
 			}))
 			defer server.Close()
 
@@ -554,8 +554,11 @@ func TestHTTPLoader(t *testing.T) {
 				w.Header().Add("Content-Encoding", "gzip")
 				w.WriteHeader(http.StatusOK)
 				gzipper := gzip.NewWriter(w)
-				defer gzipper.Close()
-				gzipper.Write([]byte(tt.response))
+				defer func() {
+					require.NoError(t, gzipper.Close())
+				}()
+				_, err := gzipper.Write([]byte(tt.response))
+				require.NoError(t, err)
 			}))
 			defer server.Close()
 
@@ -576,7 +579,8 @@ func TestHTTPLoader(t *testing.T) {
 					w.Header().Add("Content-Type", tt.responseType)
 				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.response))
+				_, err := w.Write([]byte(tt.response))
+				require.NoError(t, err)
 			}))
 			defer server.Close()
 
@@ -645,7 +649,8 @@ func TestHTTPLoader_Error(t *testing.T) {
 					w.Header().Add("Content-Type", tt.responseType)
 				}
 				w.WriteHeader(tt.responseCode)
-				w.Write([]byte(tt.response))
+				_, err := w.Write([]byte(tt.response))
+				require.NoError(t, err)
 			}))
 			defer server.Close()
 
@@ -662,7 +667,8 @@ func TestHTTPLoader_Error(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add("Content-Encoding", "foobar")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
 		}))
 		defer server.Close()
 
@@ -678,7 +684,8 @@ func TestHTTPLoader_Error(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add("Content-Encoding", "foobar")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
 		}))
 		server.Close() // close now already
 
@@ -694,7 +701,8 @@ func TestHTTPLoader_Error(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			w.Header().Add("Content-Encoding", "gzip")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
 		}))
 		defer server.Close()
 
