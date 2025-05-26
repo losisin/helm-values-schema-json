@@ -51,7 +51,8 @@
                             "type": "string"
                         },
                         {
-                            "minLength": 14
+                            "minLength": 14,
+                            "type": null
                         }
                     ]
                 },

@@ -6,6 +6,10 @@ draft: 2020 # @schema enum: [4, 6, 7, 2019, 2020]; default: 2020
 indent: 4 # @schema default: 4
 output: values.schema.json # @schema default: values.schema.json
 
+bundle: false # @schema default: false
+bundleRoot: . # @schema default: ""
+bundleWithoutID: false # @schema default: false
+
 schemaRoot:
   id: https://example.com/schema
   ref: schema/product.json
