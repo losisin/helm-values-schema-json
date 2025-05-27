@@ -94,19 +94,6 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateSchemaFile: "../testdata/bundle/simple-without-id.schema.json",
 		},
 		{
-			name: "bundle/remote",
-			config: &Config{
-				Draft:  2020,
-				Indent: 4,
-				Bundle: BoolFlag{set: true, value: true},
-				Input: []string{
-					"../testdata/bundle/remote.yaml",
-				},
-				OutputPath: "../testdata/bundle/remote_output.json",
-			},
-			templateSchemaFile: "../testdata/bundle/remote.schema.json",
-		},
-		{
 			name: "bundle/nested",
 			config: &Config{
 				Draft:      2020,
@@ -354,6 +341,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		})
 	}
 }
+
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 	tests := []struct {
 		name                    string

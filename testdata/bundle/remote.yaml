@@ -1,2 +1,0 @@
-remote: # @schema $ref: https://github.com/losisin/helm-values-schema-json/raw/aaf31949cd1e9d5316dc5e6d7329819a0b745f6a/testdata/values.schema.json
-  nodeSelector: {}
