@@ -128,6 +128,12 @@ Usage: helm schema [options...] <arguments>
     	JSON schema URI reference
   -schemaRoot.title string
     	JSON schema title
+  -bundle value
+    	Bundle referenced ($ref) subschemas into a single file inside $defs
+  -bundleRoot string
+    	Root directory to allow local referenced files to be loaded from (default current working directory)
+  -bundleWithoutID value
+    	Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
 ```
 
 ### Configuration file

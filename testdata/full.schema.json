@@ -1,6 +1,35 @@
 {
+    "$defs": {
+        "simple-subschema.schema.json": {
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ],
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "type": "object"
+        }
+    },
     "$id": "https://example.com/schema",
-    "$ref": "schema/product.json",
+    "$ref": "#/$defs/simple-subschema.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": true,
     "description": "Schema for Helm values",
@@ -16,7 +45,7 @@
                             "items": {
                                 "properties": {
                                     "preference": {
-                                        "$id": "https://example.com/schema.json",
+                                        "$id": "bundle/simple-subschema.schema.json",
                                         "patternProperties": {
                                             "^[a-z]$": {
                                                 "type": "string"
@@ -158,7 +187,7 @@
             "type": "string"
         },
         "subchart": {
-            "$ref": "https://example.com/schema.json",
+            "$ref": "#/$defs/simple-subschema.schema.json",
             "properties": {
                 "enabled": {
                     "type": "boolean"
