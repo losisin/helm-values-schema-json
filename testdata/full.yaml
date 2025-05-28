@@ -43,14 +43,14 @@ affinity:
           - antarctica-west1
     preferredDuringSchedulingIgnoredDuringExecution:
     - weight: 1
-      preference: # @schema patternProperties: {"^[a-z]$": {"type": "string"}} ; $id: bundle/simple-subschema.schema.json
+      preference: # @schema patternProperties: {"^[a-z]$": {"type": "string"}} ; $id: https://example.com/schema.json
         matchExpressions:
         - key: another-node-label-key
           operator: In
           values:
           - another-node-label-value
 
-subchart: # @schema $ref: bundle/simple-subschema.schema.json ; unevaluatedProperties: false
+subchart: # @schema $ref: https://example.com/schema.json ; unevaluatedProperties: false
   enabled: true
   name: subchart
   values:
