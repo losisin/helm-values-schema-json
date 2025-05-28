@@ -3,7 +3,6 @@ package pkg
 import (
 	"flag"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -78,20 +77,37 @@ func TestParseFlagsPass(t *testing.T) {
 				Args: []string{},
 			},
 		},
+
+		{[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
+			Config{
+				Indent:          4,
+				OutputPath:      "values.schema.json",
+				Draft:           2020,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleRoot:      "/foo/bar",
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				Args:            []string{},
+			},
+		},
+		{[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
+			Config{
+				Indent:          4,
+				OutputPath:      "values.schema.json",
+				Draft:           2020,
+				Bundle:          BoolFlag{set: true, value: false},
+				BundleRoot:      "",
+				BundleWithoutID: BoolFlag{set: true, value: false},
+				Args:            []string{},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
 			conf, output, err := ParseFlags("schema", tt.args)
-			if err != nil {
-				t.Errorf("err got %v, want nil", err)
-			}
-			if output != "" {
-				t.Errorf("output got %q, want empty", output)
-			}
-			if !reflect.DeepEqual(*conf, tt.conf) {
-				t.Errorf("conf got %+v, want %+v", *conf, tt.conf)
-			}
+			assert.NoError(t, err)
+			assert.Empty(t, output, "output")
+			assert.Equal(t, &tt.conf, conf, "conf")
 		})
 	}
 }
@@ -124,6 +140,8 @@ func TestParseFlagsFail(t *testing.T) {
 		{[]string{"-draft", "foo"}, "invalid value"},
 		{[]string{"-foo"}, "flag provided but not defined"},
 		{[]string{"-schemaRoot.additionalProperties", "null"}, "invalid boolean value"},
+		{[]string{"-bundle", "null"}, "invalid boolean value"},
+		{[]string{"-bundleWithoutID", "null"}, "invalid boolean value"},
 	}
 
 	for _, tt := range tests {
@@ -158,6 +176,9 @@ input:
 output: values.schema.json
 draft: 2020
 indent: 2
+bundle: true
+bundleRoot: ./
+bundleWithoutID: true
 schemaRoot:
   id: https://example.com/schema
   title: Helm Values Schema
@@ -165,10 +186,13 @@ schemaRoot:
   additionalProperties: true
 `,
 			expectedConf: Config{
-				Input:      multiStringFlag{"testdata/empty.yaml", "testdata/meta.yaml"},
-				OutputPath: "values.schema.json",
-				Draft:      2020,
-				Indent:     2,
+				Input:           multiStringFlag{"testdata/empty.yaml", "testdata/meta.yaml"},
+				OutputPath:      "values.schema.json",
+				Draft:           2020,
+				Indent:          2,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleRoot:      "./",
+				BundleWithoutID: BoolFlag{set: true, value: true},
 				SchemaRoot: SchemaRoot{
 					ID:                   "https://example.com/schema",
 					Title:                "Helm Values Schema",
@@ -406,6 +430,24 @@ func TestMergeConfig(t *testing.T) {
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
 				},
+			},
+		},
+		{
+			name: "FlagConfigWithBundleOverride",
+			fileConfig: &Config{
+				Bundle:          BoolFlag{set: true, value: false},
+				BundleRoot:      "root/from/file",
+				BundleWithoutID: BoolFlag{set: true, value: false},
+			},
+			flagConfig: &Config{
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleRoot:      "root/from/flags",
+				BundleWithoutID: BoolFlag{set: true, value: true},
+			},
+			expectedConfig: &Config{
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleRoot:      "root/from/flags",
+				BundleWithoutID: BoolFlag{set: true, value: true},
 			},
 		},
 	}

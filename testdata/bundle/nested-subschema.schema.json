@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "$comment": "This subschema references some other schemas",
+  "additionalProperties": false,
+  "properties": {
+    "image": {
+      "$ref": "./simple-subschema.schema.json"
+    }
+  }
+}

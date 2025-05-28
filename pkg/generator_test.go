@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateJsonSchema(t *testing.T) {
@@ -49,26 +51,150 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
+		{
+			name: "bundle/simple",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "../",
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle/simple_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple.schema.json",
+		},
+		{
+			name: "bundle/simple-disabled",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Bundle: BoolFlag{set: true, value: false},
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle/simple-disabled_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-disabled.schema.json",
+		},
+		{
+			name: "bundle/without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "../",
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-without-id.schema.json",
+		},
+		{
+			name: "bundle/nested",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/nested.yaml",
+				},
+				OutputPath: "../testdata/bundle/nested_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/nested.schema.json",
+		},
+		{
+			name: "bundle/nested-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "..",
+				Input: []string{
+					"../testdata/bundle/nested.yaml",
+				},
+				OutputPath: "../testdata/bundle/nested-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/nested-without-id.schema.json",
+		},
+		{
+			name: "bundle/fragment",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/fragment.yaml",
+				},
+				OutputPath: "../testdata/bundle/fragment_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/fragment.schema.json",
+		},
+		{
+			name: "bundle/fragment-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          BoolFlag{set: true, value: true},
+				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleRoot:      "..",
+				Input: []string{
+					"../testdata/bundle/fragment.yaml",
+				},
+				OutputPath: "../testdata/bundle/fragment-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/fragment-without-id.schema.json",
+		},
+		{
+			name: "bundle/namecollision",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/namecollision.yaml",
+				},
+				OutputPath: "../testdata/bundle/namecollision_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/namecollision.schema.json",
+		},
+		{
+			name: "bundle/yaml",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "..",
+				Input: []string{
+					"../testdata/bundle/yaml.yaml",
+				},
+				OutputPath: "../testdata/bundle/yaml_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/yaml.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := GenerateJsonSchema(tt.config)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			generatedBytes, err := os.ReadFile(tt.config.OutputPath)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
-			var generatedSchema, templateSchema map[string]interface{}
-			err = json.Unmarshal(generatedBytes, &generatedSchema)
-			assert.NoError(t, err)
-			err = json.Unmarshal(templateBytes, &templateSchema)
-			assert.NoError(t, err)
+			t.Logf("Generated output:\n%s\n", generatedBytes)
 
-			assert.Equal(t, templateSchema, generatedSchema, "Generated JSON schema does not match the template")
+			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 
 			if err := os.Remove(tt.config.OutputPath); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)
@@ -151,6 +277,48 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			},
 			expectedErr: errors.New("error writing schema to file"),
 		},
+		{
+			name: "bundle invalid root path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: "\000", // null byte is invalid in both linux & windows
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("open bundle root: open \x00: invalid argument"),
+		},
+		{
+			name: "bundle wrong root path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: ".",
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("path escapes from parent"),
+		},
+		{
+			name: "bundle fail to get relative path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     BoolFlag{set: true, value: true},
+				BundleRoot: filepath.Clean("/"),
+				Input: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				OutputPath: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("get relative path from bundle root to file"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -173,6 +341,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		})
 	}
 }
+
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 	tests := []struct {
 		name                    string

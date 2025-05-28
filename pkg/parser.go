@@ -77,6 +77,12 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Ref != "" {
 		dest.Ref = src.Ref
 	}
+	if src.Schema != "" {
+		dest.Schema = src.Schema
+	}
+	if src.Comment != "" {
+		dest.Comment = src.Comment
+	}
 	if src.AllOf != nil {
 		dest.AllOf = src.AllOf
 	}
@@ -94,18 +100,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	dest.Enum = append(dest.Enum, src.Enum...)
 
 	// Recursive calls for nested structures
-	if src.Properties != nil {
-		if dest.Properties == nil {
-			dest.Properties = make(map[string]*Schema)
-		}
-		for propName, srcPropSchema := range src.Properties {
-			if destPropSchema, exists := dest.Properties[propName]; exists {
-				dest.Properties[propName] = mergeSchemas(destPropSchema, srcPropSchema)
-			} else {
-				dest.Properties[propName] = srcPropSchema
-			}
-		}
-	}
+	dest.Properties = mergeSchemasMap(dest.Properties, src.Properties)
+	dest.Defs = mergeSchemasMap(dest.Defs, src.Defs)
+	dest.Definitions = mergeSchemasMap(dest.Definitions, src.Definitions)
 
 	// 'required' array is combined uniquely
 	dest.Required = uniqueStringAppend(dest.Required, src.Required...)
@@ -115,6 +112,22 @@ func mergeSchemas(dest, src *Schema) *Schema {
 		dest.Items = mergeSchemas(dest.Items, src.Items)
 	}
 
+	return dest
+}
+
+func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
+	if src != nil {
+		if dest == nil {
+			dest = make(map[string]*Schema)
+		}
+		for defName, srcDefSchema := range src {
+			if destDefSchema, exists := dest[defName]; exists {
+				dest[defName] = mergeSchemas(destDefSchema, srcDefSchema)
+			} else {
+				dest[defName] = srcDefSchema
+			}
+		}
+	}
 	return dest
 }
 
@@ -202,21 +215,57 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 	if schema.Ref != "" {
 		schemaMap["$ref"] = schema.Ref
 	}
+	if schema.Schema != "" {
+		schemaMap["$schema"] = schema.Schema
+	}
+	if schema.Comment != "" {
+		schemaMap["$comment"] = schema.Comment
+	}
+	if schema.Defs != nil {
+		m, err := convertSchemaMapToMapRec(schema.Defs, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["$defs"] = m
+	}
+	if schema.Definitions != nil {
+		m, err := convertSchemaMapToMapRec(schema.Definitions, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["definitions"] = m
+	}
 	if schema.AllOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["allOf"] = schema.AllOf
+		s, err := convertSchemaSliceToMapRec(schema.AllOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["allOf"] = s
 	}
 	if schema.AnyOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["anyOf"] = schema.AnyOf
+		s, err := convertSchemaSliceToMapRec(schema.AnyOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["anyOf"] = s
 	}
 	if schema.OneOf != nil {
 		delete(schemaMap, "type")
-		schemaMap["oneOf"] = schema.OneOf
+		s, err := convertSchemaSliceToMapRec(schema.OneOf, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["oneOf"] = s
 	}
 	if schema.Not != nil {
 		delete(schemaMap, "type")
-		schemaMap["not"] = schema.Not
+		m, err := convertSchemaToMapRec(schema.Not, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		schemaMap["not"] = m
 	}
 
 	// Arrays
@@ -236,30 +285,46 @@ func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditiona
 		schemaMap["items"] = itemsMap
 	}
 	if schema.Properties != nil {
-		propertiesMap := make(map[string]interface{})
-		for propName, propSchema := range schema.Properties {
-			propMap, err := convertSchemaToMapRec(propSchema, visited, noAdditionalProperties)
-			if err != nil {
-				return nil, err
-			}
-			propertiesMap[propName] = propMap
+		m, err := convertSchemaMapToMapRec(schema.Properties, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
 		}
-		schemaMap["properties"] = propertiesMap
+		schemaMap["properties"] = m
 	}
 
 	if schema.PatternProperties != nil {
-		patternPropertiesMap := make(map[string]interface{})
-		for propName, propSchema := range schema.PatternProperties {
-			propMap, err := convertSchemaToMapRec(propSchema, visited, noAdditionalProperties)
-			if err != nil {
-				return nil, err
-			}
-			patternPropertiesMap[propName] = propMap
+		m, err := convertSchemaMapToMapRec(schema.PatternProperties, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
 		}
-		schemaMap["patternProperties"] = patternPropertiesMap
+		schemaMap["patternProperties"] = m
 	}
 
 	delete(visited, ptr)
 
 	return schemaMap, nil
+}
+
+func convertSchemaSliceToMapRec(slice []*Schema, visited map[uintptr]bool, noAdditionalProperties bool) ([]any, error) {
+	result := make([]any, len(slice))
+	for i, schema := range slice {
+		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = propMap
+	}
+	return result, nil
+}
+
+func convertSchemaMapToMapRec(m map[string]*Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]any, error) {
+	result := make(map[string]any, len(m))
+	for name, schema := range m {
+		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = propMap
+	}
+	return result, nil
 }
