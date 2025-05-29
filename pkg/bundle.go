@@ -148,6 +148,14 @@ func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
 }
 
 func generateBundledName(id string, defs map[string]*Schema) string {
+	if id == "" {
+		return ""
+	}
+	for name, def := range defs {
+		if def.ID == id {
+			return name
+		}
+	}
 	baseName := path.Base(id)
 	name := baseName
 	i := 1

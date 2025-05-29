@@ -15,6 +15,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGenerateBundledName(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		id   string
+		defs map[string]*Schema
+		want string
+	}{
+		{
+			name: "empty id",
+			id:   "",
+			defs: map[string]*Schema{},
+			want: "",
+		},
+		{
+			name: "new item",
+			id:   "foo.json",
+			defs: map[string]*Schema{},
+			want: "foo.json",
+		},
+		{
+			name: "colliding item",
+			id:   "some/path/foo.json",
+			defs: map[string]*Schema{
+				"foo.json": {
+					ID: "some/other/path/foo.json",
+				},
+			},
+			want: "foo.json_2",
+		},
+		{
+			name: "existing item",
+			id:   "foo.json",
+			defs: map[string]*Schema{
+				"foo.json": {
+					ID: "foo.json",
+				},
+			},
+			want: "foo.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := generateBundledName(tt.id, tt.defs)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestBundle(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -218,6 +268,122 @@ func TestBundle_Errors(t *testing.T) {
 			t.Parallel()
 			err := BundleSchema(t.Context(), tt.loader, tt.schema)
 			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestBundleRemoveIDs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   *Schema
+	}{
+		{
+			name:   "empty schema",
+			schema: &Schema{},
+			want:   &Schema{},
+		},
+
+		{
+			name: "subschema is bundled",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "bar.json"},
+						Defs: map[string]*Schema{
+							"bar": {
+								ID:   "bar.json",
+								Type: "number",
+							},
+						},
+					},
+				},
+			},
+			want: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						Items: &Schema{Ref: "#/$defs/bar"},
+						Defs:  map[string]*Schema{},
+					},
+					"bar": {
+						Type: "number",
+					},
+				},
+			},
+		},
+
+		{
+			name: "subschema has fragment",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "#/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Type: "number"},
+						},
+					},
+				},
+			},
+			want: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						Items: &Schema{Ref: "#/$defs/foo/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Type: "number"},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "subschema of subschema has fragment",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "#/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Ref: "bar.json"},
+						},
+					},
+					"bar": {
+						ID:    "bar.json",
+						Items: &Schema{Ref: "#/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Type: "number"},
+						},
+					},
+				},
+			},
+			want: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {
+						Items: &Schema{Ref: "#/$defs/foo/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Ref: "#/$defs/bar"},
+						},
+					},
+					"bar": {
+						Items: &Schema{Ref: "#/$defs/bar/$defs/items"},
+						Defs: map[string]*Schema{
+							"items": {Type: "number"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := BundleRemoveIDs(tt.schema)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
