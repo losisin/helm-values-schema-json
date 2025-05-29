@@ -380,6 +380,14 @@ func TestBundleRemoveIDs(t *testing.T) {
 			err := BundleRemoveIDs(tt.schema)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.schema)
+
+			want, err := yaml.Marshal(tt.want)
+			require.NoError(t, err)
+			t.Logf("Want:\n%s", string(want))
+
+			got, err := yaml.Marshal(tt.schema)
+			require.NoError(t, err)
+			t.Logf("Got:\n%s", string(got))
 		})
 	}
 }
