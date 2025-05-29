@@ -10,11 +10,12 @@ import (
 )
 
 func TestParseFlagsPass(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		args []string
 		conf Config
 	}{
-		{[]string{"-input", "values.yaml"},
+		{
+			[]string{"-input", "values.yaml"},
 			Config{
 				Input:      multiStringFlag{"values.yaml"},
 				OutputPath: "values.schema.json",
@@ -24,7 +25,8 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
+		{
+			[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
 			Config{
 				Input:         multiStringFlag{"values1.yaml values2.yaml"},
 				OutputPath:    "values.schema.json",
@@ -37,7 +39,8 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
+		{
+			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
 			Config{
 				Input:      multiStringFlag{"values.yaml"},
 				OutputPath: "my.schema.json",
@@ -49,7 +52,8 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019"},
+		{
+			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019"},
 			Config{
 				Input:         multiStringFlag{"values.yaml"},
 				OutputPath:    "my.schema.json",
@@ -62,7 +66,8 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
+		{
+			[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
 			Config{
 				Input:      multiStringFlag{"values.yaml"},
 				OutputPath: "values.schema.json",
@@ -78,7 +83,8 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
+		{
+			[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
 			Config{
 				Indent:          4,
 				OutputPath:      "values.schema.json",
@@ -89,7 +95,8 @@ func TestParseFlagsPass(t *testing.T) {
 				Args:            []string{},
 			},
 		},
-		{[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
+		{
+			[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
 			Config{
 				Indent:          4,
 				OutputPath:      "values.schema.json",
@@ -113,7 +120,7 @@ func TestParseFlagsPass(t *testing.T) {
 }
 
 func TestParseFlagsUsage(t *testing.T) {
-	var usageArgs = []string{"-help", "-h", "--help"}
+	usageArgs := []string{"-help", "-h", "--help"}
 
 	for _, arg := range usageArgs {
 		t.Run(arg, func(t *testing.T) {
@@ -132,7 +139,7 @@ func TestParseFlagsUsage(t *testing.T) {
 }
 
 func TestParseFlagsFail(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		args   []string
 		errStr string
 	}{
@@ -181,6 +188,7 @@ bundleRoot: ./
 bundleWithoutID: true
 schemaRoot:
   id: https://example.com/schema
+  ref: schema/product.json
   title: Helm Values Schema
   description: Schema for Helm values
   additionalProperties: true
@@ -194,8 +202,9 @@ schemaRoot:
 				BundleRoot:      "./",
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				SchemaRoot: SchemaRoot{
-					ID:                   "https://example.com/schema",
 					Title:                "Helm Values Schema",
+					ID:                   "https://example.com/schema",
+					Ref:                  "schema/product.json",
 					Description:          "Schema for Helm values",
 					AdditionalProperties: BoolFlag{set: true, value: true},
 				},
@@ -233,6 +242,7 @@ input:
 				Indent:     0,
 				SchemaRoot: SchemaRoot{
 					ID:                   "",
+					Ref:                  "",
 					Title:                "",
 					Description:          "",
 					AdditionalProperties: BoolFlag{set: false, value: false},
@@ -305,6 +315,7 @@ func TestMergeConfig(t *testing.T) {
 				NoAdditionalProperties: BoolFlag{set: true, value: true},
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -318,6 +329,7 @@ func TestMergeConfig(t *testing.T) {
 				NoAdditionalProperties: BoolFlag{set: true, value: false},
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
@@ -334,6 +346,7 @@ func TestMergeConfig(t *testing.T) {
 				NoAdditionalProperties: BoolFlag{set: true, value: false},
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
@@ -349,6 +362,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -362,6 +376,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -377,6 +392,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -393,6 +409,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -411,6 +428,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     2,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
@@ -426,6 +444,7 @@ func TestMergeConfig(t *testing.T) {
 				Indent:     2,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
