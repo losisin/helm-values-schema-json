@@ -230,7 +230,7 @@ func TestSchemaSetKind_panics(t *testing.T) {
 	}
 }
 
-func TestGetKind(t *testing.T) {
+func TestGetYAMLKind(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    string
@@ -285,7 +285,7 @@ func TestGetKind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getKind(tt.value)
+			result := getYAMLKind(tt.value)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

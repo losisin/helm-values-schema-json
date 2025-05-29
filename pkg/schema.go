@@ -177,25 +177,18 @@ func (s *Schema) SetKind(kind SchemaKind) {
 	}
 }
 
-func getKind(value string) string {
-	kindMapping := map[string]string{
-		"boolean": "boolean",
-		"integer": "integer",
-		"number":  "number",
-		"string":  "string",
-	}
-
+func getYAMLKind(value string) string {
 	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
-		return kindMapping["integer"]
+		return "integer"
 	}
 	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		return kindMapping["number"]
+		return "number"
 	}
 	if _, err := strconv.ParseBool(value); err == nil {
-		return kindMapping["boolean"]
+		return "boolean"
 	}
 	if value != "" {
-		return kindMapping["string"]
+		return "string"
 	}
 	return "null"
 }
@@ -442,7 +435,7 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		if valNode.Style == yaml.DoubleQuotedStyle || valNode.Style == yaml.SingleQuotedStyle {
 			schema.Type = "string"
 		} else {
-			schema.Type = getKind(valNode.Value)
+			schema.Type = getYAMLKind(valNode.Value)
 		}
 	}
 
