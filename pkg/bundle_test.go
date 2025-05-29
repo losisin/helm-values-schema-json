@@ -16,6 +16,50 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestBundleRefToID(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		ref  string
+		want string
+	}{
+		{
+			name: "empty id",
+			ref:  "",
+			want: "",
+		},
+		{
+			name: "valid",
+			ref:  "https://localhost/foo/bar",
+			want: "https://localhost/foo/bar",
+		},
+		{
+			name: "keeps userinfo",
+			ref:  "https://user:pass@localhost/foo/bar",
+			want: "https://user:pass@localhost/foo/bar",
+		},
+		{
+			name: "removes fragment",
+			ref:  "https://localhost/foo/bar#mayo",
+			want: "https://localhost/foo/bar",
+		},
+		{
+			name: "invalid URL",
+			ref:  "::",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := bundleRefToID(tt.ref)
+			if got != tt.want {
+				t.Fatalf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestGenerateBundledName(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -522,8 +566,8 @@ func TestIterSubschemas_order(t *testing.T) {
 		{
 			name: "items",
 			schema: &Schema{
-				Items: &Schema{ID: "a"},
-				OneOf: []*Schema{{ID: "b"}, {ID: "c"}},
+				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				Items:      &Schema{ID: "c"},
 			},
 		},
 		{

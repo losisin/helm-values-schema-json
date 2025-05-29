@@ -115,11 +115,6 @@ func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
 
 func iterSubschemas(schema *Schema) iter.Seq2[Ptr, *Schema] {
 	return func(yield func(Ptr, *Schema) bool) {
-		if schema.Items != nil {
-			if !yield(NewPtr("items"), schema.Items) {
-				return
-			}
-		}
 		for key, subSchema := range iterMapOrdered(schema.Properties) {
 			if !yield(NewPtr("properties", key), subSchema) {
 				return
@@ -127,6 +122,11 @@ func iterSubschemas(schema *Schema) iter.Seq2[Ptr, *Schema] {
 		}
 		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
 			if !yield(NewPtr("patternProperties", key), subSchema) {
+				return
+			}
+		}
+		if schema.Items != nil {
+			if !yield(NewPtr("items"), schema.Items) {
 				return
 			}
 		}
