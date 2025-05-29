@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func uint64Ptr(i uint64) *uint64 {
@@ -192,15 +193,15 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "array properties",
-			dest: &Schema{Type: "array", Items: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
-			src:  &Schema{Type: "array", Items: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
-			want: &Schema{Type: "array", Items: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
+			dest: &Schema{Type: "array", Items: &Schema{Type: "string"}, AdditionalItems: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
+			src:  &Schema{Type: "array", Items: &Schema{Type: "string"}, AdditionalItems: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
+			want: &Schema{Type: "array", Items: &Schema{Type: "string"}, AdditionalItems: &Schema{Type: "string"}, MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true},
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: boolPtr(false), UnevaluatedProperties: boolPtr(false)},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
 		},
 		{
 			name: "meta-data properties",
@@ -244,253 +245,151 @@ func TestMergeSchemas(t *testing.T) {
 	}
 }
 
-func TestConvertSchemaToMap(t *testing.T) {
+func TestEnsureCompliant(t *testing.T) {
 	tests := []struct {
-		name    string
-		schema  *Schema
-		want    map[string]interface{}
-		wantErr bool
+		name                   string
+		schema                 *Schema
+		noAdditionalProperties bool
+		want                   *Schema
+		wantErr                string
 	}{
 		{
 			name:   "nil schema",
 			schema: nil,
-			want:   nil,
 		},
+
 		{
-			name: "with properties",
+			name:   "bool schema",
+			schema: &SchemaTrue,
+			want:   &SchemaTrue,
+		},
+
+		{
+			name: "override additionalProperties",
 			schema: &Schema{
-				Type:                  "object",
-				MinProperties:         uint64Ptr(1),
-				MaxProperties:         uint64Ptr(5),
-				UnevaluatedProperties: boolPtr(false),
-				Properties: map[string]*Schema{
-					"foo": {
-						Type: "string",
-					},
-				},
-				Required: []string{"foo"},
-				ID:       "http://example.com/schema",
-				Ref:      "schema/product.json",
-				AnyOf:    []*Schema{{Type: "string"}},
-				Not:      &Schema{Type: "string"},
+				Type:                 "object",
+				AdditionalProperties: nil,
 			},
-			want: map[string]interface{}{
-				"minProperties":         uint64(1),
-				"maxProperties":         uint64(5),
-				"unevaluatedProperties": false,
-				"properties": map[string]interface{}{
-					"foo": map[string]interface{}{
-						"type": "string",
-					},
-				},
-				"required": []string{"foo"},
-				"$id":      "http://example.com/schema",
-				"$ref":     "schema/product.json",
-				"anyOf":    []any{map[string]any{"type": "string"}},
-				"not":      map[string]any{"type": "string"},
+			noAdditionalProperties: true,
+			want: &Schema{
+				Type:                 "object",
+				AdditionalProperties: &SchemaFalse,
 			},
 		},
+
 		{
-			name: "with nested items",
+			name: "keep additionalProperties when not object",
 			schema: &Schema{
-				Type:        "array",
-				Items:       &Schema{Type: "string", MinLength: uint64Ptr(1), MaxLength: uint64Ptr(10), AdditionalProperties: boolPtr(false)},
-				MinItems:    uint64Ptr(1),
-				MaxItems:    uint64Ptr(2),
-				UniqueItems: true,
-				ReadOnly:    true,
-				AllOf:       []*Schema{{Type: "string"}},
+				Type:                 "array",
+				AdditionalProperties: &Schema{ID: "foo"},
 			},
-			want: map[string]interface{}{
-				"items": map[string]interface{}{
-					"type":                 "string",
-					"minLength":            uint64(1),
-					"maxLength":            uint64(10),
-					"additionalProperties": false,
-				},
-				"minItems":    uint64(1),
-				"maxItems":    uint64(2),
-				"uniqueItems": true,
-				"readOnly":    true,
-				"allOf":       []any{map[string]any{"type": "string"}},
+			noAdditionalProperties: true,
+			want: &Schema{
+				Type:                 "array",
+				AdditionalProperties: &Schema{ID: "foo"},
 			},
 		},
+
 		{
-			name: "with all scalar types",
+			name: "keep additionalProperties when config not enabled",
 			schema: &Schema{
-				Type:        "integer",
-				MultipleOf:  float64Ptr(3),
-				Maximum:     float64Ptr(10),
-				Minimum:     float64Ptr(1),
-				Pattern:     "^abc",
-				Title:       "My Title",
-				Description: "some description",
-				Enum:        []interface{}{1, 2, 3},
-				Default:     "default",
-				OneOf:       []*Schema{{Type: "string"}},
+				Type:                 "object",
+				AdditionalProperties: &Schema{ID: "foo"},
 			},
-			want: map[string]interface{}{
-				"multipleOf":  3.0,
-				"maximum":     10.0,
-				"minimum":     1.0,
-				"pattern":     "^abc",
-				"title":       "My Title",
-				"description": "some description",
-				"enum":        []interface{}{1, 2, 3},
-				"default":     "default",
-				"oneOf":       []any{map[string]any{"type": "string"}},
+			noAdditionalProperties: false,
+			want: &Schema{
+				Type:                 "object",
+				AdditionalProperties: &Schema{ID: "foo"},
 			},
 		},
+
 		{
-			name: "with defs",
-			schema: &Schema{
-				Type:                  "object",
-				MinProperties:         uint64Ptr(1),
-				MaxProperties:         uint64Ptr(5),
-				UnevaluatedProperties: boolPtr(false),
-				ID:                    "http://example.com/schema",
-				Defs: map[string]*Schema{
-					"foo": {
-						ID:   "http://example.com/subschema",
-						Type: "string",
-						Properties: map[string]*Schema{
-							"foo": &Schema{
-								Type: "string",
-							},
-						},
-					},
-				},
-			},
-			want: map[string]interface{}{
-				"type":                  "object",
-				"minProperties":         uint64(1),
-				"maxProperties":         uint64(5),
-				"unevaluatedProperties": false,
-				"$id":                   "http://example.com/schema",
-				"$defs": map[string]interface{}{
-					"foo": map[string]interface{}{
-						"$id":  "http://example.com/subschema",
-						"type": "string",
-						"properties": map[string]interface{}{
-							"foo": map[string]interface{}{
-								"type": "string",
-							},
-						},
-					},
-				},
-			},
+			name:   "unset type when allOf",
+			schema: &Schema{Type: "object", AllOf: []*Schema{{ID: "foo"}}},
+			want:   &Schema{AllOf: []*Schema{{ID: "foo"}}},
 		},
 		{
-			name: "with definitons",
-			schema: &Schema{
-				Type: "object",
-				ID:   "http://example.com/schema",
-				Definitions: map[string]*Schema{
-					"foo": {
-						ID:   "http://example.com/subschema",
-						Type: "string",
-						Properties: map[string]*Schema{
-							"foo": &Schema{
-								Type: "string",
-							},
-						},
-					},
-				},
-			},
-			want: map[string]interface{}{
-				"type": "object",
-				"$id":  "http://example.com/schema",
-				"definitions": map[string]interface{}{
-					"foo": map[string]interface{}{
-						"$id":  "http://example.com/subschema",
-						"type": "string",
-						"properties": map[string]interface{}{
-							"foo": map[string]interface{}{
-								"type": "string",
-							},
-						},
-					},
-				},
-			},
+			name:   "unset type when anyOf",
+			schema: &Schema{Type: "object", AnyOf: []*Schema{{ID: "foo"}}},
+			want:   &Schema{AnyOf: []*Schema{{ID: "foo"}}},
+		},
+		{
+			name:   "unset type when oneOf",
+			schema: &Schema{Type: "object", OneOf: []*Schema{{ID: "foo"}}},
+			want:   &Schema{OneOf: []*Schema{{ID: "foo"}}},
+		},
+		{
+			name:   "unset type when not",
+			schema: &Schema{Type: "object", Not: &Schema{ID: "foo"}},
+			want:   &Schema{Not: &Schema{ID: "foo"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertSchemaToMap(tt.schema, false)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("convertSchemaToMap()\nerror   %v\nwantErr %v", err, tt.wantErr)
+			err := ensureCompliant(tt.schema, tt.noAdditionalProperties)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("convertSchemaToMap()\ngot  %v\nwant %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
 
-func TestConvertSchemaToMapFail(t *testing.T) {
+func TestEnsureCompliant_recursive(t *testing.T) {
 	recursiveSchema := &Schema{}
 	recursiveSchema.Properties = map[string]*Schema{
 		"circular": recursiveSchema,
 	}
 
 	tests := []struct {
-		name        string
-		schema      *Schema
-		expectedErr assert.ErrorAssertionFunc
+		name   string
+		schema *Schema
 	}{
 		{
-			name:        "recursive items",
-			schema:      &Schema{Items: recursiveSchema},
-			expectedErr: assert.Error,
+			name:   "recursive items",
+			schema: &Schema{Items: recursiveSchema},
 		},
 		{
-			name:        "recursive properties",
-			schema:      &Schema{Properties: map[string]*Schema{"circular": recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive properties",
+			schema: &Schema{Properties: map[string]*Schema{"circular": recursiveSchema}},
 		},
 		{
-			name:        "recursive patternProperties",
-			schema:      &Schema{PatternProperties: map[string]*Schema{"circular": recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive patternProperties",
+			schema: &Schema{PatternProperties: map[string]*Schema{"circular": recursiveSchema}},
 		},
 		{
-			name:        "recursive defs",
-			schema:      &Schema{Defs: map[string]*Schema{"circular": recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive defs",
+			schema: &Schema{Defs: map[string]*Schema{"circular": recursiveSchema}},
 		},
 		{
-			name:        "recursive definitions",
-			schema:      &Schema{Definitions: map[string]*Schema{"circular": recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive definitions",
+			schema: &Schema{Definitions: map[string]*Schema{"circular": recursiveSchema}},
 		},
 		{
-			name:        "recursive allOf",
-			schema:      &Schema{AllOf: []*Schema{recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive allOf",
+			schema: &Schema{AllOf: []*Schema{recursiveSchema}},
 		},
 		{
-			name:        "recursive anyOf",
-			schema:      &Schema{AnyOf: []*Schema{recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive anyOf",
+			schema: &Schema{AnyOf: []*Schema{recursiveSchema}},
 		},
 		{
-			name:        "recursive oneOf",
-			schema:      &Schema{OneOf: []*Schema{recursiveSchema}},
-			expectedErr: assert.Error,
+			name:   "recursive oneOf",
+			schema: &Schema{OneOf: []*Schema{recursiveSchema}},
 		},
 		{
-			name:        "recursive not",
-			schema:      &Schema{Not: recursiveSchema},
-			expectedErr: assert.Error,
+			name:   "recursive not",
+			schema: &Schema{Not: recursiveSchema},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := convertSchemaToMap(tc.schema, false)
-			tc.expectedErr(t, err)
+			err := ensureCompliant(tc.schema, false)
+			assert.Error(t, err)
 		})
 	}
 }

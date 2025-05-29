@@ -11,14 +11,12 @@
 package pkg
 
 import (
-	"cmp"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"maps"
 	"mime"
 	"net/http"
@@ -61,7 +59,7 @@ func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 }
 
 func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
-	for path, subSchema := range iterSubschemas(schema) {
+	for path, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(path)
 		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
 			return fmt.Errorf("%s: %w", ptr, err)
@@ -110,66 +108,6 @@ func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
 	}
 	if len(*defs) == 0 {
 		*defs = nil
-	}
-}
-
-func iterSubschemas(schema *Schema) iter.Seq2[Ptr, *Schema] {
-	return func(yield func(Ptr, *Schema) bool) {
-		for key, subSchema := range iterMapOrdered(schema.Properties) {
-			if !yield(NewPtr("properties", key), subSchema) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
-			if !yield(NewPtr("patternProperties", key), subSchema) {
-				return
-			}
-		}
-		if schema.Items != nil {
-			if !yield(NewPtr("items"), schema.Items) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Defs) {
-			if !yield(NewPtr("$defs", key), subSchema) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Definitions) {
-			if !yield(NewPtr("definitions", key), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.AllOf {
-			if !yield(NewPtr("allOf").Item(index), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.AnyOf {
-			if !yield(NewPtr("anyOf").Item(index), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.OneOf {
-			if !yield(NewPtr("anyOf").Item(index), subSchema) {
-				return
-			}
-		}
-		if schema.Not != nil {
-			if !yield(NewPtr("not"), schema.Not) {
-				return
-			}
-		}
-	}
-}
-
-func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for _, k := range slices.Sorted(maps.Keys(m)) {
-			if !yield(k, m[k]) {
-				return
-			}
-		}
 	}
 }
 
@@ -248,7 +186,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 		parentDefPtr = ptr
 	}
 
-	for subPath, subSchema := range iterSubschemas(schema) {
+	for subPath, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(subPath)
 		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
 			return fmt.Errorf("%s: %w", ptr, err)

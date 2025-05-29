@@ -2,9 +2,13 @@ package pkg
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -28,6 +32,13 @@ var (
 	SchemaTrue  = Schema{kind: SchemaKindTrue}
 	SchemaFalse = Schema{kind: SchemaKindFalse}
 )
+
+func SchemaBool(value bool) *Schema {
+	if value {
+		return &SchemaTrue
+	}
+	return &SchemaFalse
+}
 
 // IsBool returns true when the [Schema] represents a boolean value
 // instead of an object.
@@ -76,6 +87,7 @@ type Schema struct {
 	MaxItems              *uint64            `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
 	MinItems              *uint64            `json:"minItems,omitempty" yaml:"minItems,omitempty"`
 	UniqueItems           bool               `json:"uniqueItems,omitempty" yaml:"uniqueItems,omitempty"`
+	AdditionalItems       *Schema            `json:"additionalItems,omitempty" yaml:"additionalItems,omitempty"`
 	MaxProperties         *uint64            `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
 	MinProperties         *uint64            `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
 	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty" yaml:"patternProperties,omitempty"`
@@ -88,7 +100,7 @@ type Schema struct {
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	Default               interface{}        `json:"default,omitempty" yaml:"default,omitempty"`
-	AdditionalProperties  *bool              `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	AdditionalProperties  *Schema            `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 	UnevaluatedProperties *bool              `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
 	SkipProperties        bool               `json:"skipProperties,omitempty" yaml:"skipProperties,omitempty"`
 	Hidden                bool               `json:"-" yaml:"-"`
@@ -369,7 +381,11 @@ func processComment(schema *Schema, comment string) (isRequired, isHidden bool) 
 				schema.Items.Enum = processList(value, false)
 			case "additionalProperties":
 				if v, err := strconv.ParseBool(value); err == nil {
-					schema.AdditionalProperties = &v
+					if v {
+						schema.AdditionalProperties = &SchemaTrue
+					} else {
+						schema.AdditionalProperties = &SchemaFalse
+					}
 				}
 			case "unevaluatedProperties":
 				if v, err := strconv.ParseBool(value); err == nil {
@@ -477,4 +493,74 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 	}
 
 	return schema, propIsRequired
+}
+
+func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
+	return func(yield func(Ptr, *Schema) bool) {
+		for key, subSchema := range iterMapOrdered(schema.Properties) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("properties", key), subSchema) {
+				return
+			}
+		}
+		if schema.AdditionalProperties != nil && schema.AdditionalProperties.Kind() == SchemaKindObject {
+			if !yield(NewPtr("additionalProperties"), schema.AdditionalProperties) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("patternProperties", key), subSchema) {
+				return
+			}
+		}
+		if schema.Items != nil && schema.Items.Kind() == SchemaKindObject {
+			if !yield(NewPtr("items"), schema.Items) {
+				return
+			}
+		}
+		if schema.AdditionalItems != nil && schema.AdditionalItems.Kind() == SchemaKindObject {
+			if !yield(NewPtr("additionalItems"), schema.AdditionalItems) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.Defs) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("$defs", key), subSchema) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.Definitions) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("definitions", key), subSchema) {
+				return
+			}
+		}
+		for index, subSchema := range schema.AllOf {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("allOf").Item(index), subSchema) {
+				return
+			}
+		}
+		for index, subSchema := range schema.AnyOf {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("anyOf").Item(index), subSchema) {
+				return
+			}
+		}
+		for index, subSchema := range schema.OneOf {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("anyOf").Item(index), subSchema) {
+				return
+			}
+		}
+		if schema.Not != nil {
+			if schema.Not.Kind() == SchemaKindObject && !yield(NewPtr("not"), schema.Not) {
+				return
+			}
+		}
+	}
+}
+
+func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for _, k := range slices.Sorted(maps.Keys(m)) {
+			if !yield(k, m[k]) {
+				return
+			}
+		}
+	}
 }

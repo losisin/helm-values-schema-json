@@ -1,8 +1,7 @@
 package pkg
 
 import (
-	"errors"
-	"reflect"
+	"fmt"
 )
 
 func mergeSchemas(dest, src *Schema) *Schema {
@@ -12,6 +11,8 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src == nil {
 		return dest
 	}
+
+	dest.SetKind(src.Kind())
 
 	// Resolve simple fields by favoring the fields from 'src' if they're provided
 	if src.Type != "" {
@@ -66,7 +67,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 		dest.Default = src.Default
 	}
 	if src.AdditionalProperties != nil {
-		dest.AdditionalProperties = src.AdditionalProperties
+		dest.AdditionalProperties = mergeSchemas(dest.AdditionalProperties, src.AdditionalProperties)
 	}
 	if src.UnevaluatedProperties != nil {
 		dest.UnevaluatedProperties = src.UnevaluatedProperties
@@ -111,6 +112,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Items != nil {
 		dest.Items = mergeSchemas(dest.Items, src.Items)
 	}
+	if src.AdditionalItems != nil {
+		dest.AdditionalItems = mergeSchemas(dest.AdditionalItems, src.AdditionalItems)
+	}
 
 	return dest
 }
@@ -131,200 +135,47 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 	return dest
 }
 
-func convertSchemaToMap(schema *Schema, noAdditionalProperties bool) (map[string]interface{}, error) {
-	return convertSchemaToMapRec(schema, make(map[uintptr]bool), noAdditionalProperties)
+func ensureCompliant(schema *Schema, noAdditionalProperties bool) error {
+	return ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties)
 }
 
-func convertSchemaToMapRec(schema *Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]interface{}, error) {
+func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool) error {
 	if schema == nil {
-		return nil, nil
+		return nil
 	}
-	// Get the uintptr for the current schema pointer to identify it uniquely
-	ptr := reflect.ValueOf(schema).Pointer()
 
 	// If we've already visited this schema, we've found a circular reference
-	if visited[ptr] {
-		return nil, errors.New("circular reference detected in schema")
+	if _, ok := visited[schema]; ok {
+		return fmt.Errorf("%s: circular reference detected in schema", ptr)
 	}
 
 	// Mark the current schema as visited
-	visited[ptr] = true
+	visited[schema] = struct{}{}
+	defer delete(visited, schema)
 
-	schemaMap := make(map[string]interface{})
-
-	// Scalars
-	if schema.Type != "" {
-		schemaMap["type"] = schema.Type
-	}
-	if schema.MultipleOf != nil {
-		schemaMap["multipleOf"] = *schema.MultipleOf
-	}
-	if schema.Maximum != nil {
-		schemaMap["maximum"] = *schema.Maximum
-	}
-	if schema.Minimum != nil {
-		schemaMap["minimum"] = *schema.Minimum
-	}
-	if schema.MaxLength != nil {
-		schemaMap["maxLength"] = *schema.MaxLength
-	}
-	if schema.MinLength != nil {
-		schemaMap["minLength"] = *schema.MinLength
-	}
-	if schema.Pattern != "" {
-		schemaMap["pattern"] = schema.Pattern
-	}
-	if schema.MaxItems != nil {
-		schemaMap["maxItems"] = *schema.MaxItems
-	}
-	if schema.MinItems != nil {
-		schemaMap["minItems"] = *schema.MinItems
-	}
-	if schema.UniqueItems {
-		schemaMap["uniqueItems"] = schema.UniqueItems
-	}
-	if schema.MaxProperties != nil {
-		schemaMap["maxProperties"] = *schema.MaxProperties
-	}
-	if schema.MinProperties != nil {
-		schemaMap["minProperties"] = *schema.MinProperties
-	}
-	if schema.Title != "" {
-		schemaMap["title"] = schema.Title
-	}
-	if schema.Description != "" {
-		schemaMap["description"] = schema.Description
-	}
-	if schema.ReadOnly {
-		schemaMap["readOnly"] = schema.ReadOnly
-	}
-	if schema.Default != nil {
-		schemaMap["default"] = schema.Default
-	}
-	if schema.AdditionalProperties != nil {
-		schemaMap["additionalProperties"] = *schema.AdditionalProperties
-	} else if noAdditionalProperties && schema.Type == "object" {
-		schemaMap["additionalProperties"] = false
-	}
-	if schema.UnevaluatedProperties != nil {
-		schemaMap["unevaluatedProperties"] = *schema.UnevaluatedProperties
-	}
-	if schema.ID != "" {
-		schemaMap["$id"] = schema.ID
-	}
-	if schema.Ref != "" {
-		schemaMap["$ref"] = schema.Ref
-	}
-	if schema.Schema != "" {
-		schemaMap["$schema"] = schema.Schema
-	}
-	if schema.Comment != "" {
-		schemaMap["$comment"] = schema.Comment
-	}
-	if schema.Defs != nil {
-		m, err := convertSchemaMapToMapRec(schema.Defs, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
+	for path, sub := range schema.Subschemas() {
+		// continue recursively
+		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties); err != nil {
+			return err
 		}
-		schemaMap["$defs"] = m
-	}
-	if schema.Definitions != nil {
-		m, err := convertSchemaMapToMapRec(schema.Definitions, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["definitions"] = m
-	}
-	if schema.AllOf != nil {
-		delete(schemaMap, "type")
-		s, err := convertSchemaSliceToMapRec(schema.AllOf, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["allOf"] = s
-	}
-	if schema.AnyOf != nil {
-		delete(schemaMap, "type")
-		s, err := convertSchemaSliceToMapRec(schema.AnyOf, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["anyOf"] = s
-	}
-	if schema.OneOf != nil {
-		delete(schemaMap, "type")
-		s, err := convertSchemaSliceToMapRec(schema.OneOf, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["oneOf"] = s
-	}
-	if schema.Not != nil {
-		delete(schemaMap, "type")
-		m, err := convertSchemaToMapRec(schema.Not, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["not"] = m
 	}
 
-	// Arrays
-	if len(schema.Required) > 0 {
-		schemaMap["required"] = schema.Required
-	}
-	if schema.Enum != nil {
-		schemaMap["enum"] = schema.Enum
+	if schema.Kind().IsBool() {
+		return nil
 	}
 
-	// Nested Schemas
-	if schema.Items != nil {
-		itemsMap, err := convertSchemaToMapRec(schema.Items, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["items"] = itemsMap
-	}
-	if schema.Properties != nil {
-		m, err := convertSchemaMapToMapRec(schema.Properties, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["properties"] = m
+	if schema.AdditionalProperties == nil && noAdditionalProperties && schema.Type == "object" {
+		schema.AdditionalProperties = &SchemaFalse
 	}
 
-	if schema.PatternProperties != nil {
-		m, err := convertSchemaMapToMapRec(schema.PatternProperties, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		schemaMap["patternProperties"] = m
+	switch {
+	case len(schema.AllOf) > 0,
+		len(schema.AnyOf) > 0,
+		len(schema.OneOf) > 0,
+		schema.Not != nil:
+		// These fields collide with "type"
+		schema.Type = nil
 	}
 
-	delete(visited, ptr)
-
-	return schemaMap, nil
-}
-
-func convertSchemaSliceToMapRec(slice []*Schema, visited map[uintptr]bool, noAdditionalProperties bool) ([]any, error) {
-	result := make([]any, len(slice))
-	for i, schema := range slice {
-		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		result[i] = propMap
-	}
-	return result, nil
-}
-
-func convertSchemaMapToMapRec(m map[string]*Schema, visited map[uintptr]bool, noAdditionalProperties bool) (map[string]any, error) {
-	result := make(map[string]any, len(m))
-	for name, schema := range m {
-		propMap, err := convertSchemaToMapRec(schema, visited, noAdditionalProperties)
-		if err != nil {
-			return nil, err
-		}
-		result[name] = propMap
-	}
-	return result, nil
+	return nil
 }
