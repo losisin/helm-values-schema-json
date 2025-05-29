@@ -225,7 +225,7 @@ func BundleRemoveIDs(schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	if err := bundleChangeRefsRec("#", schema, schema); err != nil {
+	if err := bundleChangeRefsRec("", schema, schema); err != nil {
 		return err
 	}
 	for _, def := range schema.Defs {
