@@ -33,8 +33,8 @@ type Schema struct {
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	Default               interface{}        `json:"default,omitempty" yaml:"default,omitempty"`
-	AdditionalProperties  *bool              `json:"additionalProperties" yaml:"additionalProperties"`
-	UnevaluatedProperties *bool              `json:"unevaluatedProperties" yaml:"unevaluatedProperties"`
+	AdditionalProperties  *bool              `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	UnevaluatedProperties *bool              `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
 	SkipProperties        bool               `json:"skipProperties,omitempty" yaml:"skipProperties,omitempty"`
 	Hidden                bool               `json:"-" yaml:"-"`
 	ID                    string             `json:"$id,omitempty" yaml:"$id,omitempty"`
@@ -92,7 +92,7 @@ func getSchemaURL(draft int) (string, error) {
 	}
 }
 
-func getComment(keyNode *yaml.Node, valNode *yaml.Node) string {
+func getComment(keyNode, valNode *yaml.Node) string {
 	if valNode.LineComment != "" {
 		return valNode.LineComment
 	}
@@ -119,7 +119,7 @@ func processList(comment string, stringsOnly bool) []interface{} {
 	return list
 }
 
-func processComment(schema *Schema, comment string) (isRequired bool, isHidden bool) {
+func processComment(schema *Schema, comment string) (isRequired, isHidden bool) {
 	isRequired = false
 	isHidden = false
 
@@ -264,7 +264,7 @@ func processComment(schema *Schema, comment string) (isRequired bool, isHidden b
 	return isRequired, isHidden
 }
 
-func parseNode(keyNode *yaml.Node, valNode *yaml.Node) (*Schema, bool) {
+func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 	schema := &Schema{}
 
 	switch valNode.Kind {

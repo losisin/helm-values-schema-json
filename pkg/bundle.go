@@ -57,13 +57,14 @@ func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, loader, schema, schema)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema)
 }
 
-func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) error {
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
 	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+		ptr := ptr.Add(path)
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", ptr, err)
 		}
 	}
 
@@ -87,50 +88,75 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
 	}
+
+	// Copy over $defs
+	moveDefToRoot(root, &loaded.Defs)
+	moveDefToRoot(root, &loaded.Definitions)
+
+	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, loader, root, loaded)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded)
 }
 
-func iterSubschemas(schema *Schema) iter.Seq2[string, *Schema] {
-	return func(yield func(string, *Schema) bool) {
+func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
+	for key, def := range *defs {
+		if def.ID == "" {
+			// Only move items that are referenced by $id.
+			continue
+		}
+		root.Defs[generateBundledName(def.ID, root.Defs)] = def
+		delete(*defs, key)
+	}
+	if len(*defs) == 0 {
+		*defs = nil
+	}
+}
+
+func iterSubschemas(schema *Schema) iter.Seq2[Ptr, *Schema] {
+	return func(yield func(Ptr, *Schema) bool) {
 		for key, subSchema := range iterMapOrdered(schema.Properties) {
-			if !yield(fmt.Sprintf("properties[%q]", key), subSchema) {
+			if !yield(NewPtr("properties", key), subSchema) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
-			if !yield(fmt.Sprintf("patternProperties[%q]", key), subSchema) {
+			if !yield(NewPtr("patternProperties", key), subSchema) {
+				return
+			}
+		}
+		if schema.Items != nil {
+			if !yield(NewPtr("items"), schema.Items) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.Defs) {
-			if !yield(fmt.Sprintf("$defs[%q]", key), subSchema) {
+			if !yield(NewPtr("$defs", key), subSchema) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.Definitions) {
-			if !yield(fmt.Sprintf("definitions[%q]", key), subSchema) {
+			if !yield(NewPtr("definitions", key), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.AllOf {
-			if !yield(fmt.Sprintf("allOf[%d]", index), subSchema) {
+			if !yield(NewPtr("allOf").Item(index), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.AnyOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
+			if !yield(NewPtr("anyOf").Item(index), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.OneOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
+			if !yield(NewPtr("anyOf").Item(index), subSchema) {
 				return
 			}
 		}
 		if schema.Not != nil {
-			if !yield("not", schema.Not) {
+			if !yield(NewPtr("not"), schema.Not) {
 				return
 			}
 		}
@@ -148,6 +174,14 @@ func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
 }
 
 func generateBundledName(id string, defs map[string]*Schema) string {
+	if id == "" {
+		return ""
+	}
+	for name, def := range defs {
+		if def.ID == id {
+			return name
+		}
+	}
 	baseName := path.Base(id)
 	name := baseName
 	i := 1
@@ -200,7 +234,7 @@ func BundleRemoveIDs(schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	if err := bundleChangeRefsRec(schema, schema); err != nil {
+	if err := bundleChangeRefsRec(nil, nil, schema, schema); err != nil {
 		return err
 	}
 	for _, def := range schema.Defs {
@@ -209,15 +243,24 @@ func BundleRemoveIDs(schema *Schema) error {
 	return nil
 }
 
-func bundleChangeRefsRec(root, schema *Schema) error {
-	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleChangeRefsRec(root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
+	if schema.ID != "" {
+		parentDefPtr = ptr
+	}
+
+	for subPath, subSchema := range iterSubschemas(schema) {
+		ptr := ptr.Add(subPath)
+		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", ptr, err)
 		}
 	}
 
 	if schema.Ref == "" || strings.HasPrefix(schema.Ref, "#") {
-		// Nothing to update
+		if schema.Ref != "" && len(parentDefPtr) > 0 {
+			// Update inline refs
+			schema.Ref = fmt.Sprintf("#%s%s", parentDefPtr, strings.TrimPrefix(schema.Ref, "#"))
+		}
+
 		return nil
 	}
 
@@ -232,9 +275,9 @@ func bundleChangeRefsRec(root, schema *Schema) error {
 	}
 
 	if ref.Fragment != "" {
-		schema.Ref = fmt.Sprintf("#/$defs/%s/%s", name, strings.TrimPrefix(ref.Fragment, "/"))
+		schema.Ref = fmt.Sprintf("#%s%s", NewPtr("$defs", name), ref.Fragment)
 	} else {
-		schema.Ref = fmt.Sprintf("#/$defs/%s", name)
+		schema.Ref = fmt.Sprintf("#%s", NewPtr("$defs", name))
 	}
 
 	return nil
