@@ -203,8 +203,15 @@ func TestBundle(t *testing.T) {
 					switch ref.String() {
 					case "foo.json":
 						return &Schema{
-							Properties: map[string]*Schema{"num": {Ref: "bar.json"}},
-							Defs:       map[string]*Schema{"bar.json": {Type: "number"}},
+							Properties: map[string]*Schema{
+								"num": {Ref: "bar.json"},
+							},
+							Defs: map[string]*Schema{
+								"bar.json": {
+									ID:   "bar.json",
+									Type: "number",
+								},
+							},
 						}, nil
 					default:
 						return nil, fmt.Errorf("undefined test schema: %s", ref)
@@ -214,8 +221,16 @@ func TestBundle(t *testing.T) {
 			want: &Schema{
 				Items: &Schema{Ref: "foo.json"},
 				Defs: map[string]*Schema{
-					"foo.json": {Properties: map[string]*Schema{"num": {Ref: "bar.json"}}},
-					"bar.json": {Type: "number"},
+					"foo.json": {
+						ID: "foo.json",
+						Properties: map[string]*Schema{
+							"num": {Ref: "bar.json"},
+						},
+					},
+					"bar.json": {
+						ID:   "bar.json",
+						Type: "number",
+					},
 				},
 			},
 		},
