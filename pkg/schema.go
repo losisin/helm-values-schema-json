@@ -1,15 +1,70 @@
 package pkg
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
+// SchemaKind is an internal enum used to be able to parse
+// an entire schema as a boolean, which is used on fields like
+// "additionalProperties".
+//
+// The zero value is "treat this as an object".
+type SchemaKind byte
+
+const (
+	SchemaKindObject SchemaKind = iota
+	SchemaKindTrue
+	SchemaKindFalse
+)
+
+var (
+	SchemaTrue  = Schema{kind: SchemaKindTrue}
+	SchemaFalse = Schema{kind: SchemaKindFalse}
+)
+
+// IsBool returns true when the [Schema] represents a boolean value
+// instead of an object.
+func (k SchemaKind) IsBool() bool {
+	switch k {
+	case SchemaKindTrue, SchemaKindFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// String implements [fmt.Stringer].
+func (k SchemaKind) String() string {
+	switch k {
+	case SchemaKindTrue:
+		return "true"
+	case SchemaKindFalse:
+		return "false"
+	case SchemaKindObject:
+		return "object"
+	default:
+		return fmt.Sprintf("SchemaKind(%d)", k)
+	}
+}
+
+// GoString implements [fmt.GoStringer],
+// and is used in debug output such as:
+//
+//	fmt.Sprint("%#v", kind)
+func (k SchemaKind) GoString() string {
+	return k.String()
+}
+
 type Schema struct {
+	kind SchemaKind
+
 	Type                  interface{}        `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	MultipleOf            *float64           `json:"multipleOf,omitempty" yaml:"multipleOf,omitempty"`
@@ -50,6 +105,76 @@ type Schema struct {
 	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
 	// but the field is kept in this struct to allow bundled schemas to use them.
 	Definitions map[string]*Schema `json:"definitions,omitempty" yaml:"definitions,omitempty"`
+}
+
+var (
+	_ json.Unmarshaler = &Schema{}
+	_ yaml.Unmarshaler = &Schema{}
+)
+
+// UnmarshalJSON implements [json.Unmarshaler].
+func (s *Schema) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	// checking length to not create too many intermediate strings
+	if len(trimmed) <= 5 {
+		switch string(trimmed) {
+		case "true":
+			s.SetKind(SchemaKindTrue)
+			return nil
+		case "false":
+			s.SetKind(SchemaKindFalse)
+			return nil
+		}
+	}
+
+	// Unmarshal using a new type to not cause infinite recursion when unmarshalling
+	type SchemaWithoutUnmarshaler Schema
+	model := (*SchemaWithoutUnmarshaler)(s)
+	return json.Unmarshal(data, model)
+}
+
+// UnmarshalYAML implements [yaml.Unmarshaler].
+func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.ScalarNode && value.ShortTag() == "!!bool" {
+		var b bool
+		if err := value.Decode(&b); err != nil {
+			return err
+		}
+		if b {
+			s.SetKind(SchemaKindTrue)
+		} else {
+			s.SetKind(SchemaKindFalse)
+		}
+		return nil
+	}
+
+	// Unmarshal using a new type to not cause infinite recursion when unmarshalling
+	type SchemaWithoutUnmarshaler Schema
+	model := (*SchemaWithoutUnmarshaler)(s)
+	return value.Decode(model)
+}
+
+func (s *Schema) Kind() SchemaKind {
+	if s == nil {
+		return SchemaKindObject
+	}
+	return s.kind
+}
+
+func (s *Schema) SetKind(kind SchemaKind) {
+	if s == nil {
+		panic(fmt.Errorf("Schema.SetKind(%#v): method reciever must not be nil", kind))
+	}
+	switch kind {
+	case SchemaKindTrue:
+		*s = SchemaTrue // will implicitly reset all other fields to zero
+	case SchemaKindFalse:
+		*s = SchemaFalse // will implicitly reset all other fields to zero
+	case SchemaKindObject:
+		s.kind = SchemaKindObject
+	default:
+		panic(fmt.Errorf("Schema.SetKind(%#v): unexpected kind", kind))
+	}
 }
 
 func getKind(value string) string {

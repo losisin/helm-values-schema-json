@@ -1,12 +1,234 @@
 package pkg
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
+
+func TestSchemaKindString(t *testing.T) {
+	tests := []struct {
+		name string
+		kind SchemaKind
+		want string
+	}{
+		{name: "zero", kind: SchemaKind(0), want: "object"},
+		{name: "object", kind: SchemaKindObject, want: "object"},
+		{name: "true", kind: SchemaKindTrue, want: "true"},
+		{name: "false", kind: SchemaKindFalse, want: "false"},
+		{name: "undefined", kind: SchemaKind(123), want: "SchemaKind(123)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.kind.String(), "SchemaKind.String()")
+			assert.Equal(t, tt.want, tt.kind.GoString(), "SchemaKind.GoString()")
+		})
+	}
+}
+
+func TestSchemaKindIsBool(t *testing.T) {
+	tests := []struct {
+		name string
+		kind SchemaKind
+		want bool
+	}{
+		{name: "zero", kind: SchemaKind(0), want: false},
+		{name: "object", kind: SchemaKindObject, want: false},
+		{name: "true", kind: SchemaKindTrue, want: true},
+		{name: "false", kind: SchemaKindFalse, want: true},
+		{name: "undefined", kind: SchemaKind(123), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.kind.IsBool())
+		})
+	}
+}
+
+func TestSchemaJSONUnmarshal(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		want     *Schema
+		wantKind SchemaKind
+	}{
+		{
+			name:     "null",
+			json:     `null`,
+			want:     nil,
+			wantKind: SchemaKindObject,
+		},
+		{
+			name:     "true",
+			json:     `true`,
+			want:     &SchemaTrue,
+			wantKind: SchemaKindTrue,
+		},
+		{
+			name:     "false",
+			json:     `false`,
+			want:     &SchemaFalse,
+			wantKind: SchemaKindFalse,
+		},
+		{
+			name: "object",
+			json: `{"$id": "hello there"}`,
+			want: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			wantKind: SchemaKindObject,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `json:"schema"`
+			}
+			err := json.Unmarshal([]byte(`{"schema":`+tt.json+`}`), &result)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result.Schema)
+			assert.Equal(t, tt.wantKind, result.Schema.Kind())
+		})
+	}
+}
+
+func TestSchemaYAMLUnmarshal(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+		want *Schema
+	}{
+		{
+			name: "null",
+			yaml: ` null `,
+			want: nil,
+		},
+		{
+			name: "true",
+			yaml: ` true `,
+			want: &SchemaTrue,
+		},
+		{
+			name: "false",
+			yaml: ` false `,
+			want: &SchemaFalse,
+		},
+		{
+			name: "object",
+			yaml: `{"$id": "hello there"}`,
+			want: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `yaml:"schema"`
+			}
+			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result.Schema)
+		})
+	}
+}
+
+func TestSchemaYAMLUnmarshal_error(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name:    "bool",
+			yaml:    `!!bool not a bool`,
+			wantErr: "cannot decode !!str `not a bool` as a !!bool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `yaml:"schema"`
+			}
+			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSchemaSetKind(t *testing.T) {
+	tests := []struct {
+		name   string
+		kind   SchemaKind
+		schema *Schema
+		want   *Schema
+	}{
+		{
+			name:   "set true resets other fields",
+			kind:   SchemaKindTrue,
+			schema: &Schema{kind: SchemaKindTrue, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindTrue},
+		},
+		{
+			name:   "set false resets other fields",
+			kind:   SchemaKindFalse,
+			schema: &Schema{kind: SchemaKindFalse, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindFalse},
+		},
+		{
+			name:   "set object keeps other fields",
+			kind:   SchemaKindObject,
+			schema: &Schema{kind: SchemaKindTrue, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindObject, ID: "foobar"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.schema.SetKind(tt.kind)
+			assert.Equal(t, tt.schema, tt.want)
+		})
+	}
+}
+
+func TestSchemaSetKind_panics(t *testing.T) {
+	tests := []struct {
+		name    string
+		kind    SchemaKind
+		schema  *Schema
+		wantErr string
+	}{
+		{
+			name:    "set nil",
+			kind:    SchemaKindObject,
+			schema:  nil,
+			wantErr: "Schema.SetKind(object): method reciever must not be nil",
+		},
+		{
+			name:    "set invalid kind",
+			kind:    SchemaKind(123),
+			schema:  &Schema{},
+			wantErr: "Schema.SetKind(SchemaKind(123)): unexpected kind",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithError(t, tt.wantErr, func() { tt.schema.SetKind(tt.kind) })
+		})
+	}
+}
 
 func TestGetKind(t *testing.T) {
 	tests := []struct {
