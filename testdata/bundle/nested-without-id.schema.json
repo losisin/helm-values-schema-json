@@ -19,8 +19,7 @@
       "additionalProperties": false,
       "properties": {
         "image": {
-          "$ref": "#/$defs/simple-subschema.schema.json",
-          "type": null
+          "$ref": "#/$defs/simple-subschema.schema.json"
         }
       },
       "type": "object"

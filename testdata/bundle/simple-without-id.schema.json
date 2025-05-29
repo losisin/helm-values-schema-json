@@ -18,7 +18,6 @@
     },
     "imageToo": {
       "$ref": "#/properties/image",
-      "properties": {},
       "type": "object"
     }
   },

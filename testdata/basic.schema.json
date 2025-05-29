@@ -1,95 +1,87 @@
 {
-    "$defs": {
-        "simple-subschema.schema.json": {
-            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "additionalProperties": false,
-            "properties": {
-                "pullPolicy": {
-                    "description": "This sets the pull policy for images.",
-                    "enum": [
-                        "IfNotPresent",
-                        "Always",
-                        "Never"
-                    ],
-                    "type": "string"
-                },
-                "repository": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Overrides the image tag whose default is the chart appVersion.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            },
-            "type": "object"
+  "$defs": {
+    "simple-subschema.schema.json": {
+      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "pullPolicy": {
+          "description": "This sets the pull policy for images.",
+          "enum": ["IfNotPresent", "Always", "Never"],
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "description": "Overrides the image tag whose default is the chart appVersion.",
+          "type": ["string", "null"]
         }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://example.com/schema",
+  "$ref": "#/$defs/simple-subschema.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "description": "Schema for Helm values",
+  "properties": {
+    "empty": {
+      "type": "null"
     },
-    "$id": "https://example.com/schema",
-    "$ref": "#/$defs/simple-subschema.schema.json",
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": true,
-    "description": "Schema for Helm values",
-    "properties": {
-        "empty": {
-            "type": "null"
-        },
-        "fullnameOverride": {
-            "type": "string"
-        },
-        "image": {
-            "properties": {
-                "pullPolicy": {
-                    "type": "string"
-                }
-            },
-            "type": "object"
-        },
-        "imagePullSecrets": {
-            "type": "array"
-        },
-        "ingress": {
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                }
-            },
-            "type": "object"
-        },
-        "nameOverride": {
-            "type": "string"
-        },
-        "replicas": {
-            "type": "integer"
-        },
-        "resources": {
-            "properties": {},
-            "type": "object"
-        },
-        "tolerations": {
-            "items": {
-                "properties": {
-                    "effect": {
-                        "type": "string"
-                    },
-                    "key": {
-                        "type": "string"
-                    },
-                    "operator": {
-                        "type": "string"
-                    },
-                    "value": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "type": "array"
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "image": {
+      "properties": {
+        "pullPolicy": {
+          "type": "string"
         }
+      },
+      "type": "object"
     },
-    "title": "Helm Values Schema",
-    "type": "object"
+    "imagePullSecrets": {
+      "type": "array"
+    },
+    "ingress": {
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "nameOverride": {
+      "type": "string"
+    },
+    "replicas": {
+      "type": "integer"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "tolerations": {
+      "items": {
+        "properties": {
+          "effect": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "operator": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Helm Values Schema",
+  "type": "object"
 }

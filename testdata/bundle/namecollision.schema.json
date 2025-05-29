@@ -3,12 +3,10 @@
   "properties": {
     "dir1": {
       "$ref": "./dir1/namecollision-subschema.schema.json",
-      "properties": {},
       "type": "object"
     },
     "dir2": {
       "$ref": "./dir2/namecollision-subschema.schema.json",
-      "properties": {},
       "type": "object"
     }
   },
