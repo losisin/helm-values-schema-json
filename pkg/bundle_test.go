@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestGenerateBundledName(t *testing.T) {
@@ -84,9 +85,7 @@ func TestBundle(t *testing.T) {
 			name: "sets $id",
 			schema: &Schema{
 				Properties: map[string]*Schema{
-					"foo": {
-						Ref: "../some/file.json",
-					},
+					"foo": {Ref: "../some/file.json"},
 				},
 			},
 			loader: DummyLoader{
@@ -96,14 +95,10 @@ func TestBundle(t *testing.T) {
 			},
 			want: &Schema{
 				Properties: map[string]*Schema{
-					"foo": {
-						Ref: "../some/file.json",
-					},
+					"foo": {Ref: "../some/file.json"},
 				},
 				Defs: map[string]*Schema{
-					"file.json": {
-						ID: "../some/file.json",
-					},
+					"file.json": {ID: "../some/file.json"},
 				},
 			},
 		},
@@ -124,9 +119,7 @@ func TestBundle(t *testing.T) {
 					if v, ok := ctx.Value(loaderContextReferrer).(string); ok {
 						referrer = v
 					}
-					return &Schema{
-						Comment: "Referred by: " + referrer,
-					}, nil
+					return &Schema{Comment: "Referred by: " + referrer}, nil
 				},
 			},
 			want: &Schema{
@@ -149,15 +142,9 @@ func TestBundle(t *testing.T) {
 			name: "only bundle once",
 			schema: &Schema{
 				Properties: map[string]*Schema{
-					"foo": {
-						Ref: "../some/file.json",
-					},
-					"bar": {
-						Ref: "../some/file.json",
-					},
-					"moo": {
-						Ref: "../some/file.json",
-					},
+					"foo": {Ref: "../some/file.json"},
+					"bar": {Ref: "../some/file.json"},
+					"moo": {Ref: "../some/file.json"},
 				},
 			},
 			loader: DummyLoader{
@@ -167,20 +154,12 @@ func TestBundle(t *testing.T) {
 			},
 			want: &Schema{
 				Properties: map[string]*Schema{
-					"foo": {
-						Ref: "../some/file.json",
-					},
-					"bar": {
-						Ref: "../some/file.json",
-					},
-					"moo": {
-						Ref: "../some/file.json",
-					},
+					"foo": {Ref: "../some/file.json"},
+					"bar": {Ref: "../some/file.json"},
+					"moo": {Ref: "../some/file.json"},
 				},
 				Defs: map[string]*Schema{
-					"file.json": {
-						ID: "../some/file.json",
-					},
+					"file.json": {ID: "../some/file.json"},
 				},
 			},
 		},
@@ -192,9 +171,7 @@ func TestBundle(t *testing.T) {
 					"file.json": {
 						ID: "../some/file.json",
 						Properties: map[string]*Schema{
-							"foo": {
-								Ref: "../some/file.json",
-							},
+							"foo": {Ref: "../some/file.json"},
 						},
 					},
 				},
@@ -209,11 +186,36 @@ func TestBundle(t *testing.T) {
 					"file.json": {
 						ID: "../some/file.json",
 						Properties: map[string]*Schema{
-							"foo": {
-								Ref: "../some/file.json",
-							},
+							"foo": {Ref: "../some/file.json"},
 						},
 					},
+				},
+			},
+		},
+
+		{
+			name: "subschema is bundled",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+			},
+			loader: DummyLoader{
+				func(ctx context.Context, ref *url.URL) (*Schema, error) {
+					switch ref.String() {
+					case "foo.json":
+						return &Schema{
+							Properties: map[string]*Schema{"num": {Ref: "bar.json"}},
+							Defs:       map[string]*Schema{"bar.json": {Type: "number"}},
+						}, nil
+					default:
+						return nil, fmt.Errorf("undefined test schema: %s", ref)
+					}
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {Properties: map[string]*Schema{"num": {Ref: "bar.json"}}},
+					"bar.json": {Type: "number"},
 				},
 			},
 		},
@@ -225,6 +227,14 @@ func TestBundle(t *testing.T) {
 			err := BundleSchema(t.Context(), tt.loader, tt.schema)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.schema)
+
+			want, err := yaml.Marshal(tt.want)
+			require.NoError(t, err)
+			t.Logf("Want:\n%s", string(want))
+
+			got, err := yaml.Marshal(tt.schema)
+			require.NoError(t, err)
+			t.Logf("Got:\n%s", string(got))
 		})
 	}
 }
@@ -286,36 +296,7 @@ func TestBundleRemoveIDs(t *testing.T) {
 		},
 
 		{
-			name: "subschema is bundled",
-			schema: &Schema{
-				Defs: map[string]*Schema{
-					"foo": {
-						ID:    "foo.json",
-						Items: &Schema{Ref: "bar.json"},
-						Defs: map[string]*Schema{
-							"bar": {
-								ID:   "bar.json",
-								Type: "number",
-							},
-						},
-					},
-				},
-			},
-			want: &Schema{
-				Defs: map[string]*Schema{
-					"foo": {
-						Items: &Schema{Ref: "#/$defs/bar"},
-						Defs:  map[string]*Schema{},
-					},
-					"bar": {
-						Type: "number",
-					},
-				},
-			},
-		},
-
-		{
-			name: "subschema has fragment",
+			name: "single subschema has inline ref",
 			schema: &Schema{
 				Defs: map[string]*Schema{
 					"foo": {
@@ -340,7 +321,7 @@ func TestBundleRemoveIDs(t *testing.T) {
 		},
 
 		{
-			name: "subschema of subschema has fragment",
+			name: "sub-subschema has inline ref",
 			schema: &Schema{
 				Defs: map[string]*Schema{
 					"foo": {
@@ -473,6 +454,13 @@ func TestIterSubschemas_order(t *testing.T) {
 		name   string
 		schema *Schema
 	}{
+		{
+			name: "items",
+			schema: &Schema{
+				Items: &Schema{ID: "a"},
+				OneOf: []*Schema{{ID: "b"}, {ID: "c"}},
+			},
+		},
 		{
 			name: "properties",
 			schema: &Schema{

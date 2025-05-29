@@ -87,6 +87,18 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
 	}
+
+	// Copy over $defs
+	for _, def := range loaded.Defs {
+		root.Defs[generateBundledName(def.ID, root.Defs)] = def
+	}
+	loaded.Defs = nil
+	for _, def := range loaded.Definitions {
+		root.Defs[generateBundledName(def.ID, root.Defs)] = def
+	}
+	loaded.Definitions = nil
+
+	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
 	return bundleSchemaRec(ctx, loader, root, loaded)
@@ -94,43 +106,48 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 
 func iterSubschemas(schema *Schema) iter.Seq2[string, *Schema] {
 	return func(yield func(string, *Schema) bool) {
+		if schema.Items != nil {
+			if !yield("/items", schema.Items) {
+				return
+			}
+		}
 		for key, subSchema := range iterMapOrdered(schema.Properties) {
-			if !yield(fmt.Sprintf("properties[%q]", key), subSchema) {
+			if !yield(fmt.Sprintf("/properties/%s", key), subSchema) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
-			if !yield(fmt.Sprintf("patternProperties[%q]", key), subSchema) {
+			if !yield(fmt.Sprintf("/patternProperties/%s", key), subSchema) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.Defs) {
-			if !yield(fmt.Sprintf("$defs[%q]", key), subSchema) {
+			if !yield(fmt.Sprintf("/$defs/%s", key), subSchema) {
 				return
 			}
 		}
 		for key, subSchema := range iterMapOrdered(schema.Definitions) {
-			if !yield(fmt.Sprintf("definitions[%q]", key), subSchema) {
+			if !yield(fmt.Sprintf("/definitions/%s", key), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.AllOf {
-			if !yield(fmt.Sprintf("allOf[%d]", index), subSchema) {
+			if !yield(fmt.Sprintf("/allOf/%d", index), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.AnyOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
+			if !yield(fmt.Sprintf("/anyOf/%d", index), subSchema) {
 				return
 			}
 		}
 		for index, subSchema := range schema.OneOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
+			if !yield(fmt.Sprintf("/anyOf/%d", index), subSchema) {
 				return
 			}
 		}
 		if schema.Not != nil {
-			if !yield("not", schema.Not) {
+			if !yield("/not", schema.Not) {
 				return
 			}
 		}
@@ -208,7 +225,7 @@ func BundleRemoveIDs(schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	if err := bundleChangeRefsRec(schema, schema); err != nil {
+	if err := bundleChangeRefsRec("#", schema, schema); err != nil {
 		return err
 	}
 	for _, def := range schema.Defs {
@@ -217,10 +234,10 @@ func BundleRemoveIDs(schema *Schema) error {
 	return nil
 }
 
-func bundleChangeRefsRec(root, schema *Schema) error {
-	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleChangeRefsRec(root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+func bundleChangeRefsRec(path string, root, schema *Schema) error {
+	for subPath, subSchema := range iterSubschemas(schema) {
+		if err := bundleChangeRefsRec(path+subPath, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", path+subPath, err)
 		}
 	}
 
