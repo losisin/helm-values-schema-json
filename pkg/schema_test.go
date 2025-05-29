@@ -100,6 +100,51 @@ func TestSchemaJSONUnmarshal(t *testing.T) {
 	}
 }
 
+func TestSchemaJSONMarshal(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   string
+	}{
+		{
+			name:   "null",
+			schema: nil,
+			want:   `{"schema": null}`,
+		},
+		{
+			name:   "true",
+			schema: &SchemaTrue,
+			want:   `{"schema": true}`,
+		},
+		{
+			name:   "false",
+			schema: &SchemaFalse,
+			want:   `{"schema": false}`,
+		},
+		{
+			name: "object",
+			schema: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			want: `{"schema": {"$id": "hello there"}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := struct {
+				Schema *Schema `json:"schema"`
+			}{
+				Schema: tt.schema,
+			}
+			b, err := json.Marshal(obj)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(b))
+		})
+	}
+}
+
 func TestSchemaYAMLUnmarshal(t *testing.T) {
 	tests := []struct {
 		name string
@@ -163,6 +208,51 @@ func TestSchemaYAMLUnmarshal_error(t *testing.T) {
 			}
 			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
 			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSchemaYAMLMarshal(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   string
+	}{
+		{
+			name:   "null",
+			schema: nil,
+			want:   `schema: null`,
+		},
+		{
+			name:   "true",
+			schema: &SchemaTrue,
+			want:   `schema: true`,
+		},
+		{
+			name:   "false",
+			schema: &SchemaFalse,
+			want:   `schema: false`,
+		},
+		{
+			name: "object",
+			schema: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			want: `schema: {"$id": "hello there"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := struct {
+				Schema *Schema `yaml:"schema"`
+			}{
+				Schema: tt.schema,
+			}
+			b, err := yaml.Marshal(obj)
+			require.NoError(t, err)
+			assert.YAMLEq(t, tt.want, string(b))
 		})
 	}
 }

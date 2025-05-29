@@ -109,7 +109,9 @@ type Schema struct {
 
 var (
 	_ json.Unmarshaler = &Schema{}
+	_ json.Marshaler   = &Schema{}
 	_ yaml.Unmarshaler = &Schema{}
+	_ yaml.Marshaler   = &Schema{}
 )
 
 // UnmarshalJSON implements [json.Unmarshaler].
@@ -133,6 +135,19 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, model)
 }
 
+// MarshalJSON implements [json.Marshaler].
+func (s *Schema) MarshalJSON() ([]byte, error) {
+	switch s.Kind() {
+	case SchemaKindTrue:
+		return []byte("true"), nil
+	case SchemaKindFalse:
+		return []byte("false"), nil
+	default:
+		type SchemaWithoutMarshaler Schema
+		return json.Marshal((*SchemaWithoutMarshaler)(s))
+	}
+}
+
 // UnmarshalYAML implements [yaml.Unmarshaler].
 func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 	if value.Kind == yaml.ScalarNode && value.ShortTag() == "!!bool" {
@@ -152,6 +167,19 @@ func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 	type SchemaWithoutUnmarshaler Schema
 	model := (*SchemaWithoutUnmarshaler)(s)
 	return value.Decode(model)
+}
+
+// MarshalYAML implements [yaml.Marshaler].
+func (s *Schema) MarshalYAML() (interface{}, error) {
+	switch s.Kind() {
+	case SchemaKindTrue:
+		return true, nil
+	case SchemaKindFalse:
+		return false, nil
+	default:
+		type SchemaWithoutMarshaler Schema
+		return (*SchemaWithoutMarshaler)(s), nil
+	}
 }
 
 func (s *Schema) Kind() SchemaKind {
