@@ -194,7 +194,7 @@ func TestBundle(t *testing.T) {
 		},
 
 		{
-			name: "subschema is bundled",
+			name: "subschema is bundled using id",
 			schema: &Schema{
 				Items: &Schema{Ref: "foo.json"},
 			},
@@ -230,6 +230,48 @@ func TestBundle(t *testing.T) {
 					"bar.json": {
 						ID:   "bar.json",
 						Type: "number",
+					},
+				},
+			},
+		},
+
+		{
+			name: "subschema is bundled without id",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+			},
+			loader: DummyLoader{
+				func(ctx context.Context, ref *url.URL) (*Schema, error) {
+					switch ref.String() {
+					case "foo.json":
+						return &Schema{
+							Properties: map[string]*Schema{
+								"num": {Ref: "#/$defs/bar.json"},
+							},
+							Defs: map[string]*Schema{
+								"bar.json": {
+									Type: "number",
+								},
+							},
+						}, nil
+					default:
+						return nil, fmt.Errorf("undefined test schema: %s", ref)
+					}
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID: "foo.json",
+						Properties: map[string]*Schema{
+							"num": {Ref: "#/$defs/bar.json"},
+						},
+						Defs: map[string]*Schema{
+							"bar.json": {
+								Type: "number",
+							},
+						},
 					},
 				},
 			},

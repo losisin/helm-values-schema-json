@@ -57,13 +57,14 @@ func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, loader, schema, schema)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema)
 }
 
-func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) error {
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
 	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+		ptr := ptr.Add(path)
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", ptr, err)
 		}
 	}
 
@@ -95,18 +96,21 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, loader, root, loaded)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded)
 }
 
 func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
-	for _, def := range *defs {
+	for key, def := range *defs {
 		if def.ID == "" {
 			// Only move items that are referenced by $id.
 			continue
 		}
 		root.Defs[generateBundledName(def.ID, root.Defs)] = def
+		delete(*defs, key)
 	}
-	*defs = nil
+	if len(*defs) == 0 {
+		*defs = nil
+	}
 }
 
 func iterSubschemas(schema *Schema) iter.Seq2[Ptr, *Schema] {
