@@ -1,35 +1,35 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "properties": {
-    "object": {
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "objectOfObjects": {
-      "additionalProperties": false,
-      "patternProperties": {
-        "^.*$": {
-          "additionalProperties": false,
-          "type": "object"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "object": {
+            "type": "object",
+            "additionalProperties": false
+        },
+        "objectOfObjects": {
+            "type": "object",
+            "patternProperties": {
+                "^.*$": {
+                    "type": "object",
+                    "additionalProperties": false
+                }
+            },
+            "additionalProperties": false
+        },
+        "objectOfObjectsWithInnerAdditionalPropertiesAllowed": {
+            "type": "object",
+            "patternProperties": {
+                "^.*$": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            },
+            "additionalProperties": false
+        },
+        "objectWithAdditionalPropertiesAllowed": {
+            "type": "object",
+            "additionalProperties": true
         }
-      },
-      "type": "object"
     },
-    "objectOfObjectsWithInnerAdditionalPropertiesAllowed": {
-      "additionalProperties": false,
-      "patternProperties": {
-        "^.*$": {
-          "additionalProperties": true,
-          "type": "object"
-        }
-      },
-      "type": "object"
-    },
-    "objectWithAdditionalPropertiesAllowed": {
-      "additionalProperties": true,
-      "type": "object"
-    }
-  },
-  "type": "object"
+    "additionalProperties": false
 }

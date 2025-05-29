@@ -37,6 +37,9 @@ install: build ## Install the plugin
 	@cp $(BINNAME) $(HELM_PLUGIN_DIR)
 	@cp plugin.yaml $(HELM_PLUGIN_DIR)
 
+generate: ## Generate files
+	go generate ./testdata
+
 verify: ## Verify the plugin
 	@echo
 	@echo "Verifying plugin..."
@@ -81,6 +84,7 @@ help: ## Show this help message
 	@echo "Targets:"
 	@echo "  build              Build the plugin"
 	@echo "  install            Install the plugin"
+	@echo "  generate           Generate files"
 	@echo "  verify             Verify the plugin"
 	@echo "  tidy               Tidy the plugin"
 	@echo "  fmt                Format the plugin"

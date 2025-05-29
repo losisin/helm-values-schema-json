@@ -1,80 +1,53 @@
 {
-  "$defs": {
-    "simple-subschema.schema.json": {
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "pullPolicy": {
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"],
-          "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "fullnameOverride": {
+            "title": "Full name override",
+            "type": "string"
         },
-        "repository": {
-          "type": "string"
+        "image": {
+            "type": "object",
+            "properties": {
+                "repository": {
+                    "default": "nginx",
+                    "type": "string"
+                },
+                "tag": {
+                    "readOnly": true,
+                    "type": "string"
+                }
+            }
         },
-        "tag": {
-          "description": "Overrides the image tag whose default is the chart appVersion.",
-          "type": ["string", "null"]
+        "metrics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                }
+            }
+        },
+        "nodeSelector": {
+            "default": {
+                "cloud.google.com/gke-nodepool": "e2-standard-8-spot"
+            },
+            "type": "object"
+        },
+        "replicas": {
+            "default": 2,
+            "type": "integer"
+        },
+        "tolerations": {
+            "default": [
+                {
+                    "effect": "NoSchedule",
+                    "key": "foo",
+                    "operator": "Equal",
+                    "value": "bar"
+                }
+            ],
+            "type": "array"
         }
-      },
-      "type": "object"
     }
-  },
-  "$id": "https://example.com/schema",
-  "$ref": "#/$defs/simple-subschema.schema.json",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": true,
-  "description": "Schema for Helm values",
-  "properties": {
-    "fullnameOverride": {
-      "title": "Full name override",
-      "type": "string"
-    },
-    "image": {
-      "properties": {
-        "repository": {
-          "default": "nginx",
-          "type": "string"
-        },
-        "tag": {
-          "readOnly": true,
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "metrics": {
-      "properties": {
-        "enabled": {
-          "default": true,
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "nodeSelector": {
-      "default": {
-        "cloud.google.com/gke-nodepool": "e2-standard-8-spot"
-      },
-      "type": "object"
-    },
-    "replicas": {
-      "default": 2,
-      "type": "integer"
-    },
-    "tolerations": {
-      "default": [
-        {
-          "effect": "NoSchedule",
-          "key": "foo",
-          "operator": "Equal",
-          "value": "bar"
-        }
-      ],
-      "type": "array"
-    }
-  },
-  "title": "Helm Values Schema",
-  "type": "object"
 }

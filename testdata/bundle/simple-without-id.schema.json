@@ -1,47 +1,54 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "properties": {
-    "image": {
-      "$ref": "#/$defs/simple-subschema.schema.json",
-      "properties": {
-        "pullPolicy": {
-          "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "image": {
+            "$ref": "#/$defs/simple-subschema.schema.json",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
         },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "type": "string"
+        "imageToo": {
+            "$ref": "#/properties/image",
+            "type": "object"
         }
-      },
-      "type": "object"
     },
-    "imageToo": {
-      "$ref": "#/properties/image",
-      "type": "object"
-    }
-  },
-  "type": "object",
-  "$defs": {
-    "simple-subschema.schema.json": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "repository": {
-          "type": "string"
-        },
-        "pullPolicy": {
-          "type": "string",
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"]
-        },
-        "tag": {
-          "type": ["string", "null"],
-          "description": "Overrides the image tag whose default is the chart appVersion."
+    "$defs": {
+        "simple-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
         }
-      }
     }
-  }
 }

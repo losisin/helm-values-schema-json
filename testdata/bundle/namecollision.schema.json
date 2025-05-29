@@ -1,58 +1,72 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "properties": {
-    "dir1": {
-      "$ref": "./dir1/namecollision-subschema.schema.json",
-      "type": "object"
-    },
-    "dir2": {
-      "$ref": "./dir2/namecollision-subschema.schema.json",
-      "type": "object"
-    }
-  },
-  "type": "object",
-  "$defs": {
-    "namecollision-subschema.schema.json": {
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "$id": "./dir1/namecollision-subschema.schema.json",
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "pullPolicy": {
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"],
-          "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "dir1": {
+            "$ref": "./dir1/namecollision-subschema.schema.json",
+            "type": "object"
         },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "description": "Overrides the image tag whose default is the chart appVersion.",
-          "type": ["string", "null"]
+        "dir2": {
+            "$ref": "./dir2/namecollision-subschema.schema.json",
+            "type": "object"
         }
-      },
-      "type": "object"
     },
-    "namecollision-subschema.schema.json_2": {
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "$id": "./dir2/namecollision-subschema.schema.json",
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "pullPolicy": {
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"],
-          "type": "string"
+    "$defs": {
+        "namecollision-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "./dir1/namecollision-subschema.schema.json",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
         },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "description": "Overrides the image tag whose default is the chart appVersion.",
-          "type": ["string", "null"]
+        "namecollision-subschema.schema.json_2": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "./dir2/namecollision-subschema.schema.json",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
         }
-      },
-      "type": "object"
     }
-  }
 }

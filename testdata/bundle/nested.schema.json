@@ -1,50 +1,57 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "subchart": {
-      "$ref": "./nested-subschema.schema.json",
-      "properties": {
-        "replicas": {
-          "type": "integer"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "subchart": {
+            "$ref": "./nested-subschema.schema.json",
+            "type": "object",
+            "properties": {
+                "replicas": {
+                    "type": "integer"
+                }
+            }
         }
-      },
-      "type": "object"
-    }
-  },
-  "$defs": {
-    "nested-subschema.schema.json": {
-      "$comment": "This subschema references some other schemas",
-      "$id": "./nested-subschema.schema.json",
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "image": {
-          "$ref": "./simple-subschema.schema.json"
-        }
-      },
-      "type": "object"
     },
-    "simple-subschema.schema.json": {
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "$id": "./simple-subschema.schema.json",
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "pullPolicy": {
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"],
-          "type": "string"
+    "$defs": {
+        "nested-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "./nested-subschema.schema.json",
+            "$comment": "This subschema references some other schemas",
+            "type": "object",
+            "properties": {
+                "image": {
+                    "$ref": "./simple-subschema.schema.json"
+                }
+            },
+            "additionalProperties": false
         },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "description": "Overrides the image tag whose default is the chart appVersion.",
-          "type": ["string", "null"]
+        "simple-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "./simple-subschema.schema.json",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
         }
-      },
-      "type": "object"
     }
-  }
 }
