@@ -319,6 +319,33 @@ func TestBundle(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name:   "additionalProperties false",
+			schema: &Schema{AdditionalProperties: &SchemaFalse},
+			loader: DummyLoader{},
+			want:   &Schema{AdditionalProperties: &SchemaFalse},
+		},
+		{
+			name: "additionalProperties schema",
+			schema: &Schema{
+				AdditionalProperties: &Schema{Ref: "foo.json"},
+			},
+			loader: DummyLoader{
+				LoadFunc: func(ctx context.Context, ref *url.URL) (*Schema, error) {
+					return &Schema{Type: "string"}, nil
+				},
+			},
+			want: &Schema{
+				AdditionalProperties: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:   "foo.json",
+						Type: "string",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

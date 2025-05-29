@@ -7,7 +7,7 @@ package testdata
 
 //go:generate go run .. --input anchors.yaml --output anchors.schema.json
 //go:generate go run .. --input basic.yaml --output basic.schema.json
-//go:generate go run .. --input full.yaml --output full.schema.json
+//go:generate go run .. --input full.yaml --output full.schema.json --schemaRoot.id https://example.com/schema --schemaRoot.ref schema/product.json --schemaRoot.title "Helm Values Schema" --schemaRoot.description "Schema for Helm values" --schemaRoot.additionalProperties=true
 //go:generate go run .. --input meta.yaml --output meta.schema.json
 //go:generate go run .. --input noAdditionalProperties.yaml --output noAdditionalProperties.schema.json --noAdditionalProperties=true
 //go:generate go run .. --input subschema.yaml --output subschema.schema.json

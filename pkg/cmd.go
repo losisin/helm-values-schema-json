@@ -108,6 +108,9 @@ func MergeConfig(fileConfig, flagConfig *Config) *Config {
 	if flagConfig.SchemaRoot.ID != "" {
 		mergedConfig.SchemaRoot.ID = flagConfig.SchemaRoot.ID
 	}
+	if flagConfig.SchemaRoot.Ref != "" {
+		mergedConfig.SchemaRoot.Ref = flagConfig.SchemaRoot.Ref
+	}
 	if flagConfig.SchemaRoot.Title != "" {
 		mergedConfig.SchemaRoot.Title = flagConfig.SchemaRoot.Title
 	}

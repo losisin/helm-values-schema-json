@@ -1,5 +1,9 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/schema",
+    "title": "Helm Values Schema",
+    "description": "Schema for Helm values",
+    "$ref": "schema/product.json",
     "type": "object",
     "required": [
         "nameOverride"
@@ -204,5 +208,6 @@
                 }
             }
         }
-    }
+    },
+    "additionalProperties": true
 }
