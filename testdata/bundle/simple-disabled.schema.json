@@ -1,26 +1,25 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "properties": {
-    "image": {
-      "$ref": "./simple-subschema.schema.json",
-      "properties": {
-        "pullPolicy": {
-          "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "image": {
+            "$ref": "./simple-subschema.schema.json",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
         },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "type": "string"
+        "imageToo": {
+            "$ref": "#/properties/image",
+            "type": "object"
         }
-      },
-      "type": "object"
-    },
-    "imageToo": {
-      "$ref": "#/properties/image",
-      "properties": {},
-      "type": "object"
     }
-  },
-  "type": "object"
 }

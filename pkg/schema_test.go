@@ -1,14 +1,327 @@
 package pkg
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
-func TestGetKind(t *testing.T) {
+func TestSchemaKindString(t *testing.T) {
+	tests := []struct {
+		name string
+		kind SchemaKind
+		want string
+	}{
+		{name: "zero", kind: SchemaKind(0), want: "object"},
+		{name: "object", kind: SchemaKindObject, want: "object"},
+		{name: "true", kind: SchemaKindTrue, want: "true"},
+		{name: "false", kind: SchemaKindFalse, want: "false"},
+		{name: "undefined", kind: SchemaKind(123), want: "SchemaKind(123)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.kind.String(), "SchemaKind.String()")
+			assert.Equal(t, tt.want, tt.kind.GoString(), "SchemaKind.GoString()")
+		})
+	}
+}
+
+func TestSchemaKindIsBool(t *testing.T) {
+	tests := []struct {
+		name string
+		kind SchemaKind
+		want bool
+	}{
+		{name: "zero", kind: SchemaKind(0), want: false},
+		{name: "object", kind: SchemaKindObject, want: false},
+		{name: "true", kind: SchemaKindTrue, want: true},
+		{name: "false", kind: SchemaKindFalse, want: true},
+		{name: "undefined", kind: SchemaKind(123), want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.kind.IsBool())
+		})
+	}
+}
+
+func TestSchemaJSONUnmarshal(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		want     *Schema
+		wantKind SchemaKind
+	}{
+		{
+			name:     "null",
+			json:     `null`,
+			want:     nil,
+			wantKind: SchemaKindObject,
+		},
+		{
+			name:     "true",
+			json:     `true`,
+			want:     &SchemaTrue,
+			wantKind: SchemaKindTrue,
+		},
+		{
+			name:     "false",
+			json:     `false`,
+			want:     &SchemaFalse,
+			wantKind: SchemaKindFalse,
+		},
+		{
+			name: "object",
+			json: `{"$id": "hello there"}`,
+			want: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			wantKind: SchemaKindObject,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `json:"schema"`
+			}
+			err := json.Unmarshal([]byte(`{"schema":`+tt.json+`}`), &result)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result.Schema)
+			assert.Equal(t, tt.wantKind, result.Schema.Kind())
+		})
+	}
+}
+
+func TestSchemaJSONMarshal(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   string
+	}{
+		{
+			name:   "null",
+			schema: nil,
+			want:   `{"schema": null}`,
+		},
+		{
+			name:   "true",
+			schema: &SchemaTrue,
+			want:   `{"schema": true}`,
+		},
+		{
+			name:   "false",
+			schema: &SchemaFalse,
+			want:   `{"schema": false}`,
+		},
+		{
+			name: "object",
+			schema: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			want: `{"schema": {"$id": "hello there"}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := struct {
+				Schema *Schema `json:"schema"`
+			}{
+				Schema: tt.schema,
+			}
+			b, err := json.Marshal(obj)
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(b))
+		})
+	}
+}
+
+func TestSchemaYAMLUnmarshal(t *testing.T) {
+	tests := []struct {
+		name string
+		yaml string
+		want *Schema
+	}{
+		{
+			name: "null",
+			yaml: ` null `,
+			want: nil,
+		},
+		{
+			name: "true",
+			yaml: ` true `,
+			want: &SchemaTrue,
+		},
+		{
+			name: "false",
+			yaml: ` false `,
+			want: &SchemaFalse,
+		},
+		{
+			name: "object",
+			yaml: `{"$id": "hello there"}`,
+			want: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `yaml:"schema"`
+			}
+			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, result.Schema)
+		})
+	}
+}
+
+func TestSchemaYAMLUnmarshal_error(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name:    "bool",
+			yaml:    `!!bool not a bool`,
+			wantErr: "cannot decode !!str `not a bool` as a !!bool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result struct {
+				Schema *Schema `yaml:"schema"`
+			}
+			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSchemaYAMLMarshal(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   string
+	}{
+		{
+			name:   "null",
+			schema: nil,
+			want:   `schema: null`,
+		},
+		{
+			name:   "true",
+			schema: &SchemaTrue,
+			want:   `schema: true`,
+		},
+		{
+			name:   "false",
+			schema: &SchemaFalse,
+			want:   `schema: false`,
+		},
+		{
+			name: "object",
+			schema: &Schema{
+				kind: SchemaKindObject,
+				ID:   "hello there",
+			},
+			want: `schema: {"$id": "hello there"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := struct {
+				Schema *Schema `yaml:"schema"`
+			}{
+				Schema: tt.schema,
+			}
+			b, err := yaml.Marshal(obj)
+			require.NoError(t, err)
+			assert.YAMLEq(t, tt.want, string(b))
+		})
+	}
+}
+
+func TestSchemaSetKind(t *testing.T) {
+	tests := []struct {
+		name   string
+		kind   SchemaKind
+		schema *Schema
+		want   *Schema
+	}{
+		{
+			name:   "set true resets other fields",
+			kind:   SchemaKindTrue,
+			schema: &Schema{kind: SchemaKindTrue, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindTrue},
+		},
+		{
+			name:   "set false resets other fields",
+			kind:   SchemaKindFalse,
+			schema: &Schema{kind: SchemaKindFalse, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindFalse},
+		},
+		{
+			name:   "set object keeps other fields",
+			kind:   SchemaKindObject,
+			schema: &Schema{kind: SchemaKindTrue, ID: "foobar"},
+			want:   &Schema{kind: SchemaKindObject, ID: "foobar"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.schema.SetKind(tt.kind)
+			assert.Equal(t, tt.schema, tt.want)
+		})
+	}
+}
+
+func TestSchemaSetKind_panics(t *testing.T) {
+	tests := []struct {
+		name    string
+		kind    SchemaKind
+		schema  *Schema
+		wantErr string
+	}{
+		{
+			name:    "set nil",
+			kind:    SchemaKindObject,
+			schema:  nil,
+			wantErr: "Schema.SetKind(object): method reciever must not be nil",
+		},
+		{
+			name:    "set invalid kind",
+			kind:    SchemaKind(123),
+			schema:  &Schema{},
+			wantErr: "Schema.SetKind(SchemaKind(123)): unexpected kind",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.PanicsWithError(t, tt.wantErr, func() { tt.schema.SetKind(tt.kind) })
+		})
+	}
+}
+
+func TestGetYAMLKind(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    string
@@ -63,7 +376,7 @@ func TestGetKind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getKind(tt.value)
+			result := getYAMLKind(tt.value)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -319,7 +632,7 @@ func TestProcessComment(t *testing.T) {
 			name:             "Set object",
 			schema:           &Schema{},
 			comment:          "# @schema minProperties:1;maxProperties:10;additionalProperties:false;$id:https://example.com/schema;$ref:schema/product.json",
-			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: boolPtr(false), ID: "https://example.com/schema", Ref: "schema/product.json"},
+			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: &SchemaFalse, ID: "https://example.com/schema", Ref: "schema/product.json"},
 			expectedRequired: false,
 		},
 		{
@@ -460,6 +773,100 @@ func TestParseNode(t *testing.T) {
 			assert.Equal(t, tt.expectedItems, schema.Items)
 			assert.Equal(t, tt.expectedReq, schema.Required)
 			assert.Equal(t, tt.isRequired, isRequired)
+		})
+	}
+}
+
+func TestSchemaSubschemas_order(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+	}{
+		{
+			name: "items",
+			schema: &Schema{
+				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				Items:      &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "additionalItems",
+			schema: &Schema{
+				Properties:      map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				AdditionalItems: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "properties",
+			schema: &Schema{
+				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
+			},
+		},
+		{
+			name: "additionalProperties",
+			schema: &Schema{
+				Properties:           map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				AdditionalProperties: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "patternProperties",
+			schema: &Schema{
+				PatternProperties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
+			},
+		},
+		{
+			name: "defs",
+			schema: &Schema{
+				Defs: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
+			},
+		},
+		{
+			name: "definitions",
+			schema: &Schema{
+				Definitions: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
+			},
+		},
+		{
+			name: "allOf",
+			schema: &Schema{
+				AllOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
+			},
+		},
+		{
+			name: "anyOf",
+			schema: &Schema{
+				AnyOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
+			},
+		},
+		{
+			name: "oneOf",
+			schema: &Schema{
+				OneOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
+			},
+		},
+		{
+			name: "not",
+			schema: &Schema{
+				OneOf: []*Schema{{ID: "a"}, {ID: "b"}},
+				Not:   &Schema{ID: "c"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Run multiple times to ensure we dont get lucky with the ordering
+			for range 10 {
+				var ids []string
+				for _, sub := range tt.schema.Subschemas() {
+					ids = append(ids, sub.ID)
+					if len(ids) == 3 {
+						break
+					}
+				}
+				require.Equal(t, "abc", strings.Join(ids, ""))
+			}
 		})
 	}
 }

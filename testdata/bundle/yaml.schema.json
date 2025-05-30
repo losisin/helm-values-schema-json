@@ -1,44 +1,51 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "properties": {
-    "image": {
-      "$ref": "./yaml-subschema.schema.yaml",
-      "properties": {
-        "pullPolicy": {
-          "type": "string"
-        },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "type": "string"
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "image": {
+            "$ref": "./yaml-subschema.schema.yaml",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "type": "string"
+                }
+            }
         }
-      },
-      "type": "object"
-    }
-  },
-  "type": "object",
-  "$defs": {
-    "yaml-subschema.schema.yaml": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "$id": "./yaml-subschema.schema.yaml",
-      "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-      "additionalProperties": false,
-      "properties": {
-        "pullPolicy": {
-          "description": "This sets the pull policy for images.",
-          "enum": ["IfNotPresent", "Always", "Never"],
-          "type": "string"
-        },
-        "repository": {
-          "type": "string"
-        },
-        "tag": {
-          "description": "Overrides the image tag whose default is the chart appVersion.",
-          "type": ["string", "null"]
+    },
+    "$defs": {
+        "yaml-subschema.schema.yaml": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "./yaml-subschema.schema.yaml",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
         }
-      },
-      "type": "object"
     }
-  }
 }

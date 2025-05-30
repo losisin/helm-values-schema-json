@@ -1,38 +1,6 @@
 {
-    "$defs": {
-        "simple-subschema.schema.json": {
-            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "additionalProperties": false,
-            "properties": {
-                "pullPolicy": {
-                    "description": "This sets the pull policy for images.",
-                    "enum": [
-                        "IfNotPresent",
-                        "Always",
-                        "Never"
-                    ],
-                    "type": "string"
-                },
-                "repository": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Overrides the image tag whose default is the chart appVersion.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            },
-            "type": "object"
-        }
-    },
-    "$id": "https://example.com/schema",
-    "$ref": "#/$defs/simple-subschema.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": true,
-    "description": "Schema for Helm values",
+    "type": "object",
     "properties": {
         "empty": {
             "type": "null"
@@ -41,23 +9,23 @@
             "type": "string"
         },
         "image": {
+            "type": "object",
             "properties": {
                 "pullPolicy": {
                     "type": "string"
                 }
-            },
-            "type": "object"
+            }
         },
         "imagePullSecrets": {
             "type": "array"
         },
         "ingress": {
+            "type": "object",
             "properties": {
                 "enabled": {
                     "type": "boolean"
                 }
-            },
-            "type": "object"
+            }
         },
         "nameOverride": {
             "type": "string"
@@ -66,11 +34,12 @@
             "type": "integer"
         },
         "resources": {
-            "properties": {},
             "type": "object"
         },
         "tolerations": {
+            "type": "array",
             "items": {
+                "type": "object",
                 "properties": {
                     "effect": {
                         "type": "string"
@@ -84,12 +53,8 @@
                     "value": {
                         "type": "string"
                     }
-                },
-                "type": "object"
-            },
-            "type": "array"
+                }
+            }
         }
-    },
-    "title": "Helm Values Schema",
-    "type": "object"
+    }
 }

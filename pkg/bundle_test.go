@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -320,6 +319,33 @@ func TestBundle(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name:   "additionalProperties false",
+			schema: &Schema{AdditionalProperties: &SchemaFalse},
+			loader: DummyLoader{},
+			want:   &Schema{AdditionalProperties: &SchemaFalse},
+		},
+		{
+			name: "additionalProperties schema",
+			schema: &Schema{
+				AdditionalProperties: &Schema{Ref: "foo.json"},
+			},
+			loader: DummyLoader{
+				LoadFunc: func(ctx context.Context, ref *url.URL) (*Schema, error) {
+					return &Schema{Type: "string"}, nil
+				},
+			},
+			want: &Schema{
+				AdditionalProperties: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:   "foo.json",
+						Type: "string",
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -554,86 +580,6 @@ func TestLoad_Errors(t *testing.T) {
 			t.Parallel()
 			_, err := Load(t.Context(), tt.loader, tt.ref)
 			assert.EqualError(t, err, tt.wantErr)
-		})
-	}
-}
-
-func TestIterSubschemas_order(t *testing.T) {
-	tests := []struct {
-		name   string
-		schema *Schema
-	}{
-		{
-			name: "items",
-			schema: &Schema{
-				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
-				Items:      &Schema{ID: "c"},
-			},
-		},
-		{
-			name: "properties",
-			schema: &Schema{
-				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
-			},
-		},
-		{
-			name: "patternProperties",
-			schema: &Schema{
-				PatternProperties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
-			},
-		},
-		{
-			name: "defs",
-			schema: &Schema{
-				Defs: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
-			},
-		},
-		{
-			name: "definitions",
-			schema: &Schema{
-				Definitions: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}, "d": {ID: "d"}},
-			},
-		},
-		{
-			name: "allOf",
-			schema: &Schema{
-				AllOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
-			},
-		},
-		{
-			name: "anyOf",
-			schema: &Schema{
-				AnyOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
-			},
-		},
-		{
-			name: "oneOf",
-			schema: &Schema{
-				OneOf: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}, {ID: "d"}},
-			},
-		},
-		{
-			name: "not",
-			schema: &Schema{
-				OneOf: []*Schema{{ID: "a"}, {ID: "b"}},
-				Not:   &Schema{ID: "c"},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Run multiple times to ensure we dont get lucky with the ordering
-			for range 10 {
-				var ids []string
-				for _, sub := range iterSubschemas(tt.schema) {
-					ids = append(ids, sub.ID)
-					if len(ids) == 3 {
-						break
-					}
-				}
-				require.Equal(t, "abc", strings.Join(ids, ""))
-			}
 		})
 	}
 }
