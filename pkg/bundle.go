@@ -230,6 +230,101 @@ func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 	return "", false
 }
 
+// RemoveUnusedDefs will try clean up all unused $defs to reduce the size of the
+// final bundled schema.
+func RemoveUnusedDefs(schema *Schema) {
+	refCounts := map[*Schema]int{}
+	for {
+		clear(refCounts)
+		findUnusedDefs(nil, schema, schema, refCounts)
+		deletedCount := removeUnusedDefs(schema, refCounts)
+		if deletedCount == 0 {
+			break
+		}
+	}
+}
+
+func removeUnusedDefs(schema *Schema, refCounts map[*Schema]int) int {
+	deletedCount := 0
+
+	for _, def := range schema.Subschemas() {
+		deletedCount += removeUnusedDefs(def, refCounts)
+	}
+
+	for name, def := range schema.Defs {
+		if refCounts[def] == 0 {
+			delete(schema.Defs, name)
+			deletedCount++
+		}
+	}
+	if len(schema.Defs) == 0 {
+		schema.Defs = nil
+	}
+
+	for name, def := range schema.Definitions {
+		if refCounts[def] == 0 {
+			delete(schema.Definitions, name)
+			deletedCount++
+		}
+	}
+	if len(schema.Definitions) == 0 {
+		schema.Definitions = nil
+	}
+	return deletedCount
+}
+
+func findUnusedDefs(ptr Ptr, root, schema *Schema, refCounts map[*Schema]int) {
+	for path, def := range schema.Subschemas() {
+		findUnusedDefs(ptr.Add(path), root, def, refCounts)
+	}
+
+	if schema.Ref == "" {
+		return
+	}
+
+	if strings.HasPrefix(schema.Ref, "#/") {
+		refPtr := ParsePtr(schema.Ref)
+		if len(refPtr) > 0 && ptr.HasPrefix(refPtr) {
+			// Ignore self-referential
+			// E.g "#/$defs/foo.json/properties/moo" has $ref to "#/$defs/foo.json"
+			return
+		}
+		for _, def := range resolvePtr(root, refPtr) {
+			refCounts[def]++
+		}
+		return
+	}
+
+	ref, err := url.Parse(schema.Ref)
+	if err != nil {
+		return
+	}
+
+	if name, ok := findDefNameByRef(root.Defs, ref); ok {
+		refCounts[root.Defs[name]]++
+	}
+}
+
+func resolvePtr(schema *Schema, ptr Ptr) []*Schema {
+	if schema == nil {
+		return nil
+	}
+	if len(ptr) == 0 {
+		return []*Schema{schema}
+	}
+	if len(ptr) < 2 {
+		return []*Schema{schema}
+	}
+	switch ptr[0] {
+	case "$defs":
+		return append([]*Schema{schema}, resolvePtr(schema.Defs[ptr[1]], ptr[2:])...)
+	case "definitions":
+		return append([]*Schema{schema}, resolvePtr(schema.Definitions[ptr[1]], ptr[2:])...)
+	default:
+		return []*Schema{schema}
+	}
+}
+
 func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
 	if loader == nil {
 		return nil, fmt.Errorf("nil loader")

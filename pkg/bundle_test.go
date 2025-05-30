@@ -549,6 +549,323 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 	}
 }
 
+func TestRemoveUnusedDefs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   *Schema
+	}{
+		{
+			name:   "empty schema",
+			schema: &Schema{},
+			want:   &Schema{},
+		},
+
+		{
+			name: "remove single def",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			want: &Schema{},
+		},
+
+		{
+			name: "keep single def",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+		},
+
+		{
+			name: "keep some remove some",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+					"bar.json": {ID: "bar.json"},
+					"moo.json": {ID: "moo.json"},
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+		},
+
+		{
+			name: "remove double-referenced",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "bar.json"},
+					},
+					"bar.json": {ID: "bar.json"},
+				},
+			},
+			want: &Schema{},
+		},
+
+		{
+			name: "keep double referenced",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "bar.json"},
+					},
+					"bar.json": {ID: "bar.json"},
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "bar.json"},
+					},
+					"bar.json": {ID: "bar.json"},
+				},
+			},
+		},
+
+		{
+			name: "remove some nested inline reference",
+			schema: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "#/$defs/foo.json/definitions/bar.json"},
+						Definitions: map[string]*Schema{
+							"bar.json": {Type: "string"},
+							"moo.json": {Type: "string"},
+							"doo.json": {Type: "string"},
+						},
+					},
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "foo.json"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID:    "foo.json",
+						Items: &Schema{Ref: "#/$defs/foo.json/definitions/bar.json"},
+						Definitions: map[string]*Schema{
+							"bar.json": {Type: "string"},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "ignore invalid refs",
+			schema: &Schema{
+				Items: &Schema{Ref: "#/foo.json"},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "#/foo.json"},
+			},
+		},
+		{
+			name: "ignore invalid url",
+			schema: &Schema{
+				Items: &Schema{Ref: "::"},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "::"},
+			},
+		},
+
+		{
+			name: "reference field in def",
+			schema: &Schema{
+				Items: &Schema{Ref: "#/$defs/foo.json/properties/moo"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						Properties: map[string]*Schema{
+							"moo": {Type: "string"},
+						},
+					},
+				},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "#/$defs/foo.json/properties/moo"},
+				Defs: map[string]*Schema{
+					"foo.json": {
+						Properties: map[string]*Schema{
+							"moo": {Type: "string"},
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "remove self-referential",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						Properties: map[string]*Schema{
+							"moo": {Ref: "#/$defs/foo.json"},
+						},
+					},
+				},
+			},
+			want: &Schema{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			RemoveUnusedDefs(tt.schema)
+			assert.Equal(t, tt.want, tt.schema)
+
+			want, err := yaml.Marshal(tt.want)
+			require.NoError(t, err)
+			t.Logf("Want:\n%s", string(want))
+
+			got, err := yaml.Marshal(tt.schema)
+			require.NoError(t, err)
+			t.Logf("Got:\n%s", string(got))
+		})
+	}
+}
+
+func TestResolvePtr(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		ptr    Ptr
+		want   func(schema *Schema) []*Schema
+	}{
+		{
+			name:   "nil ptr is same as root",
+			schema: &Schema{ID: "root"},
+			ptr:    nil,
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{schema}
+			},
+		},
+		{
+			name:   "root ptr",
+			schema: &Schema{ID: "root"},
+			ptr:    Ptr{},
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{schema}
+			},
+		},
+		{
+			name: "find in defs",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json"),
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{
+					schema,
+					schema.Defs["foo.json"],
+				}
+			},
+		},
+		{
+			name: "find in definitions",
+			schema: &Schema{
+				Definitions: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			ptr: NewPtr("definitions", "foo.json"),
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{
+					schema,
+					schema.Definitions["foo.json"],
+				}
+			},
+		},
+		{
+			name: "find nested",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID: "foo.json",
+						Definitions: map[string]*Schema{
+							"bar.json": {ID: "bar.json"},
+						},
+					},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json", "definitions", "bar.json"),
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{
+					schema,
+					schema.Defs["foo.json"],
+					schema.Defs["foo.json"].Definitions["bar.json"],
+				}
+			},
+		},
+
+		{
+			name: "unknown property",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			ptr: NewPtr("foobar", "moodoo"),
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{schema}
+			},
+		},
+		{
+			name: "unknown nested",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID: "foo.json",
+						Definitions: map[string]*Schema{
+							"bar.json": {ID: "bar.json"},
+						},
+					},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json", "definitions", "moo.json"),
+			want: func(schema *Schema) []*Schema {
+				return []*Schema{
+					schema,
+					schema.Defs["foo.json"],
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolved := resolvePtr(tt.schema, tt.ptr)
+			assert.Equal(t, tt.want(tt.schema), resolved)
+		})
+	}
+}
+
 func TestLoad_Errors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

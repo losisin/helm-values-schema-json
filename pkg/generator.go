@@ -117,6 +117,9 @@ func GenerateJsonSchema(config *Config) error {
 		if err := BundleRemoveIDs(mergedSchema); err != nil {
 			return fmt.Errorf("remove bundled $id: %w", err)
 		}
+
+		// Cleanup unused $defs after all other bundling tasks
+		RemoveUnusedDefs(mergedSchema)
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
