@@ -23,7 +23,7 @@ func main() {
 		fmt.Println(output)
 		return
 	} else if errors.As(err, &completeErr) {
-		completeErr.PrintCompletions()
+		completeErr.Fprint(os.Stdout)
 		return
 	} else if err != nil {
 		fmt.Println("Error parsing flags:", output)

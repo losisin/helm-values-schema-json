@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"flag"
 	"os"
 	"strings"
@@ -482,6 +483,76 @@ func TestMergeConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mergedConfig := MergeConfig(tt.fileConfig, tt.flagConfig)
 			assert.Equal(t, tt.expectedConfig, mergedConfig)
+		})
+	}
+}
+
+func TestErrCompletionRequested(t *testing.T) {
+	tests := []struct {
+		name string
+		err  func() ErrCompletionRequested
+		want string
+	}{
+		{
+			name: "empty",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
+		},
+		{
+			name: "single flag",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("foo", "", "docs string")
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "--foo\tdocs string\n",
+		},
+		{
+			name: "ignores complete flag",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("complete", "", "docs string")
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
+		},
+		{
+			name: "multiple types of args",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.Int("int", 0, "my int usage")
+				flagSet.String("str", "", "my str usage")
+				flagSet.Var(&BoolFlag{}, "bool", "my BoolFlag usage")
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "--bool=true\tmy BoolFlag usage\n" +
+				"--int\tmy int usage\n" +
+				"--str\tmy str usage\n",
+		},
+		{
+			name: "skip output when completing flag value",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("foo", "", "docs string")
+				if err := flagSet.Parse([]string{"myCmdName", "--foo", ""}); err != nil {
+					panic(err)
+				}
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.err()
+			assert.EqualError(t, err, "completion requested")
+			var buf bytes.Buffer
+			err.Fprint(&buf)
+			assert.Equal(t, tt.want, buf.String())
 		})
 	}
 }

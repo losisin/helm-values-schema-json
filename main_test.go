@@ -26,6 +26,12 @@ func TestMain(t *testing.T) {
 			expectedError: "",
 		},
 		{
+			name:          "CompleteFlag",
+			args:          []string{"schema", "--complete"},
+			expectedOut:   "--draft\tDraft version",
+			expectedError: "",
+		},
+		{
 			name:          "InvalidFlags",
 			args:          []string{"schema", "-fail"},
 			expectedOut:   "",

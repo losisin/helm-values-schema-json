@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -141,7 +142,7 @@ func (ErrCompletionRequested) Error() string {
 	return "completion requested"
 }
 
-func (err ErrCompletionRequested) PrintCompletions() {
+func (err ErrCompletionRequested) Fprint(writer io.Writer) {
 	args := err.FlagSet.Args()
 	if len(args) >= 2 {
 		prevArg := args[len(args)-2]
@@ -159,9 +160,9 @@ func (err ErrCompletionRequested) PrintCompletions() {
 		}
 		switch f.Value.(type) {
 		case *BoolFlag:
-			fmt.Printf("--%s=true\t%s\n", f.Name, f.Usage)
+			_, _ = fmt.Fprintf(writer, "--%s=true\t%s\n", f.Name, f.Usage)
 		default:
-			fmt.Printf("--%s\t%s\n", f.Name, f.Usage)
+			_, _ = fmt.Fprintf(writer, "--%s\t%s\n", f.Name, f.Usage)
 		}
 	})
 }
