@@ -236,7 +236,7 @@ func RemoveUnusedDefs(schema *Schema) {
 	refCounts := map[*Schema]int{}
 	for {
 		clear(refCounts)
-		findUnusedDefs(schema, schema, refCounts)
+		findUnusedDefs(nil, schema, schema, refCounts)
 		deletedCount := removeUnusedDefs(schema, refCounts)
 		if deletedCount == 0 {
 			break
@@ -273,9 +273,9 @@ func removeUnusedDefs(schema *Schema, refCounts map[*Schema]int) int {
 	return deletedCount
 }
 
-func findUnusedDefs(root, schema *Schema, refCounts map[*Schema]int) {
-	for _, def := range schema.Subschemas() {
-		findUnusedDefs(root, def, refCounts)
+func findUnusedDefs(ptr Ptr, root, schema *Schema, refCounts map[*Schema]int) {
+	for path, def := range schema.Subschemas() {
+		findUnusedDefs(ptr.Add(path), root, def, refCounts)
 	}
 
 	if schema.Ref == "" {
@@ -283,8 +283,13 @@ func findUnusedDefs(root, schema *Schema, refCounts map[*Schema]int) {
 	}
 
 	if strings.HasPrefix(schema.Ref, "#/") {
-		ptr := ParsePtr(schema.Ref)
-		for _, def := range resolvePtr(root, ptr) {
+		refPtr := ParsePtr(schema.Ref)
+		if len(refPtr) > 0 && ptr.HasPrefix(refPtr) {
+			// Ignore self-referential
+			// E.g "#/$defs/foo.json/properties/moo" has $ref to "#/$defs/foo.json"
+			return
+		}
+		for _, def := range resolvePtr(root, refPtr) {
 			refCounts[def]++
 		}
 		return

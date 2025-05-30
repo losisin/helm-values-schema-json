@@ -716,6 +716,20 @@ func TestRemoveUnusedDefs(t *testing.T) {
 				},
 			},
 		},
+
+		{
+			name: "remove self-referential",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						Properties: map[string]*Schema{
+							"moo": {Ref: "#/$defs/foo.json"},
+						},
+					},
+				},
+			},
+			want: &Schema{},
+		},
 	}
 
 	for _, tt := range tests {
