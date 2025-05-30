@@ -27,13 +27,17 @@ type Config struct {
 	BundleRoot             string          `yaml:"bundleRoot"`
 	BundleWithoutID        BoolFlag        `yaml:"bundleWithoutID"`
 
+	K8sSchemaURL     string `yaml:"k8sSchemaURL"`
+	K8sSchemaVersion string `yaml:"k8sSchemaVersion"`
+
 	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 
 	Args []string `yaml:"-"`
 
-	OutputPathSet bool
-	DraftSet      bool
-	IndentSet     bool
+	OutputPathSet   bool `yaml:"-"`
+	DraftSet        bool `yaml:"-"`
+	IndentSet       bool `yaml:"-"`
+	K8sSchemaURLSet bool `yaml:"-"`
 }
 
 // Define a custom flag type to accept multiple yaml files

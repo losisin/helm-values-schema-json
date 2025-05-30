@@ -1,0 +1,1 @@
+memory: "1M" # @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity

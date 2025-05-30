@@ -51,6 +51,22 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
+
+		{
+			name: "k8s ref alias",
+			config: &Config{
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				K8sSchemaVersion: "v1.33.1",
+				Input: []string{
+					"../testdata/k8sRef.yaml",
+				},
+				OutputPath: "../testdata/k8sRef_output.json",
+			},
+			templateSchemaFile: "../testdata/k8sRef.schema.json",
+		},
+
 		{
 			name: "bundle/simple",
 			config: &Config{
@@ -318,6 +334,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				OutputPath: "../testdata/bundle_output.json",
 			},
 			expectedErr: errors.New("get relative path from bundle root to file"),
+		},
+		{
+			name: "invalid k8s ref alias",
+			config: &Config{
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				K8sSchemaVersion: "",
+				Input: []string{
+					"../testdata/k8sRef.yaml",
+				},
+				OutputPath: "../testdata/k8sRef_output.json",
+			},
+			expectedErr: errors.New("/properties/memory: must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
 		},
 	}
 

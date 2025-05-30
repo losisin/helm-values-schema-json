@@ -393,3 +393,102 @@ func TestEnsureCompliant_recursive(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateRefK8sAlias(t *testing.T) {
+	tests := []struct {
+		name        string
+		schema      *Schema
+		urlTemplate string
+		version     string
+		wantErr     string
+		want        *Schema
+	}{
+		{
+			name:   "empty schema",
+			schema: &Schema{},
+			want:   &Schema{},
+		},
+		{
+			name:        "with trailing slash",
+			urlTemplate: "http://example.com/{{ .K8sSchemaVersion }}/",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json"},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "http://example.com/v1.2.3/foobar.json"},
+			},
+		},
+		{
+			name:        "without trailing slash",
+			urlTemplate: "http://example.com/{{ .K8sSchemaVersion }}",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json"},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "http://example.com/v1.2.3/foobar.json"},
+			},
+		},
+		{
+			name:        "with fragment",
+			urlTemplate: "http://example.com/{{ .K8sSchemaVersion }}",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json#/properties/foo"},
+			},
+			want: &Schema{
+				Items: &Schema{Ref: "http://example.com/v1.2.3/foobar.json#/properties/foo"},
+			},
+		},
+
+		{
+			name:        "missing version",
+			urlTemplate: "http://example.com/{{ .K8sSchemaVersion }}",
+			version:     "",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json#/properties/foo"},
+			},
+			wantErr: "/items: must set k8sSchemaVersion config",
+		},
+		{
+			name:        "invalid template",
+			urlTemplate: "http://example.com/{{",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json#/properties/foo"},
+			},
+			wantErr: "/items: parse k8sSchemaURL template: template: :1: unclosed action",
+		},
+		{
+			name:        "invalid variable",
+			urlTemplate: "http://example.com/{{ .Foobar }}",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/foobar.json#/properties/foo"},
+			},
+			wantErr: "can't evaluate field Foobar in type",
+		},
+		{
+			name:        "invalid ref",
+			urlTemplate: "http://example.com/{{ .K8sSchemaVersion }}",
+			version:     "v1.2.3",
+			schema: &Schema{
+				Items: &Schema{Ref: "$k8s/#/properties/foo"},
+			},
+			wantErr: "/items: invalid $k8s schema alias: must have a path but only got \"$k8s/#/properties/foo\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := updateRefK8sAlias(tt.schema, tt.urlTemplate, tt.version)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.schema)
+		})
+	}
+}
