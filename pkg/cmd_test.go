@@ -511,15 +511,6 @@ func TestErrCompletionRequested(t *testing.T) {
 			want: "--foo\tdocs string\n",
 		},
 		{
-			name: "ignores complete flag",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				flagSet.String("complete", "", "docs string")
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "",
-		},
-		{
 			name: "multiple types of args",
 			err: func() ErrCompletionRequested {
 				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
@@ -531,6 +522,18 @@ func TestErrCompletionRequested(t *testing.T) {
 			want: "--bool=true\tmy BoolFlag usage\n" +
 				"--int\tmy int usage\n" +
 				"--str\tmy str usage\n",
+		},
+		{
+			name: "skip output when completing flag value",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("foo", "", "docs string")
+				if err := flagSet.Parse([]string{"myCmdName", "__complete", "--", "--foo", ""}); err != nil {
+					panic(err)
+				}
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
 		},
 	}
 
