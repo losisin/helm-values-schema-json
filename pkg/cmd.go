@@ -143,11 +143,11 @@ func (ErrCompletionRequested) Error() string {
 
 func (err ErrCompletionRequested) PrintCompletions() {
 	args := err.FlagSet.Args()
-	if len(args) > 2 {
+	if len(args) >= 2 {
 		prevArg := args[len(args)-2]
 		currArg := args[len(args)-1]
 		if strings.HasPrefix(prevArg, "-") && !strings.Contains(prevArg, "=") &&
-			currArg == "" {
+			!strings.HasPrefix(currArg, "-") {
 			// Don't suggest any flags as the last argument was "--foo",
 			// so the user must provide a flag value
 			return
