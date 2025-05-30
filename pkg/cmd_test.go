@@ -140,7 +140,7 @@ func TestParseFlagsUsage(t *testing.T) {
 }
 
 func TestParseFlagsComplete(t *testing.T) {
-	_, _, err := ParseFlags("schema", []string{"--complete=true"})
+	_, _, err := ParseFlags("schema", []string{"__complete"})
 
 	var completeErr ErrCompletionRequested
 	assert.ErrorAs(t, err, &completeErr)
@@ -537,7 +537,7 @@ func TestErrCompletionRequested(t *testing.T) {
 			err: func() ErrCompletionRequested {
 				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
 				flagSet.String("foo", "", "docs string")
-				if err := flagSet.Parse([]string{"myCmdName", "--foo", ""}); err != nil {
+				if err := flagSet.Parse([]string{"myCmdName", "__complete", "--", "--foo", ""}); err != nil {
 					panic(err)
 				}
 				return ErrCompletionRequested{flagSet}

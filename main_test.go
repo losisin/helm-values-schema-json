@@ -27,7 +27,7 @@ func TestMain(t *testing.T) {
 		},
 		{
 			name:          "CompleteFlag",
-			args:          []string{"schema", "--complete"},
+			args:          []string{"schema", "__complete"},
 			expectedOut:   "--draft\tDraft version",
 			expectedError: "",
 		},

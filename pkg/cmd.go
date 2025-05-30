@@ -34,15 +34,13 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 	flags.StringVar(&conf.SchemaRoot.Description, "schemaRoot.description", "", "JSON schema description")
 	flags.Var(&conf.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties", "Allow additional properties")
 
-	complete := flags.Bool("complete", false, "Print shell completions. Internal use only")
-
 	err := flags.Parse(args)
 	if err != nil {
 		fmt.Println("Usage: helm schema [options...] <arguments>")
 		return nil, buf.String(), err
 	}
 
-	if *complete {
+	if flags.NArg() >= 1 && flags.Arg(0) == "__complete" {
 		return nil, "", ErrCompletionRequested{FlagSet: flags}
 	}
 
@@ -144,6 +142,9 @@ func (ErrCompletionRequested) Error() string {
 
 func (err ErrCompletionRequested) Fprint(writer io.Writer) {
 	args := err.FlagSet.Args()
+	if len(args) > 1 && args[1] == "__complete" {
+		args = args[2:]
+	}
 	if len(args) >= 2 {
 		prevArg := args[len(args)-2]
 		currArg := args[len(args)-1]
