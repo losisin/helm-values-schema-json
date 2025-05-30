@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -32,10 +33,16 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 	flags.StringVar(&conf.SchemaRoot.Description, "schemaRoot.description", "", "JSON schema description")
 	flags.Var(&conf.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties", "Allow additional properties")
 
+	complete := flags.Bool("complete", false, "Print shell completions. Internal use only")
+
 	err := flags.Parse(args)
 	if err != nil {
 		fmt.Println("Usage: helm schema [options...] <arguments>")
 		return nil, buf.String(), err
+	}
+
+	if *complete {
+		return nil, "", ErrCompletionRequested{FlagSet: flags}
 	}
 
 	// Mark fields as set if they were provided as flags
@@ -123,4 +130,38 @@ func MergeConfig(fileConfig, flagConfig *Config) *Config {
 	mergedConfig.Args = flagConfig.Args
 
 	return &mergedConfig
+}
+
+type ErrCompletionRequested struct {
+	FlagSet *flag.FlagSet
+}
+
+// Error implements [error].
+func (ErrCompletionRequested) Error() string {
+	return "completion requested"
+}
+
+func (err ErrCompletionRequested) PrintCompletions() {
+	args := err.FlagSet.Args()
+	if len(args) > 2 {
+		prevArg := args[len(args)-2]
+		currArg := args[len(args)-1]
+		if strings.HasPrefix(prevArg, "-") && !strings.Contains(prevArg, "=") &&
+			currArg == "" {
+			// Don't suggest any flags as the last argument was "--foo",
+			// so the user must provide a flag value
+			return
+		}
+	}
+	err.FlagSet.VisitAll(func(f *flag.Flag) {
+		if f.Name == "complete" {
+			return
+		}
+		switch f.Value.(type) {
+		case *BoolFlag:
+			fmt.Printf("--%s=true\t%s\n", f.Name, f.Usage)
+		default:
+			fmt.Printf("--%s\t%s\n", f.Name, f.Usage)
+		}
+	})
 }

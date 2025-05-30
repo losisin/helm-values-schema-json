@@ -36,6 +36,7 @@ install: build ## Install the plugin
 	@mkdir -p $(HELM_PLUGIN_DIR)
 	@cp $(BINNAME) $(HELM_PLUGIN_DIR)
 	@cp plugin.yaml $(HELM_PLUGIN_DIR)
+	@cp plugin.complete $(HELM_PLUGIN_DIR)
 
 generate: ## Generate files
 	go generate ./testdata

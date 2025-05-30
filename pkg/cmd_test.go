@@ -138,6 +138,13 @@ func TestParseFlagsUsage(t *testing.T) {
 	}
 }
 
+func TestParseFlagsComplete(t *testing.T) {
+	_, _, err := ParseFlags("schema", []string{"--complete=true"})
+
+	var completeErr ErrCompletionRequested
+	assert.ErrorAs(t, err, &completeErr)
+}
+
 func TestParseFlagsFail(t *testing.T) {
 	tests := []struct {
 		args   []string

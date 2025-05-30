@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+"$HELM_PLUGIN_DIR/schema" --complete=true -- "$@"
