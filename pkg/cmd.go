@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,6 +42,10 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 	if err != nil {
 		fmt.Println("Usage: helm schema [options...] <arguments>")
 		return nil, buf.String(), err
+	}
+
+	if flags.NArg() >= 1 && flags.Arg(0) == "__complete" {
+		return nil, "", ErrCompletionRequested{FlagSet: flags}
 	}
 
 	// Mark fields as set if they were provided as flags
@@ -135,4 +141,38 @@ func MergeConfig(fileConfig, flagConfig *Config) *Config {
 	mergedConfig.Args = flagConfig.Args
 
 	return &mergedConfig
+}
+
+type ErrCompletionRequested struct {
+	FlagSet *flag.FlagSet
+}
+
+// Error implements [error].
+func (ErrCompletionRequested) Error() string {
+	return "completion requested"
+}
+
+func (err ErrCompletionRequested) Fprint(writer io.Writer) {
+	args := err.FlagSet.Args()
+	if len(args) > 1 && args[1] == "__complete" {
+		args = args[2:]
+	}
+	if len(args) >= 2 {
+		prevArg := args[len(args)-2]
+		currArg := args[len(args)-1]
+		if strings.HasPrefix(prevArg, "-") && !strings.Contains(prevArg, "=") &&
+			!strings.HasPrefix(currArg, "-") {
+			// Don't suggest any flags as the last argument was "--foo",
+			// so the user must provide a flag value
+			return
+		}
+	}
+	err.FlagSet.VisitAll(func(f *flag.Flag) {
+		switch f.Value.(type) {
+		case *BoolFlag:
+			_, _ = fmt.Fprintf(writer, "--%s=true\t%s\n", f.Name, f.Usage)
+		default:
+			_, _ = fmt.Fprintf(writer, "--%s\t%s\n", f.Name, f.Usage)
+		}
+	})
 }
