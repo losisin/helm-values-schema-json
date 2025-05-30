@@ -1,44 +1,13 @@
 {
-    "$defs": {
-        "simple-subschema.schema.json": {
-            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "additionalProperties": false,
-            "properties": {
-                "pullPolicy": {
-                    "description": "This sets the pull policy for images.",
-                    "enum": [
-                        "IfNotPresent",
-                        "Always",
-                        "Never"
-                    ],
-                    "type": "string"
-                },
-                "repository": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Overrides the image tag whose default is the chart appVersion.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            },
-            "type": "object"
-        }
-    },
-    "$id": "https://example.com/schema",
-    "$ref": "#/$defs/simple-subschema.schema.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": true,
-    "description": "Schema for Helm values",
+    "type": "object",
     "properties": {
         "fullnameOverride": {
             "title": "Full name override",
             "type": "string"
         },
         "image": {
+            "type": "object",
             "properties": {
                 "repository": {
                     "default": "nginx",
@@ -48,23 +17,21 @@
                     "readOnly": true,
                     "type": "string"
                 }
-            },
-            "type": "object"
+            }
         },
         "metrics": {
+            "type": "object",
             "properties": {
                 "enabled": {
                     "default": true,
                     "type": "boolean"
                 }
-            },
-            "type": "object"
+            }
         },
         "nodeSelector": {
             "default": {
                 "cloud.google.com/gke-nodepool": "e2-standard-8-spot"
             },
-            "properties": {},
             "type": "object"
         },
         "replicas": {
@@ -82,7 +49,5 @@
             ],
             "type": "array"
         }
-    },
-    "title": "Helm Values Schema",
-    "type": "object"
+    }
 }

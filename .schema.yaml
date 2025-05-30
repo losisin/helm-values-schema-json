@@ -1,6 +1,6 @@
 # Required
 input:
-  - '.schema.yaml'
+  - ".schema.yaml"
 
 draft: 2020 # @schema enum: [4, 6, 7, 2019, 2020]; default: 2020
 indent: 4 # @schema default: 4
@@ -9,6 +9,9 @@ output: values.schema.json # @schema default: values.schema.json
 bundle: true # @schema default: false
 bundleRoot: testdata # @schema default: ""
 bundleWithoutID: true # @schema default: false
+
+k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
+k8sSchemaVersion: "v1.33.1"
 
 schemaRoot:
   id: https://example.com/schema

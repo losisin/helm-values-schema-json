@@ -1,66 +1,76 @@
 {
-    "$id": "https://example.com/schema",
-    "$ref": "schema/product.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": true,
+    "$id": "https://example.com/schema",
+    "title": "Helm Values Schema",
     "description": "Schema for Helm values",
+    "$ref": "schema/product.json",
+    "type": "object",
+    "required": [
+        "nameOverride"
+    ],
     "properties": {
         "affinity": {
+            "type": "object",
             "properties": {
                 "nodeAffinity": {
-                    "additionalProperties": false,
+                    "type": "object",
                     "maxProperties": 2,
                     "minProperties": 1,
                     "properties": {
                         "preferredDuringSchedulingIgnoredDuringExecution": {
+                            "type": "array",
                             "items": {
+                                "type": "object",
                                 "properties": {
                                     "preference": {
                                         "$id": "https://example.com/schema.json",
+                                        "type": "object",
+                                        "properties": {
+                                            "matchExpressions": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "key": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
                                         "patternProperties": {
                                             "^[a-z]$": {
                                                 "type": "string"
                                             }
-                                        },
-                                        "properties": {
-                                            "matchExpressions": {
-                                                "items": {
-                                                    "properties": {
-                                                        "key": {
-                                                            "type": "string"
-                                                        },
-                                                        "operator": {
-                                                            "type": "string"
-                                                        },
-                                                        "values": {
-                                                            "items": {
-                                                                "type": "string"
-                                                            },
-                                                            "type": "array"
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "type": "array"
-                                            }
-                                        },
-                                        "type": "object"
+                                        }
                                     },
                                     "weight": {
                                         "type": "integer"
                                     }
-                                },
-                                "type": "object"
-                            },
-                            "type": "array"
+                                }
+                            }
                         },
                         "requiredDuringSchedulingIgnoredDuringExecution": {
+                            "type": "object",
                             "properties": {
                                 "nodeSelectorTerms": {
+                                    "type": "array",
                                     "items": {
+                                        "type": "object",
                                         "properties": {
                                             "matchExpressions": {
+                                                "type": "array",
                                                 "items": {
+                                                    "type": "object",
                                                     "properties": {
                                                         "key": {
                                                             "type": "string"
@@ -69,29 +79,23 @@
                                                             "type": "string"
                                                         },
                                                         "values": {
+                                                            "type": "array",
                                                             "items": {
                                                                 "type": "string"
-                                                            },
-                                                            "type": "array"
+                                                            }
                                                         }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "type": "array"
+                                                    }
+                                                }
                                             }
-                                        },
-                                        "type": "object"
-                                    },
-                                    "type": "array"
+                                        }
+                                    }
                                 }
-                            },
-                            "type": "object"
+                            }
                         }
                     },
-                    "type": "object"
+                    "additionalProperties": false
                 }
-            },
-            "type": "object"
+            }
         },
         "empty": {
             "type": [
@@ -100,12 +104,16 @@
             ]
         },
         "fullnameOverride": {
-            "description": "My description",
-            "pattern": "^[a-z]$",
             "title": "My title",
-            "type": "string"
+            "description": "My description",
+            "type": "string",
+            "pattern": "^[a-z]$"
         },
         "image": {
+            "type": "object",
+            "required": [
+                "repository"
+            ],
             "properties": {
                 "pullPolicy": {
                     "type": "string"
@@ -117,25 +125,21 @@
                     "readOnly": true,
                     "type": "string"
                 }
-            },
-            "required": [
-                "repository"
-            ],
-            "type": "object"
+            }
         },
         "imagePullSecrets": {
+            "type": [
+                "array",
+                "null"
+            ],
             "items": {
+                "type": "object",
                 "properties": {
                     "key": {
                         "type": "string"
                     }
-                },
-                "type": "object"
-            },
-            "type": [
-                "array",
-                "null"
-            ]
+                }
+            }
         },
         "labels": {
             "type": "object"
@@ -144,21 +148,22 @@
             "type": "string"
         },
         "replicas": {
+            "type": "integer",
             "maximum": 10,
             "minimum": 1,
-            "multipleOf": 2,
-            "type": "integer"
+            "multipleOf": 2
         },
         "service": {
+            "type": "string",
             "enum": [
                 "ClusterIP",
                 "LoadBalancer",
                 null
-            ],
-            "type": "string"
+            ]
         },
         "subchart": {
             "$ref": "https://example.com/schema.json",
+            "type": "object",
             "properties": {
                 "enabled": {
                     "type": "boolean"
@@ -167,6 +172,7 @@
                     "type": "string"
                 },
                 "values": {
+                    "type": "object",
                     "properties": {
                         "bar": {
                             "type": "string"
@@ -174,15 +180,18 @@
                         "foo": {
                             "type": "string"
                         }
-                    },
-                    "type": "object"
+                    }
                 }
             },
-            "type": "object",
             "unevaluatedProperties": false
         },
         "tolerations": {
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "uniqueItems": true,
             "items": {
+                "type": "object",
                 "properties": {
                     "effect": {
                         "type": "string"
@@ -196,18 +205,9 @@
                     "value": {
                         "type": "string"
                     }
-                },
-                "type": "object"
-            },
-            "maxItems": 10,
-            "minItems": 1,
-            "type": "array",
-            "uniqueItems": true
+                }
+            }
         }
     },
-    "required": [
-        "nameOverride"
-    ],
-    "title": "Helm Values Schema",
-    "type": "object"
+    "additionalProperties": true
 }

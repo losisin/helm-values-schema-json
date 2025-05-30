@@ -11,14 +11,12 @@
 package pkg
 
 import (
-	"cmp"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"iter"
 	"maps"
 	"mime"
 	"net/http"
@@ -57,13 +55,14 @@ func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, loader, schema, schema)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema)
 }
 
-func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) error {
-	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleSchemaRec(ctx, loader, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
+	for path, subSchema := range schema.Subschemas() {
+		ptr := ptr.Add(path)
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", ptr, err)
 		}
 	}
 
@@ -87,67 +86,40 @@ func bundleSchemaRec(ctx context.Context, loader Loader, root, schema *Schema) e
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
 	}
+
+	// Copy over $defs
+	moveDefToRoot(root, &loaded.Defs)
+	moveDefToRoot(root, &loaded.Definitions)
+
+	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, loader, root, loaded)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded)
 }
 
-func iterSubschemas(schema *Schema) iter.Seq2[string, *Schema] {
-	return func(yield func(string, *Schema) bool) {
-		for key, subSchema := range iterMapOrdered(schema.Properties) {
-			if !yield(fmt.Sprintf("properties[%q]", key), subSchema) {
-				return
-			}
+func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
+	for key, def := range *defs {
+		if def.ID == "" {
+			// Only move items that are referenced by $id.
+			continue
 		}
-		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
-			if !yield(fmt.Sprintf("patternProperties[%q]", key), subSchema) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Defs) {
-			if !yield(fmt.Sprintf("$defs[%q]", key), subSchema) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Definitions) {
-			if !yield(fmt.Sprintf("definitions[%q]", key), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.AllOf {
-			if !yield(fmt.Sprintf("allOf[%d]", index), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.AnyOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
-				return
-			}
-		}
-		for index, subSchema := range schema.OneOf {
-			if !yield(fmt.Sprintf("anyOf[%d]", index), subSchema) {
-				return
-			}
-		}
-		if schema.Not != nil {
-			if !yield("not", schema.Not) {
-				return
-			}
-		}
+		root.Defs[generateBundledName(def.ID, root.Defs)] = def
+		delete(*defs, key)
 	}
-}
-
-func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for _, k := range slices.Sorted(maps.Keys(m)) {
-			if !yield(k, m[k]) {
-				return
-			}
-		}
+	if len(*defs) == 0 {
+		*defs = nil
 	}
 }
 
 func generateBundledName(id string, defs map[string]*Schema) string {
+	if id == "" {
+		return ""
+	}
+	for name, def := range defs {
+		if def.ID == id {
+			return name
+		}
+	}
 	baseName := path.Base(id)
 	name := baseName
 	i := 1
@@ -200,7 +172,7 @@ func BundleRemoveIDs(schema *Schema) error {
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	if err := bundleChangeRefsRec(schema, schema); err != nil {
+	if err := bundleChangeRefsRec(nil, nil, schema, schema); err != nil {
 		return err
 	}
 	for _, def := range schema.Defs {
@@ -209,15 +181,24 @@ func BundleRemoveIDs(schema *Schema) error {
 	return nil
 }
 
-func bundleChangeRefsRec(root, schema *Schema) error {
-	for path, subSchema := range iterSubschemas(schema) {
-		if err := bundleChangeRefsRec(root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", path, err)
+func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
+	if schema.ID != "" {
+		parentDefPtr = ptr
+	}
+
+	for subPath, subSchema := range schema.Subschemas() {
+		ptr := ptr.Add(subPath)
+		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
+			return fmt.Errorf("%s: %w", ptr, err)
 		}
 	}
 
 	if schema.Ref == "" || strings.HasPrefix(schema.Ref, "#") {
-		// Nothing to update
+		if schema.Ref != "" && len(parentDefPtr) > 0 {
+			// Update inline refs
+			schema.Ref = fmt.Sprintf("#%s%s", parentDefPtr, strings.TrimPrefix(schema.Ref, "#"))
+		}
+
 		return nil
 	}
 
@@ -232,9 +213,9 @@ func bundleChangeRefsRec(root, schema *Schema) error {
 	}
 
 	if ref.Fragment != "" {
-		schema.Ref = fmt.Sprintf("#/$defs/%s/%s", name, strings.TrimPrefix(ref.Fragment, "/"))
+		schema.Ref = fmt.Sprintf("#%s%s", NewPtr("$defs", name), ref.Fragment)
 	} else {
-		schema.Ref = fmt.Sprintf("#/$defs/%s", name)
+		schema.Ref = fmt.Sprintf("#%s", NewPtr("$defs", name))
 	}
 
 	return nil
@@ -247,6 +228,101 @@ func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// RemoveUnusedDefs will try clean up all unused $defs to reduce the size of the
+// final bundled schema.
+func RemoveUnusedDefs(schema *Schema) {
+	refCounts := map[*Schema]int{}
+	for {
+		clear(refCounts)
+		findUnusedDefs(nil, schema, schema, refCounts)
+		deletedCount := removeUnusedDefs(schema, refCounts)
+		if deletedCount == 0 {
+			break
+		}
+	}
+}
+
+func removeUnusedDefs(schema *Schema, refCounts map[*Schema]int) int {
+	deletedCount := 0
+
+	for _, def := range schema.Subschemas() {
+		deletedCount += removeUnusedDefs(def, refCounts)
+	}
+
+	for name, def := range schema.Defs {
+		if refCounts[def] == 0 {
+			delete(schema.Defs, name)
+			deletedCount++
+		}
+	}
+	if len(schema.Defs) == 0 {
+		schema.Defs = nil
+	}
+
+	for name, def := range schema.Definitions {
+		if refCounts[def] == 0 {
+			delete(schema.Definitions, name)
+			deletedCount++
+		}
+	}
+	if len(schema.Definitions) == 0 {
+		schema.Definitions = nil
+	}
+	return deletedCount
+}
+
+func findUnusedDefs(ptr Ptr, root, schema *Schema, refCounts map[*Schema]int) {
+	for path, def := range schema.Subschemas() {
+		findUnusedDefs(ptr.Add(path), root, def, refCounts)
+	}
+
+	if schema.Ref == "" {
+		return
+	}
+
+	if strings.HasPrefix(schema.Ref, "#/") {
+		refPtr := ParsePtr(schema.Ref)
+		if len(refPtr) > 0 && ptr.HasPrefix(refPtr) {
+			// Ignore self-referential
+			// E.g "#/$defs/foo.json/properties/moo" has $ref to "#/$defs/foo.json"
+			return
+		}
+		for _, def := range resolvePtr(root, refPtr) {
+			refCounts[def]++
+		}
+		return
+	}
+
+	ref, err := url.Parse(schema.Ref)
+	if err != nil {
+		return
+	}
+
+	if name, ok := findDefNameByRef(root.Defs, ref); ok {
+		refCounts[root.Defs[name]]++
+	}
+}
+
+func resolvePtr(schema *Schema, ptr Ptr) []*Schema {
+	if schema == nil {
+		return nil
+	}
+	if len(ptr) == 0 {
+		return []*Schema{schema}
+	}
+	if len(ptr) < 2 {
+		return []*Schema{schema}
+	}
+	switch ptr[0] {
+	case "$defs":
+		return append([]*Schema{schema}, resolvePtr(schema.Defs[ptr[1]], ptr[2:])...)
+	case "definitions":
+		return append([]*Schema{schema}, resolvePtr(schema.Definitions[ptr[1]], ptr[2:])...)
+	default:
+		return []*Schema{schema}
+	}
 }
 
 func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
@@ -332,6 +408,8 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if loader.basePath != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(loader.basePath, path)
 	}
+
+	fmt.Println("Loading file", path)
 	f, err := loader.root.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
@@ -341,6 +419,8 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if err != nil {
 		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
 	}
+
+	fmt.Printf("=> got %dKB\n", len(b)/1000)
 
 	switch filepath.Ext(path) {
 	case ".yml", ".yaml":
@@ -422,7 +502,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ref.String(), nil)
+	refClone := *ref
+	refClone.Fragment = ""
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -438,6 +521,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", "helm-values-schema-json/1")
 	}
+
+	start := time.Now()
+	fmt.Println("Loading", req.URL.Redacted())
+
 	resp, err := loader.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
@@ -479,6 +566,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if err != nil {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
 	}
+
+	duration := time.Since(start)
+	fmt.Printf("=> got %dKB in %s\n", len(b)/1000, duration.Truncate(time.Millisecond))
+
 	if isYAML {
 		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {

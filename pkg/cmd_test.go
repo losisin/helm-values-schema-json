@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"flag"
 	"os"
 	"strings"
@@ -10,21 +11,24 @@ import (
 )
 
 func TestParseFlagsPass(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		args []string
 		conf Config
 	}{
-		{[]string{"-input", "values.yaml"},
+		{
+			[]string{"-input", "values.yaml"},
 			Config{
-				Input:      multiStringFlag{"values.yaml"},
-				OutputPath: "values.schema.json",
-				Draft:      2020,
-				Indent:     4,
-				Args:       []string{},
+				Input:        multiStringFlag{"values.yaml"},
+				OutputPath:   "values.schema.json",
+				Draft:        2020,
+				Indent:       4,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				Args:         []string{},
 			},
 		},
 
-		{[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
+		{
+			[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
 			Config{
 				Input:         multiStringFlag{"values1.yaml values2.yaml"},
 				OutputPath:    "values.schema.json",
@@ -33,11 +37,13 @@ func TestParseFlagsPass(t *testing.T) {
 				OutputPathSet: false,
 				DraftSet:      false,
 				IndentSet:     true,
+				K8sSchemaURL:  "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				Args:          []string{},
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
+		{
+			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
 			Config{
 				Input:      multiStringFlag{"values.yaml"},
 				OutputPath: "my.schema.json",
@@ -45,29 +51,35 @@ func TestParseFlagsPass(t *testing.T) {
 				OutputPathSet: true,
 				DraftSet:      true,
 				IndentSet:     true,
+				K8sSchemaURL:  "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				Args:          []string{},
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019"},
+		{
+			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-k8sSchemaURL", "foobar"},
 			Config{
-				Input:         multiStringFlag{"values.yaml"},
-				OutputPath:    "my.schema.json",
-				Draft:         2019,
-				Indent:        4,
-				OutputPathSet: true,
-				DraftSet:      true,
-				IndentSet:     false,
-				Args:          []string{},
+				Input:           multiStringFlag{"values.yaml"},
+				OutputPath:      "my.schema.json",
+				Draft:           2019,
+				Indent:          4,
+				K8sSchemaURL:    "foobar",
+				OutputPathSet:   true,
+				DraftSet:        true,
+				K8sSchemaURLSet: true,
+				IndentSet:       false,
+				Args:            []string{},
 			},
 		},
 
-		{[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
+		{
+			[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
 			Config{
-				Input:      multiStringFlag{"values.yaml"},
-				OutputPath: "values.schema.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:        multiStringFlag{"values.yaml"},
+				OutputPath:   "values.schema.json",
+				Draft:        2020,
+				Indent:       4,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					ID:          "http://example.com/schema",
 					Ref:         "schema/product.json",
@@ -78,22 +90,26 @@ func TestParseFlagsPass(t *testing.T) {
 			},
 		},
 
-		{[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
+		{
+			[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
 			Config{
 				Indent:          4,
 				OutputPath:      "values.schema.json",
 				Draft:           2020,
+				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				Bundle:          BoolFlag{set: true, value: true},
 				BundleRoot:      "/foo/bar",
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				Args:            []string{},
 			},
 		},
-		{[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
+		{
+			[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
 			Config{
 				Indent:          4,
 				OutputPath:      "values.schema.json",
 				Draft:           2020,
+				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				Bundle:          BoolFlag{set: true, value: false},
 				BundleRoot:      "",
 				BundleWithoutID: BoolFlag{set: true, value: false},
@@ -113,7 +129,7 @@ func TestParseFlagsPass(t *testing.T) {
 }
 
 func TestParseFlagsUsage(t *testing.T) {
-	var usageArgs = []string{"-help", "-h", "--help"}
+	usageArgs := []string{"-help", "-h", "--help"}
 
 	for _, arg := range usageArgs {
 		t.Run(arg, func(t *testing.T) {
@@ -131,8 +147,15 @@ func TestParseFlagsUsage(t *testing.T) {
 	}
 }
 
+func TestParseFlagsComplete(t *testing.T) {
+	_, _, err := ParseFlags("schema", []string{"__complete"})
+
+	var completeErr ErrCompletionRequested
+	assert.ErrorAs(t, err, &completeErr)
+}
+
 func TestParseFlagsFail(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		args   []string
 		errStr string
 	}{
@@ -181,6 +204,7 @@ bundleRoot: ./
 bundleWithoutID: true
 schemaRoot:
   id: https://example.com/schema
+  ref: schema/product.json
   title: Helm Values Schema
   description: Schema for Helm values
   additionalProperties: true
@@ -194,8 +218,9 @@ schemaRoot:
 				BundleRoot:      "./",
 				BundleWithoutID: BoolFlag{set: true, value: true},
 				SchemaRoot: SchemaRoot{
-					ID:                   "https://example.com/schema",
 					Title:                "Helm Values Schema",
+					ID:                   "https://example.com/schema",
+					Ref:                  "schema/product.json",
 					Description:          "Schema for Helm values",
 					AdditionalProperties: BoolFlag{set: true, value: true},
 				},
@@ -233,6 +258,7 @@ input:
 				Indent:     0,
 				SchemaRoot: SchemaRoot{
 					ID:                   "",
+					Ref:                  "",
 					Title:                "",
 					Description:          "",
 					AdditionalProperties: BoolFlag{set: false, value: false},
@@ -303,8 +329,11 @@ func TestMergeConfig(t *testing.T) {
 				Draft:                  2020,
 				Indent:                 4,
 				NoAdditionalProperties: BoolFlag{set: true, value: true},
+				K8sSchemaURL:           "fileURL",
+				K8sSchemaVersion:       "fileVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -316,15 +345,19 @@ func TestMergeConfig(t *testing.T) {
 				Draft:                  2019,
 				Indent:                 2,
 				NoAdditionalProperties: BoolFlag{set: true, value: false},
+				K8sSchemaURL:           "flagURL",
+				K8sSchemaVersion:       "flagVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
 				},
-				OutputPathSet: true,
-				DraftSet:      true,
-				IndentSet:     true,
+				OutputPathSet:   true,
+				DraftSet:        true,
+				IndentSet:       true,
+				K8sSchemaURLSet: true,
 			},
 			expectedConfig: &Config{
 				Input:                  multiStringFlag{"flagInput.yaml"},
@@ -332,8 +365,11 @@ func TestMergeConfig(t *testing.T) {
 				Draft:                  2019,
 				Indent:                 2,
 				NoAdditionalProperties: BoolFlag{set: true, value: false},
+				K8sSchemaURL:           "flagURL",
+				K8sSchemaVersion:       "flagVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
@@ -343,12 +379,15 @@ func TestMergeConfig(t *testing.T) {
 		{
 			name: "FileConfigDefaultsUsed",
 			fileConfig: &Config{
-				Input:      multiStringFlag{"fileInput.yaml"},
-				OutputPath: "fileOutput.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:            multiStringFlag{"fileInput.yaml"},
+				OutputPath:       "fileOutput.json",
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "fileURL",
+				K8sSchemaVersion: "fileVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -356,12 +395,15 @@ func TestMergeConfig(t *testing.T) {
 			},
 			flagConfig: &Config{},
 			expectedConfig: &Config{
-				Input:      multiStringFlag{"fileInput.yaml"},
-				OutputPath: "fileOutput.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:            multiStringFlag{"fileInput.yaml"},
+				OutputPath:       "fileOutput.json",
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "fileURL",
+				K8sSchemaVersion: "fileVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -371,12 +413,15 @@ func TestMergeConfig(t *testing.T) {
 		{
 			name: "FlagConfigPartialOverride",
 			fileConfig: &Config{
-				Input:      multiStringFlag{"fileInput.yaml"},
-				OutputPath: "fileOutput.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:            multiStringFlag{"fileInput.yaml"},
+				OutputPath:       "fileOutput.json",
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "fileURL",
+				K8sSchemaVersion: "fileVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -387,12 +432,15 @@ func TestMergeConfig(t *testing.T) {
 				OutputPathSet: true,
 			},
 			expectedConfig: &Config{
-				Input:      multiStringFlag{"fileInput.yaml"},
-				OutputPath: "flagOutput.json",
-				Draft:      2020,
-				Indent:     4,
+				Input:            multiStringFlag{"fileInput.yaml"},
+				OutputPath:       "flagOutput.json",
+				Draft:            2020,
+				Indent:           4,
+				K8sSchemaURL:     "fileURL",
+				K8sSchemaVersion: "fileVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
+					Ref:                  "fileRef",
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: BoolFlag{set: true, value: false},
@@ -405,27 +453,34 @@ func TestMergeConfig(t *testing.T) {
 				Input: multiStringFlag{},
 			},
 			flagConfig: &Config{
-				Input:      multiStringFlag{"flagInput.yaml"},
-				OutputPath: "flagOutput.json",
-				Draft:      2019,
-				Indent:     2,
+				Input:            multiStringFlag{"flagInput.yaml"},
+				OutputPath:       "flagOutput.json",
+				Draft:            2019,
+				Indent:           2,
+				K8sSchemaURL:     "flagURL",
+				K8sSchemaVersion: "flagVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
 				},
-				OutputPathSet: true,
-				DraftSet:      true,
-				IndentSet:     true,
+				OutputPathSet:   true,
+				DraftSet:        true,
+				IndentSet:       true,
+				K8sSchemaURLSet: true,
 			},
 			expectedConfig: &Config{
-				Input:      multiStringFlag{"flagInput.yaml"},
-				OutputPath: "flagOutput.json",
-				Draft:      2019,
-				Indent:     2,
+				Input:            multiStringFlag{"flagInput.yaml"},
+				OutputPath:       "flagOutput.json",
+				Draft:            2019,
+				Indent:           2,
+				K8sSchemaURL:     "flagURL",
+				K8sSchemaVersion: "flagVersion",
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
+					Ref:                  "flagRef",
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: BoolFlag{set: true, value: true},
@@ -456,6 +511,67 @@ func TestMergeConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mergedConfig := MergeConfig(tt.fileConfig, tt.flagConfig)
 			assert.Equal(t, tt.expectedConfig, mergedConfig)
+		})
+	}
+}
+
+func TestErrCompletionRequested(t *testing.T) {
+	tests := []struct {
+		name string
+		err  func() ErrCompletionRequested
+		want string
+	}{
+		{
+			name: "empty",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
+		},
+		{
+			name: "single flag",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("foo", "", "docs string")
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "--foo\tdocs string\n",
+		},
+		{
+			name: "multiple types of args",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.Int("int", 0, "my int usage")
+				flagSet.String("str", "", "my str usage")
+				flagSet.Var(&BoolFlag{}, "bool", "my BoolFlag usage")
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "--bool=true\tmy BoolFlag usage\n" +
+				"--int\tmy int usage\n" +
+				"--str\tmy str usage\n",
+		},
+		{
+			name: "skip output when completing flag value",
+			err: func() ErrCompletionRequested {
+				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
+				flagSet.String("foo", "", "docs string")
+				if err := flagSet.Parse([]string{"myCmdName", "__complete", "--", "--foo", ""}); err != nil {
+					panic(err)
+				}
+				return ErrCompletionRequested{flagSet}
+			},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.err()
+			assert.EqualError(t, err, "completion requested")
+			var buf bytes.Buffer
+			err.Fprint(&buf)
+			assert.Equal(t, tt.want, buf.String())
 		})
 	}
 }

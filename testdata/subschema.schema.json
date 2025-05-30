@@ -1,11 +1,9 @@
 {
-    "$id": "https://example.com/schema",
-    "$ref": "schema/product.json",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": true,
-    "description": "Schema for Helm values",
+    "type": "object",
     "properties": {
         "MY_SECRET": {
+            "type": "object",
             "properties": {
                 "ref": {
                     "type": "string"
@@ -20,10 +18,10 @@
                         }
                     ]
                 }
-            },
-            "type": "object"
+            }
         },
         "cluster": {
+            "type": "object",
             "properties": {
                 "enabled": {
                     "type": "boolean"
@@ -31,19 +29,19 @@
                 "nodes": {
                     "anyOf": [
                         {
-                            "multipleOf": 3,
-                            "type": "number"
+                            "type": "number",
+                            "multipleOf": 3
                         },
                         {
-                            "multipleOf": 5,
-                            "type": "number"
+                            "type": "number",
+                            "multipleOf": 5
                         }
                     ]
                 }
-            },
-            "type": "object"
+            }
         },
         "image": {
+            "type": "object",
             "properties": {
                 "digest": {
                     "allOf": [
@@ -51,8 +49,7 @@
                             "type": "string"
                         },
                         {
-                            "minLength": 14,
-                            "type": null
+                            "minLength": 14
                         }
                     ]
                 },
@@ -64,10 +61,7 @@
                         "type": "object"
                     }
                 }
-            },
-            "type": "object"
+            }
         }
-    },
-    "title": "Helm Values Schema",
-    "type": "object"
+    }
 }

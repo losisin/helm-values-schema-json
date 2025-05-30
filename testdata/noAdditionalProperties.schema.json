@@ -1,39 +1,35 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "additionalProperties": false,
+    "type": "object",
     "properties": {
         "object": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
         },
         "objectOfObjects": {
-            "additionalProperties": false,
+            "type": "object",
             "patternProperties": {
                 "^.*$": {
-                    "additionalProperties": false,
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": false
                 }
             },
-            "properties": {},
-            "type": "object"
+            "additionalProperties": false
         },
         "objectOfObjectsWithInnerAdditionalPropertiesAllowed": {
-            "additionalProperties": false,
+            "type": "object",
             "patternProperties": {
                 "^.*$": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "type": "object",
+                    "additionalProperties": true
                 }
             },
-            "properties": {},
-            "type": "object"
+            "additionalProperties": false
         },
         "objectWithAdditionalPropertiesAllowed": {
-            "additionalProperties": true,
-            "properties": {},
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
         }
     },
-    "type": "object"
+    "additionalProperties": false
 }

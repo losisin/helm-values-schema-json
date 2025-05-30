@@ -96,6 +96,11 @@ func GenerateJsonSchema(config *Config) error {
 			Ref:         config.SchemaRoot.Ref,
 		}
 
+		// Apply "$ref: $k8s/..." transformation
+		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
+			return err
+		}
+
 		if config.Bundle.Value() {
 			ctx := context.Background()
 			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
@@ -117,24 +122,26 @@ func GenerateJsonSchema(config *Config) error {
 		if err := BundleRemoveIDs(mergedSchema); err != nil {
 			return fmt.Errorf("remove bundled $id: %w", err)
 		}
+
+		// Cleanup unused $defs after all other bundling tasks
+		RemoveUnusedDefs(mergedSchema)
 	}
 
-	// Convert merged Schema into a JSON Schema compliant map
-	jsonSchemaMap, err := convertSchemaToMap(mergedSchema, config.NoAdditionalProperties.value)
-	if err != nil {
+	// Ensure merged Schema is JSON Schema compliant
+	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties.value); err != nil {
 		return err
 	}
-	jsonSchemaMap["$schema"] = schemaURL // Include the schema draft version
-	jsonSchemaMap["type"] = "object"
+	mergedSchema.Schema = schemaURL // Include the schema draft version
+	mergedSchema.Type = "object"
 
 	if config.SchemaRoot.AdditionalProperties.IsSet() {
-		jsonSchemaMap["additionalProperties"] = config.SchemaRoot.AdditionalProperties.Value()
+		mergedSchema.AdditionalProperties = SchemaBool(config.SchemaRoot.AdditionalProperties.Value())
 	} else if config.NoAdditionalProperties.value {
-		jsonSchemaMap["additionalProperties"] = false
+		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
 	// If validation is successful, marshal the schema and save to the file
-	jsonBytes, err := json.MarshalIndent(jsonSchemaMap, "", indentString)
+	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indentString)
 	if err != nil {
 		return err
 	}

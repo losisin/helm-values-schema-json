@@ -117,7 +117,7 @@ Usage: helm schema [options...] <arguments>
   -output string
     	Output file path (default "values.schema.json")
   -noAdditionalProperties value
-         Default additionalProperties to false for all objects in the schema (true/false)
+    	Default additionalProperties to false for all objects in the schema (true/false)
   -schemaRoot.additionalProperties value
     	JSON schema additional properties (true/false)
   -schemaRoot.description string
@@ -134,6 +134,10 @@ Usage: helm schema [options...] <arguments>
     	Root directory to allow local referenced files to be loaded from (default current working directory)
   -bundleWithoutID value
     	Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
+  -k8sSchemaURL string
+    	URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
+  -k8sSchemaVersion string
+    	Version used in the --k8sSchemaURL template for $ref: $k8s/... alias
 ```
 
 ### Configuration file
