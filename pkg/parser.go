@@ -1,7 +1,11 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
+	"sync"
+	"text/template"
 )
 
 func mergeSchemas(dest, src *Schema) *Schema {
@@ -177,5 +181,50 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		schema.Type = nil
 	}
 
+	return nil
+}
+
+func updateRefK8sAlias(schema *Schema, urlTemplate, version string) error {
+	urlFunc := sync.OnceValues(func() (string, error) {
+		if version == "" {
+			return "", fmt.Errorf(`must set k8sSchemaVersion config when using "$ref: $k8s/...". For example pass --k8sSchemaVersion=v1.33.1 flag`)
+		}
+		tpl, err := template.New("").Parse(urlTemplate)
+		if err != nil {
+			return "", fmt.Errorf("parse k8sSchemaURL template: %w", err)
+		}
+		var buf bytes.Buffer
+		if err := tpl.Execute(&buf, struct{ K8sSchemaVersion string }{K8sSchemaVersion: version}); err != nil {
+			return "", fmt.Errorf("template k8sSchemaURL: %w", err)
+		}
+		return buf.String(), nil
+	})
+	return updateRefK8sAliasRec(nil, schema, urlFunc)
+}
+
+func updateRefK8sAliasRec(ptr Ptr, schema *Schema, urlFunc func() (string, error)) error {
+	for path, sub := range schema.Subschemas() {
+		// continue recursively
+		if err := updateRefK8sAliasRec(ptr.Add(path), sub, urlFunc); err != nil {
+			return err
+		}
+	}
+
+	withoutFragment, _, _ := strings.Cut(schema.Ref, "#")
+	if withoutFragment == "$k8s" || withoutFragment == "$k8s/" {
+		return fmt.Errorf("%s: invalid $k8s schema alias: must have a path but only got %q", ptr, schema.Ref)
+	}
+
+	withoutAlias, ok := strings.CutPrefix(schema.Ref, "$k8s/")
+	if !ok {
+		return nil
+	}
+
+	urlPrefix, err := urlFunc()
+	if err != nil {
+		return fmt.Errorf("%s: %w", ptr, err)
+	}
+
+	schema.Ref = fmt.Sprintf("%s/%s", strings.TrimSuffix(urlPrefix, "/"), withoutAlias)
 	return nil
 }

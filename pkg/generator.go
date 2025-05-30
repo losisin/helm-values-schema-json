@@ -96,6 +96,11 @@ func GenerateJsonSchema(config *Config) error {
 			Ref:         config.SchemaRoot.Ref,
 		}
 
+		// Apply "$ref: $k8s/..." transformation
+		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
+			return err
+		}
+
 		if config.Bundle.Value() {
 			ctx := context.Background()
 			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
