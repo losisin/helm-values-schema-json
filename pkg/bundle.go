@@ -375,6 +375,8 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if loader.basePath != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(loader.basePath, path)
 	}
+
+	fmt.Println("Loading file", path)
 	f, err := loader.root.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
@@ -384,6 +386,8 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if err != nil {
 		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
 	}
+
+	fmt.Printf("=> got %dKB\n", len(b)/1000)
 
 	switch filepath.Ext(path) {
 	case ".yml", ".yaml":
@@ -465,7 +469,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ref.String(), nil)
+	refClone := *ref
+	refClone.Fragment = ""
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -481,6 +488,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", "helm-values-schema-json/1")
 	}
+
+	start := time.Now()
+	fmt.Println("Loading", req.URL.Redacted())
+
 	resp, err := loader.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
@@ -522,6 +533,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if err != nil {
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
 	}
+
+	duration := time.Since(start)
+	fmt.Printf("=> got %dKB in %s\n", len(b)/1000, duration.Truncate(time.Millisecond))
+
 	if isYAML {
 		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {
