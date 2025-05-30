@@ -20,10 +20,28 @@ func NewPtr(name ...string) Ptr {
 	return (Ptr{}).Prop(name...)
 }
 
+func ParsePtr(path string) Ptr {
+	path = strings.TrimPrefix(path, "#")
+	path = strings.TrimPrefix(path, "/")
+	if path == "" {
+		return nil
+	}
+	split := strings.Split(path, "/")
+	for i := range split {
+		split[i] = pointerReplacer.Replace(pointerReplacerReverse.Replace(split[i]))
+	}
+	return Ptr(split)
+}
+
 // pointerReplacer contains the replcements defined in https://datatracker.ietf.org/doc/html/rfc6901#section-3
 var pointerReplacer = strings.NewReplacer(
 	"~", "~0",
 	"/", "~1",
+)
+
+var pointerReplacerReverse = strings.NewReplacer(
+	"~0", "~",
+	"~1", "/",
 )
 
 func (p Ptr) Prop(name ...string) Ptr {
