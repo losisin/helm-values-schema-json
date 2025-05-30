@@ -46,6 +46,7 @@ The following annotations are supported:
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
     * [$ref](#ref)
+    * [$k8s alias](#k8s-alias)
     * [bundling](#bundling)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
@@ -563,6 +564,37 @@ subchart: # @schema $ref: https://example.com/schema.json
         }
     },
     "type": "object"
+}
+```
+
+### $k8s alias
+
+You can use `$ref: $k8s/...` as a shorthand for
+`https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/...`
+
+To use that you must provide the `--k8sSchemaVersion` flag or `k8sSchemaVersion`
+config. For example:
+
+```bash
+helm schema --input values.yaml --k8sSchemaVersion v1.33.1
+```
+
+```yaml
+# values.yaml
+
+memory: # @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity
+```
+
+```json
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "memory": {
+            "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.33.1/_definitions.json#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+            "type": "string"
+        }
+    }
 }
 ```
 
