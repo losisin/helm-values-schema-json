@@ -156,9 +156,6 @@ func (err ErrCompletionRequested) Fprint(writer io.Writer) {
 		}
 	}
 	err.FlagSet.VisitAll(func(f *flag.Flag) {
-		if f.Name == "complete" {
-			return
-		}
 		switch f.Value.(type) {
 		case *BoolFlag:
 			_, _ = fmt.Fprintf(writer, "--%s=true\t%s\n", f.Name, f.Usage)

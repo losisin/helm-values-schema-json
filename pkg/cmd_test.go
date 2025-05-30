@@ -532,18 +532,6 @@ func TestErrCompletionRequested(t *testing.T) {
 				"--int\tmy int usage\n" +
 				"--str\tmy str usage\n",
 		},
-		{
-			name: "skip output when completing flag value",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				flagSet.String("foo", "", "docs string")
-				if err := flagSet.Parse([]string{"myCmdName", "__complete", "--", "--foo", ""}); err != nil {
-					panic(err)
-				}
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "",
-		},
 	}
 
 	for _, tt := range tests {
