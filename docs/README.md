@@ -567,6 +567,41 @@ subchart: # @schema $ref: https://example.com/schema.json
 }
 ```
 
+When targeting JSON Schema Draft 7 or earlier (e.g via `--draft 7` flag),
+then the resulting schema will use `allOf` like so:
+
+```json
+"subchart": {
+    "allOf": [
+        {
+            "$ref": "https://example.com/schema.json",
+        },
+        {
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "properties": {
+                        "bar": {
+                            "type": "string"
+                        },
+                        "foo": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }
+    ]
+}
+```
+
 ### $k8s alias
 
 You can use `$ref: $k8s/...` as a shorthand for
