@@ -1,18 +1,72 @@
 # Annotations from comments
 
-JSON schema is partially implemented in this tool. It uses line comments to add annotations for the schema because head comments are frequently used by humans and tools like helm-docs. Multiple annotations can be added to a single line separated by semicolon. For example:
+JSON schema is partially implemented in this tool.
+It supports both comments directly above, directly below, and on the same line
+to add annotations for the schema.
+The comment must start with `# @schema`, which is used to avoid interference
+with tools like [helm-docs](https://github.com/norwoodj/helm-docs).
+
+Multiple annotations can be added to a single line separated by semicolon.
+
+Example:
 
 ```yaml
-nameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
+# On the same line
+fullnameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
+
+# On the line above
+# @schema maxLength:10;pattern:^[a-z]+$
+nameOverride: "myapp"
+
+# On the line below (double-check that indentation matches)
+resources:
+  limits: {}
+  requests: {}
+# @schema additionalProperties:false
 ```
 
 This will generate following schema:
 
 ```json
+"fullnameOverride": {
+    "type": "string",
+    "pattern": "^[a-z]+$",
+    "maxLength": 10
+},
 "nameOverride": {
-    "maxLength": 10,
-    "type": "string"
+    "type": "string",
+    "pattern": "^[a-z]+$",
+    "maxLength": 10
+},
+"resources": {
+    "type": "object",
+    "properties": {
+        "limits": {
+            "type": "object"
+        },
+        "requests": {
+            "type": "object"
+        }
+    },
+    "additionalProperties": false
 }
+```
+
+Keep in mind that if you use [helm-docs](https://github.com/norwoodj/helm-docs)
+and comments above the field then you want to place the `# @schema` comments
+above the helm-docs description comment to avoid having the schema annotations
+included in the description:
+
+```yaml
+# ✅ good:
+# @schema maxLength:10
+# -- My awesome nameOverride description
+nameOverride: "myapp"
+
+# ❌ bad:
+# -- My awesome nameOverride description
+# @schema maxLength:10
+nameOverride: "myapp"
 ```
 
 The following annotations are supported:

@@ -250,14 +250,40 @@ func getSchemaURL(draft int) (string, error) {
 	}
 }
 
-func getComment(keyNode, valNode *yaml.Node) string {
+func getComments(keyNode, valNode *yaml.Node) []string {
+	var comments []string
+	if keyNode != nil {
+		if keyNode.HeadComment != "" {
+			comment := keyNode.HeadComment
+			if index := strings.LastIndex(comment, "\n\n"); index != -1 {
+				// Splits after the last "comment group". In other words, given this:
+				//
+				//	# foo
+				//	# bar
+				//
+				//	# moo
+				//	# doo
+				//	hello: ""
+				//
+				// Then only consider the last "# moo" & "# doo" comments
+				comment = comment[index+2:] // +2 to get rid of the "\n\n"
+			}
+			comments = strings.Split(comment, "\n")
+		}
+		if keyNode.LineComment != "" {
+			comments = append(comments, keyNode.LineComment)
+		}
+	}
 	if valNode.LineComment != "" {
-		return valNode.LineComment
+		comments = append(comments, valNode.LineComment)
 	}
 	if keyNode != nil {
-		return keyNode.LineComment
+		// Append last as they come last
+		if keyNode.FootComment != "" {
+			comments = append(comments, strings.Split(keyNode.FootComment, "\n")...)
+		}
 	}
-	return ""
+	return comments
 }
 
 func processList(comment string, stringsOnly bool) []interface{} {
@@ -277,11 +303,11 @@ func processList(comment string, stringsOnly bool) []interface{} {
 	return list
 }
 
-func processComment(schema *Schema, comment string) (isRequired, isHidden bool) {
+func processComment(schema *Schema, commentLines []string) (isRequired, isHidden bool) {
 	isRequired = false
 	isHidden = false
 
-	for key, value := range splitCommentByParts(comment) {
+	for key, value := range splitCommentByParts(commentLines) {
 		switch key {
 		case "enum":
 			schema.Enum = processList(value, false)
@@ -419,29 +445,31 @@ func processComment(schema *Schema, comment string) (isRequired, isHidden bool) 
 	return isRequired, isHidden
 }
 
-func splitCommentByParts(comment string) iter.Seq2[string, string] {
+func splitCommentByParts(commentLines []string) iter.Seq2[string, string] {
 	return func(yield func(string, string) bool) {
-		withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
-		withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
-		if !ok {
-			return
-		}
-		trimmed := strings.TrimSpace(withoutSchema)
-		if len(trimmed) == len(withoutSchema) {
-			// this checks if we had "# @schemafoo" instead of "# @schema foo"
-			// which works as we trimmed space before.
-			// So the check is if len("foo") == len(" foo")
-			return
-		}
+		for _, comment := range commentLines {
+			withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
+			withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
+			if !ok {
+				continue
+			}
+			trimmed := strings.TrimSpace(withoutSchema)
+			if len(trimmed) == len(withoutSchema) {
+				// this checks if we had "# @schemafoo" instead of "# @schema foo"
+				// which works as we trimmed space before.
+				// So the check is if len("foo") == len(" foo")
+				continue
+			}
 
-		parts := strings.Split(trimmed, ";")
-		for _, part := range parts {
-			key, value, _ := strings.Cut(part, ":")
-			key = strings.TrimSpace(key)
-			value = strings.TrimSpace(value)
+			parts := strings.Split(trimmed, ";")
+			for _, part := range parts {
+				key, value, _ := strings.Cut(part, ":")
+				key = strings.TrimSpace(key)
+				value = strings.TrimSpace(value)
 
-			if !yield(key, value) {
-				return
+				if !yield(key, value) {
+					return
+				}
 			}
 		}
 	}
@@ -504,7 +532,7 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	propIsRequired, isHidden := processComment(schema, getComment(keyNode, valNode))
+	propIsRequired, isHidden := processComment(schema, getComments(keyNode, valNode))
 	if isHidden {
 		return nil, false
 	}
