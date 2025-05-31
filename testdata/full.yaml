@@ -26,7 +26,9 @@ tolerations: # @schema minItems: 1 ; maxItems: 10 ; uniqueItems: true
     value: "baz"
     effect: "NoSchedule"
 
-labels:  # @schema skipProperties:true
+# Comments on line above
+# @schema skipProperties:true
+labels:
   hello: world
   foo: bar
 
@@ -35,27 +37,29 @@ affinity:
   nodeAffinity: # @schema minProperties: 1 ; maxProperties: 2 ; additionalProperties: false
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
-      - matchExpressions:
-        - key: topology.kubernetes.io/zone
-          operator: In
-          values:
-          - antarctica-east1
-          - antarctica-west1
+        - matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values:
+                - antarctica-east1
+                - antarctica-west1
     preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 1
-      preference: # @schema patternProperties: {"^[a-z]$": {"type": "string"}} ; $id: https://example.com/schema.json
-        matchExpressions:
-        - key: another-node-label-key
-          operator: In
-          values:
-          - another-node-label-value
+      - weight: 1
+        preference: # @schema patternProperties: {"^[a-z]$": {"type": "string"}} ; $id: https://example.com/schema.json
+          matchExpressions:
+            - key: another-node-label-key
+              operator: In
+              values:
+                - another-node-label-value
 
-subchart: # @schema $ref: https://example.com/schema.json ; unevaluatedProperties: false
+# Comments directly below
+subchart:
   enabled: true
   name: subchart
   values:
     foo: bar
     bar: baz
+# @schema $ref: https://example.com/schema.json ; unevaluatedProperties: false
 
 monitoring: # @schema hidden: true
-  enabled: true 
+  enabled: true
