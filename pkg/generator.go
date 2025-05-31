@@ -128,7 +128,7 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
-	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties.value); err != nil {
+	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties.value, config.Draft); err != nil {
 		return err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version

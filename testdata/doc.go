@@ -11,6 +11,8 @@ package testdata
 //go:generate go run .. --input k8sRef.yaml --output k8sRef.schema.json --k8sSchemaVersion v1.33.1
 //go:generate go run .. --input meta.yaml --output meta.schema.json
 //go:generate go run .. --input noAdditionalProperties.yaml --output noAdditionalProperties.schema.json --noAdditionalProperties=true
+//go:generate go run .. --input ref.yaml --output ref-draft2020.schema.json --draft 2020
+//go:generate go run .. --input ref.yaml --output ref-draft7.schema.json --draft 7
 //go:generate go run .. --input subschema.yaml --output subschema.schema.json
 
 //go:generate go run .. --bundle=true --input bundle/fragment.yaml --output bundle/fragment.schema.json

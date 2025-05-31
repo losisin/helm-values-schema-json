@@ -68,6 +68,31 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 
 		{
+			name: "ref draft 7",
+			config: &Config{
+				Draft:  7,
+				Indent: 4,
+				Input: []string{
+					"../testdata/ref.yaml",
+				},
+				OutputPath: "../testdata/ref-draft7_output.json",
+			},
+			templateSchemaFile: "../testdata/ref-draft7.schema.json",
+		},
+		{
+			name: "ref draft 2020",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Input: []string{
+					"../testdata/ref.yaml",
+				},
+				OutputPath: "../testdata/ref-draft2020_output.json",
+			},
+			templateSchemaFile: "../testdata/ref-draft2020.schema.json",
+		},
+
+		{
 			name: "bundle/simple",
 			config: &Config{
 				Draft:      2020,
@@ -348,6 +373,18 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				OutputPath: "../testdata/k8sRef_output.json",
 			},
 			expectedErr: errors.New("/properties/memory: must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
+		},
+		{
+			name: "invalid subschema type",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Input: []string{
+					"../testdata/fail-type.yaml",
+				},
+				OutputPath: "../testdata/fail-type_output.json",
+			},
+			expectedErr: errors.New("/properties/nameOverride/type/0: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
 		},
 	}
 

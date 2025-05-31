@@ -567,7 +567,44 @@ subchart: # @schema $ref: https://example.com/schema.json
 }
 ```
 
+(since v1.9.0) When targeting JSON Schema Draft 7 or earlier
+(e.g via `--draft 7` flag), then the resulting schema will use `allOf` like so:
+
+```json
+"subchart": {
+    "allOf": [
+        {
+            "$ref": "https://example.com/schema.json",
+        },
+        {
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "values": {
+                    "properties": {
+                        "bar": {
+                            "type": "string"
+                        },
+                        "foo": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        }
+    ]
+}
+```
+
 ### $k8s alias
+
+(since v1.9.0)
 
 You can use `$ref: $k8s/...` as a shorthand for
 `https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/...`

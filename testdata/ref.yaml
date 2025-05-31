@@ -1,0 +1,7 @@
+# In draft 7 using "$ref" would make other settings ignored.
+# But running helm-values-schema-json with "--draft 7" will cause it
+# to put "$ref" inside "allOf"
+
+resources: # @schema $ref: foo.json
+  limits: {}
+  requests: {}
