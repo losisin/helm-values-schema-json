@@ -779,6 +779,25 @@ func TestSplitCommentByParts(t *testing.T) {
 	}
 }
 
+func TestSplitCommentByParts_break(t *testing.T) {
+	type Pair struct {
+		Key, Value string
+	}
+
+	const comment = "# @schema foo:bar; moo:doo; baz:boz"
+
+	var pairs []Pair
+	for key, value := range splitCommentByParts(comment) {
+		pairs = append(pairs, Pair{key, value})
+		if len(pairs) == 2 {
+			break
+		}
+	}
+
+	want := []Pair{{"foo", "bar"}, {"moo", "doo"}}
+	assert.Equal(t, want, pairs)
+}
+
 func TestParseNode(t *testing.T) {
 	tests := []struct {
 		name          string
