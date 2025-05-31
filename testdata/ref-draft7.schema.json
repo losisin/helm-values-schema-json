@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "resources": {
+            "allOf": [
+                {
+                    "$ref": "foo.json"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "limits": {
+                            "type": "object"
+                        },
+                        "requests": {
+                            "type": "object"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -68,6 +68,31 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 
 		{
+			name: "ref draft 7",
+			config: &Config{
+				Draft:  7,
+				Indent: 4,
+				Input: []string{
+					"../testdata/ref.yaml",
+				},
+				OutputPath: "../testdata/ref-draft7_output.json",
+			},
+			templateSchemaFile: "../testdata/ref-draft7.schema.json",
+		},
+		{
+			name: "ref draft 2020",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Input: []string{
+					"../testdata/ref.yaml",
+				},
+				OutputPath: "../testdata/ref-draft2020_output.json",
+			},
+			templateSchemaFile: "../testdata/ref-draft2020.schema.json",
+		},
+
+		{
 			name: "bundle/simple",
 			config: &Config{
 				Draft:      2020,

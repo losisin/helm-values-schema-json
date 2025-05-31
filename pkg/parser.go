@@ -139,11 +139,11 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 	return dest
 }
 
-func ensureCompliant(schema *Schema, noAdditionalProperties bool) error {
-	return ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties)
+func ensureCompliant(schema *Schema, noAdditionalProperties bool, draft int) error {
+	return ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft)
 }
 
-func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool) error {
+func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool, draft int) error {
 	if schema == nil {
 		return nil
 	}
@@ -159,7 +159,7 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 
 	for path, sub := range schema.Subschemas() {
 		// continue recursively
-		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties); err != nil {
+		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties, draft); err != nil {
 			return err
 		}
 	}
@@ -179,6 +179,19 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		schema.Not != nil:
 		// These fields collide with "type"
 		schema.Type = nil
+	}
+
+	if draft <= 7 && schema.Ref != "" {
+		schemaClone := *schema
+		schemaClone.Ref = ""
+		if !schemaClone.IsZero() {
+			*schema = Schema{
+				AllOf: []*Schema{
+					{Ref: schema.Ref},
+					&schemaClone,
+				},
+			}
+		}
 	}
 
 	return nil

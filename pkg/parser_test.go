@@ -250,6 +250,7 @@ func TestEnsureCompliant(t *testing.T) {
 		name                   string
 		schema                 *Schema
 		noAdditionalProperties bool
+		draft                  int
 		want                   *Schema
 		wantErr                string
 	}{
@@ -323,11 +324,38 @@ func TestEnsureCompliant(t *testing.T) {
 			schema: &Schema{Type: "object", Not: &Schema{ID: "foo"}},
 			want:   &Schema{Not: &Schema{ID: "foo"}},
 		},
+
+		{
+			name:   "keep ref with other fields when draft 2019",
+			schema: &Schema{Ref: "#", Type: "object"},
+			draft:  2019,
+			want:   &Schema{Ref: "#", Type: "object"},
+		},
+		{
+			name:   "keep ref without fields when draft 7",
+			schema: &Schema{Ref: "#"},
+			draft:  7,
+			want:   &Schema{Ref: "#"},
+		},
+		{
+			name:   "change ref with other fields to allOf when draft 7",
+			schema: &Schema{Ref: "#", Type: "object"},
+			draft:  7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{Ref: "#"},
+					{Type: "object"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ensureCompliant(tt.schema, tt.noAdditionalProperties)
+			if tt.draft == 0 {
+				tt.draft = 2020
+			}
+			err := ensureCompliant(tt.schema, tt.noAdditionalProperties, tt.draft)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -388,7 +416,7 @@ func TestEnsureCompliant_recursive(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ensureCompliant(tc.schema, false)
+			err := ensureCompliant(tc.schema, false, 2020)
 			assert.Error(t, err)
 		})
 	}
