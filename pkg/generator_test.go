@@ -374,6 +374,18 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			},
 			expectedErr: errors.New("/properties/memory: must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
 		},
+		{
+			name: "invalid subschema type",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Input: []string{
+					"../testdata/fail-type.yaml",
+				},
+				OutputPath: "../testdata/fail-type_output.json",
+			},
+			expectedErr: errors.New("/properties/nameOverride/type/0: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
+		},
 	}
 
 	for _, tt := range tests {

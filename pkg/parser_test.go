@@ -266,6 +266,27 @@ func TestEnsureCompliant(t *testing.T) {
 		},
 
 		{
+			name:    "invalid type string",
+			schema:  &Schema{Type: "foobar"},
+			wantErr: "/type: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string",
+		},
+		{
+			name:    "duplicate type",
+			schema:  &Schema{Type: []any{"string", "string"}},
+			wantErr: "/type/1: type list must be unique, but found \"string\" multiple times",
+		},
+		{
+			name:    "invalid type array",
+			schema:  &Schema{Type: []any{true}},
+			wantErr: "/type/0: type list must only contain strings",
+		},
+		{
+			name:    "invalid type value",
+			schema:  &Schema{Type: true},
+			wantErr: "/type: type only be string or array of strings",
+		},
+
+		{
 			name: "override additionalProperties",
 			schema: &Schema{
 				Type:                 "object",

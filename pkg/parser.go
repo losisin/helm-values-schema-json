@@ -3,6 +3,7 @@ package pkg
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"text/template"
@@ -168,6 +169,10 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		return nil
 	}
 
+	if err := validateType(ptr.Prop("type"), schema.Type); err != nil {
+		return err
+	}
+
 	if schema.AdditionalProperties == nil && noAdditionalProperties && schema.Type == "object" {
 		schema.AdditionalProperties = &SchemaFalse
 	}
@@ -195,6 +200,47 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 	}
 
 	return nil
+}
+
+func validateType(ptr Ptr, v any) error {
+	switch v := v.(type) {
+	case []any:
+		var types []string
+		for i, t := range v {
+			ptr := ptr.Item(i)
+			switch t := t.(type) {
+			case string:
+				if !isValidTypeString(t) {
+					return fmt.Errorf("%s: invalid type %q, must be one of: array, boolean, integer, null, number, object, string", ptr, t)
+				}
+				if slices.Contains(types, t) {
+					return fmt.Errorf("%s: type list must be unique, but found %q multiple times", ptr, t)
+				}
+				types = append(types, t)
+			default:
+				return fmt.Errorf("%s: type list must only contain strings", ptr)
+			}
+		}
+		return nil
+	case string:
+		if !isValidTypeString(v) {
+			return fmt.Errorf("%s: invalid type %q, must be one of: array, boolean, integer, null, number, object, string", ptr, v)
+		}
+		return nil
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("%s: type only be string or array of strings", ptr)
+	}
+}
+
+func isValidTypeString(t string) bool {
+	switch t {
+	case "array", "boolean", "integer", "null", "number", "object", "string":
+		return true
+	default:
+		return false
+	}
 }
 
 func updateRefK8sAlias(schema *Schema, urlTemplate, version string) error {
