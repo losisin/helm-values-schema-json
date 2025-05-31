@@ -281,149 +281,170 @@ func processComment(schema *Schema, comment string) (isRequired, isHidden bool) 
 	isRequired = false
 	isHidden = false
 
-	parts := strings.Split(strings.TrimPrefix(comment, "# @schema "), ";")
-	for _, part := range parts {
-		keyValue := strings.SplitN(part, ":", 2)
-		if len(keyValue) == 2 {
-			key := strings.TrimSpace(keyValue[0])
-			value := strings.TrimSpace(keyValue[1])
-
-			switch key {
-			case "enum":
-				schema.Enum = processList(value, false)
-			case "multipleOf":
-				if v, err := strconv.ParseFloat(value, 64); err == nil {
-					if v > 0 {
-						schema.MultipleOf = &v
-					}
+	for key, value := range splitCommentByParts(comment) {
+		switch key {
+		case "enum":
+			schema.Enum = processList(value, false)
+		case "multipleOf":
+			if v, err := strconv.ParseFloat(value, 64); err == nil {
+				if v > 0 {
+					schema.MultipleOf = &v
 				}
-			case "maximum":
-				if v, err := strconv.ParseFloat(value, 64); err == nil {
-					schema.Maximum = &v
+			}
+		case "maximum":
+			if v, err := strconv.ParseFloat(value, 64); err == nil {
+				schema.Maximum = &v
+			}
+		case "skipProperties":
+			if v, err := strconv.ParseBool(value); err == nil && v {
+				schema.SkipProperties = true
+			}
+		case "minimum":
+			if v, err := strconv.ParseFloat(value, 64); err == nil {
+				schema.Minimum = &v
+			}
+		case "maxLength":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MaxLength = &v
+			}
+		case "minLength":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MinLength = &v
+			}
+		case "pattern":
+			schema.Pattern = value
+		case "maxItems":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MaxItems = &v
+			}
+		case "minItems":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MinItems = &v
+			}
+		case "uniqueItems":
+			if v, err := strconv.ParseBool(value); err == nil {
+				schema.UniqueItems = v
+			}
+		case "maxProperties":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MaxProperties = &v
+			}
+		case "minProperties":
+			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
+				schema.MinProperties = &v
+			}
+		case "patternProperties":
+			var jsonObject map[string]*Schema
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.PatternProperties = jsonObject
+			}
+		case "required":
+			if strings.TrimSpace(value) == "true" {
+				isRequired = true
+			}
+		case "type":
+			schema.Type = processList(value, true)
+		case "title":
+			schema.Title = value
+		case "description":
+			schema.Description = value
+		case "readOnly":
+			if v, err := strconv.ParseBool(value); err == nil {
+				schema.ReadOnly = v
+			}
+		case "default":
+			var jsonObject interface{}
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.Default = jsonObject
+			}
+		case "item":
+			schema.Items = &Schema{
+				Type: value,
+			}
+		case "itemProperties":
+			if schema.Items.Type == "object" {
+				var itemProps map[string]*Schema
+				if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
+					schema.Items.Properties = itemProps
 				}
-			case "skipProperties":
-				if v, err := strconv.ParseBool(value); err == nil && v {
-					schema.SkipProperties = true
+			}
+		case "itemEnum":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			schema.Items.Enum = processList(value, false)
+		case "additionalProperties":
+			if v, err := strconv.ParseBool(value); err == nil {
+				if v {
+					schema.AdditionalProperties = &SchemaTrue
+				} else {
+					schema.AdditionalProperties = &SchemaFalse
 				}
-			case "minimum":
-				if v, err := strconv.ParseFloat(value, 64); err == nil {
-					schema.Minimum = &v
-				}
-			case "maxLength":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MaxLength = &v
-				}
-			case "minLength":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MinLength = &v
-				}
-			case "pattern":
-				schema.Pattern = value
-			case "maxItems":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MaxItems = &v
-				}
-			case "minItems":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MinItems = &v
-				}
-			case "uniqueItems":
-				if v, err := strconv.ParseBool(value); err == nil {
-					schema.UniqueItems = v
-				}
-			case "maxProperties":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MaxProperties = &v
-				}
-			case "minProperties":
-				if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-					schema.MinProperties = &v
-				}
-			case "patternProperties":
-				var jsonObject map[string]*Schema
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.PatternProperties = jsonObject
-				}
-			case "required":
-				if strings.TrimSpace(value) == "true" {
-					isRequired = true
-				}
-			case "type":
-				schema.Type = processList(value, true)
-			case "title":
-				schema.Title = value
-			case "description":
-				schema.Description = value
-			case "readOnly":
-				if v, err := strconv.ParseBool(value); err == nil {
-					schema.ReadOnly = v
-				}
-			case "default":
-				var jsonObject interface{}
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.Default = jsonObject
-				}
-			case "item":
-				schema.Items = &Schema{
-					Type: value,
-				}
-			case "itemProperties":
-				if schema.Items.Type == "object" {
-					var itemProps map[string]*Schema
-					if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
-						schema.Items.Properties = itemProps
-					}
-				}
-			case "itemEnum":
-				if schema.Items == nil {
-					schema.Items = &Schema{}
-				}
-				schema.Items.Enum = processList(value, false)
-			case "additionalProperties":
-				if v, err := strconv.ParseBool(value); err == nil {
-					if v {
-						schema.AdditionalProperties = &SchemaTrue
-					} else {
-						schema.AdditionalProperties = &SchemaFalse
-					}
-				}
-			case "unevaluatedProperties":
-				if v, err := strconv.ParseBool(value); err == nil {
-					schema.UnevaluatedProperties = &v
-				}
-			case "$id":
-				schema.ID = value
-			case "$ref":
-				schema.Ref = value
-			case "hidden":
-				if v, err := strconv.ParseBool(value); err == nil && v {
-					isHidden = true
-				}
-			case "allOf":
-				var jsonObject []*Schema
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.AllOf = jsonObject
-				}
-			case "anyOf":
-				var jsonObject []*Schema
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.AnyOf = jsonObject
-				}
-			case "oneOf":
-				var jsonObject []*Schema
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.OneOf = jsonObject
-				}
-			case "not":
-				var jsonObject *Schema
-				if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-					schema.Not = jsonObject
-				}
+			}
+		case "unevaluatedProperties":
+			if v, err := strconv.ParseBool(value); err == nil {
+				schema.UnevaluatedProperties = &v
+			}
+		case "$id":
+			schema.ID = value
+		case "$ref":
+			schema.Ref = value
+		case "hidden":
+			if v, err := strconv.ParseBool(value); err == nil && v {
+				isHidden = true
+			}
+		case "allOf":
+			var jsonObject []*Schema
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.AllOf = jsonObject
+			}
+		case "anyOf":
+			var jsonObject []*Schema
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.AnyOf = jsonObject
+			}
+		case "oneOf":
+			var jsonObject []*Schema
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.OneOf = jsonObject
+			}
+		case "not":
+			var jsonObject *Schema
+			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
+				schema.Not = jsonObject
 			}
 		}
 	}
 
 	return isRequired, isHidden
+}
+
+func splitCommentByParts(comment string) iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
+		withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
+		if !ok {
+			return
+		}
+		trimmed := strings.TrimSpace(withoutSchema)
+		if len(trimmed) == len(withoutSchema) {
+			// this checks if we had "# @schemafoo" instead of "# @schema foo"
+			// which works as we trimmed space before.
+			// So the check is if len("foo") == len(" foo")
+			return
+		}
+
+		parts := strings.Split(trimmed, ";")
+		for _, part := range parts {
+			key, value, _ := strings.Cut(part, ":")
+			key = strings.TrimSpace(key)
+			value = strings.TrimSpace(value)
+
+			if !yield(key, value) {
+				return
+			}
+		}
+	}
 }
 
 func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
