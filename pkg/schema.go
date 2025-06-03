@@ -119,6 +119,52 @@ type Schema struct {
 	Hidden         bool `json:"-" yaml:"-"`
 }
 
+func (s *Schema) IsZero() bool {
+	if s == nil {
+		return true
+	}
+	switch {
+	case s.kind != 0,
+		len(s.Schema) > 0,
+		len(s.ID) > 0,
+		len(s.Title) > 0,
+		len(s.Description) > 0,
+		len(s.Comment) > 0,
+		s.ReadOnly,
+		s.Default != nil,
+		len(s.Ref) > 0,
+		s.Type != nil,
+		len(s.Enum) > 0,
+		len(s.AllOf) > 0,
+		len(s.AnyOf) > 0,
+		len(s.OneOf) > 0,
+		s.Not != nil,
+		s.Maximum != nil,
+		s.Minimum != nil,
+		s.MultipleOf != nil,
+		len(s.Pattern) > 0,
+		s.MaxLength != nil,
+		s.MinLength != nil,
+		s.MaxItems != nil,
+		s.MinItems != nil,
+		s.UniqueItems,
+		s.Items != nil,
+		s.AdditionalItems != nil,
+		len(s.Required) > 0,
+		s.MaxProperties != nil,
+		s.MinProperties != nil,
+		len(s.Properties) > 0,
+		len(s.PatternProperties) > 0,
+		s.AdditionalProperties != nil,
+		s.UnevaluatedProperties != nil,
+		len(s.Defs) > 0,
+		len(s.Definitions) > 0:
+		return false
+	default:
+		return true
+	}
+}
+
 var (
 	_ json.Unmarshaler = &Schema{}
 	_ json.Marshaler   = &Schema{}
