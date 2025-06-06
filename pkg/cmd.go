@@ -33,7 +33,7 @@ func ParseFlags(progname string, args []string) (*Config, string, error) {
 
 	// Nested SchemaRoot flags
 	flags.StringVar(&conf.SchemaRoot.ID, "schemaRoot.id", "", "JSON schema ID")
-	flags.StringVar(&conf.SchemaRoot.Ref, "schemaRoot.ref", "", "JSON schema URI reference")
+	flags.StringVar(&conf.SchemaRoot.Ref, "schemaRoot.ref", "", "JSON schema URI reference. Relative to current working directory when using \"-bundle true\".")
 	flags.StringVar(&conf.SchemaRoot.Title, "schemaRoot.title", "", "JSON schema title")
 	flags.StringVar(&conf.SchemaRoot.Description, "schemaRoot.description", "", "JSON schema description")
 	flags.Var(&conf.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties", "Allow additional properties")
