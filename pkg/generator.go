@@ -103,6 +103,10 @@ func GenerateJsonSchema(config *Config) error {
 
 		if config.Bundle.Value() {
 			ctx := context.Background()
+
+			// https://github.com/losisin/helm-values-schema-json/issues/159
+			tempSchema.Ref = FixRootSchemaRef(tempSchema.Ref, filePath)
+
 			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
 			if err != nil {
 				return fmt.Errorf("get relative path from bundle root to file %q: %w", filePath, err)

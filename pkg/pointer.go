@@ -72,6 +72,13 @@ func (p Ptr) HasPrefix(prefix Ptr) bool {
 	return slices.Equal(p[:len(prefix)], prefix)
 }
 
+func (p Ptr) Equals(other Ptr) bool {
+	if len(other) != len(p) {
+		return false
+	}
+	return slices.Equal(p, other)
+}
+
 // String returns a slash-delimited string of the pointer.
 //
 // Example:

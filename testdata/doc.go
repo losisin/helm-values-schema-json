@@ -24,3 +24,4 @@ package testdata
 //go:generate go run .. --bundle=false --input bundle/simple.yaml --output bundle/simple-disabled.schema.json
 //go:generate go run .. --bundle=true --input bundle/simple.yaml --output bundle/simple-without-id.schema.json --bundleWithoutID=true
 //go:generate go run .. --bundle=true --input bundle/yaml.yaml --output bundle/yaml.schema.json
+//go:generate go run .. --bundle=true --input bundle/simple.yaml --output bundle/simple-root-ref.schema.json --schemaRoot.ref ./bundle/simple-subschema.schema.json
