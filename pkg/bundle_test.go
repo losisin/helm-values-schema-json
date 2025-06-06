@@ -396,7 +396,7 @@ func TestBundle_Errors(t *testing.T) {
 				},
 			},
 			loader:  DummyLoader{},
-			wantErr: `/properties/foo: parse $ref as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse $ref as URL: parse "::": missing protocol scheme`,
 		},
 	}
 
@@ -862,6 +862,59 @@ func TestResolvePtr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resolved := resolvePtr(tt.schema, tt.ptr)
 			assert.Equal(t, tt.want(tt.schema), resolved)
+		})
+	}
+}
+
+func TestFixRootSchemaRef(t *testing.T) {
+	tests := []struct {
+		name          string
+		rootSchemaRef string
+		filePath      string
+		want          string
+	}{
+		{
+			name:          "empty ref",
+			rootSchemaRef: "",
+			filePath:      "this value should not be used",
+			want:          "",
+		},
+		{
+			name:          "invalid URL",
+			rootSchemaRef: "::",
+			filePath:      "this value should not be used",
+			want:          "::",
+		},
+		{
+			name:          "fail to get rel path",
+			rootSchemaRef: "./some-file.json",
+			filePath:      "/abs/path/to/file.yaml",
+			want:          "./some-file.json",
+		},
+		{
+			name:          "same directory noop",
+			rootSchemaRef: "./some-file.json",
+			filePath:      "./file.yaml",
+			want:          "./some-file.json",
+		},
+		{
+			name:          "file in subdirectory",
+			rootSchemaRef: "./some-file.json",
+			filePath:      "./sub/file.yaml",
+			want:          "../some-file.json",
+		},
+		{
+			name:          "root ref in subdirectory",
+			rootSchemaRef: "./sub/some-file.json",
+			filePath:      "./file.yaml",
+			want:          "./sub/some-file.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FixRootSchemaRef(tt.rootSchemaRef, tt.filePath)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

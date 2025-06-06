@@ -208,3 +208,77 @@ func TestPtr_HasPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestPtr_Equals(t *testing.T) {
+	tests := []struct {
+		name  string
+		ptr   Ptr
+		other Ptr
+		want  bool
+	}{
+		{
+			name:  "nil both",
+			ptr:   nil,
+			other: nil,
+			want:  true,
+		},
+		{
+			name:  "empty both",
+			ptr:   NewPtr(),
+			other: NewPtr(),
+			want:  true,
+		},
+		{
+			name:  "nil lhs",
+			ptr:   nil,
+			other: NewPtr(),
+			want:  true,
+		},
+		{
+			name:  "nil rhs",
+			ptr:   NewPtr(),
+			other: nil,
+			want:  true,
+		},
+		{
+			name:  "value and nil",
+			ptr:   Ptr{"foo"},
+			other: nil,
+			want:  false,
+		},
+		{
+			name:  "nil and value",
+			ptr:   nil,
+			other: Ptr{"foo"},
+			want:  false,
+		},
+		{
+			name:  "longer other than ptr",
+			ptr:   NewPtr("foo"),
+			other: NewPtr("foo", "bar"),
+			want:  false,
+		},
+		{
+			name:  "match with special chars",
+			ptr:   NewPtr("foo/bar"),
+			other: NewPtr("foo/bar"),
+			want:  true,
+		},
+		{
+			name:  "no match because of special chars in ptr",
+			ptr:   NewPtr("foo/bar"),
+			other: NewPtr("foo", "bar"),
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.ptr.Equals(tt.other)
+			if got != tt.want {
+				t.Fatalf("wrong result\nptr:   %q\nother: %q\nwant:  %t\ngot:   %t",
+					tt.ptr, tt.other, tt.want, got)
+			}
+		})
+	}
+}

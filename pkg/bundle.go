@@ -62,7 +62,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	for path, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(path)
 		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", ptr, err)
+			return err
 		}
 	}
 
@@ -81,7 +81,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	}
 	loaded, err := Load(ctx, loader, schema.Ref)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
 	}
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
@@ -359,6 +359,27 @@ func bundleRefURLToID(ref *url.URL) string {
 	return refClone.String()
 }
 
+func FixRootSchemaRef(rootSchemaRef, filePath string) string {
+	if rootSchemaRef == "" {
+		return ""
+	}
+	parsed, err := url.Parse(pathWindowsFix(rootSchemaRef))
+	if err != nil || parsed.Scheme != "" {
+		return rootSchemaRef
+	}
+	relPath, err := filepath.Rel(filepath.Dir(filePath), parsed.Path)
+	if err != nil {
+		err := fmt.Errorf("tried to fix root schema $ref path for bundling: get relative path from file %q to schema root ref %q: %w", filePath, rootSchemaRef, err)
+		fmt.Println("Warning:", err)
+		return rootSchemaRef
+	}
+	relPath = filepath.ToSlash(relPath)
+	if !strings.HasPrefix(relPath, "./") && !strings.HasPrefix(relPath, "../") {
+		relPath = "./" + relPath
+	}
+	return relPath
+}
+
 type Loader interface {
 	Load(ctx context.Context, ref *url.URL) (*Schema, error)
 }
@@ -400,11 +421,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if ref.Path == "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
-	path := ref.Path
-	if runtime.GOOS == "windows" {
-		path = strings.TrimPrefix(path, "/")
-		path = filepath.FromSlash(path)
-	}
+	path := pathWindowsFix(ref.Path)
 	if loader.basePath != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(loader.basePath, path)
 	}
@@ -436,6 +453,14 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		}
 		return &schema, nil
 	}
+}
+
+func pathWindowsFix(path string) string {
+	if runtime.GOOS == "windows" {
+		path = strings.TrimPrefix(path, "/")
+		path = filepath.FromSlash(path)
+	}
+	return path
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
