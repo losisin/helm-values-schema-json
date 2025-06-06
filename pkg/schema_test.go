@@ -516,7 +516,7 @@ func TestGetComment(t *testing.T) {
 		name            string
 		keyNode         *yaml.Node
 		valNode         *yaml.Node
-		expectedComment string
+		expectedComment []string
 	}{
 		{
 			name: "value node with comment",
@@ -529,7 +529,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "some value",
 				LineComment: "# Value comment",
 			},
-			expectedComment: "# Value comment",
+			expectedComment: []string{"# Value comment"},
 		},
 		{
 			name: "value node without comment, key node with comment",
@@ -542,7 +542,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "some value",
 				LineComment: "",
 			},
-			expectedComment: "# Key comment",
+			expectedComment: []string{"# Key comment"},
 		},
 		{
 			name: "empty value node, key node with comment",
@@ -555,14 +555,87 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: "# Key comment",
+			expectedComment: []string{"# Key comment"},
+		},
+		{
+			name: "head comment single line",
+			keyNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				HeadComment: "# Key comment",
+				LineComment: "",
+			},
+			valNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				Value:       "",
+				LineComment: "",
+			},
+			expectedComment: []string{"# Key comment"},
+		},
+		{
+			name: "head comment multi line",
+			keyNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				HeadComment: "# Key comment\n# Second line",
+				LineComment: "",
+			},
+			valNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				Value:       "",
+				LineComment: "",
+			},
+			expectedComment: []string{"# Key comment", "# Second line"},
+		},
+		{
+			name: "head comment only last comment group",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "# First comment group\n# second line\n\n" +
+					"# Second comment group\n# second line 2\n\n" +
+					"# Last comment group\n# second line 3",
+				LineComment: "",
+			},
+			valNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				Value:       "",
+				LineComment: "",
+			},
+			expectedComment: []string{"# Last comment group", "# second line 3"},
+		},
+		{
+			name: "foot comment multi line",
+			keyNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				FootComment: "# Key comment\n# Second line",
+				LineComment: "",
+			},
+			valNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				Value:       "",
+				LineComment: "",
+			},
+			expectedComment: []string{"# Key comment", "# Second line"},
+		},
+		{
+			name: "head, line, and foot comment",
+			keyNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				HeadComment: "# Head comment",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{
+				Kind:        yaml.ScalarNode,
+				Value:       "",
+				LineComment: "",
+			},
+			expectedComment: []string{"# Head comment", "# Line comment", "# Foot comment"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			comment := getComment(tt.keyNode, tt.valNode)
-			assert.Equal(t, tt.expectedComment, comment, "getComment returned an unexpected comment")
+			comments := getComments(tt.keyNode, tt.valNode)
+			assert.Equal(t, tt.expectedComment, comments, "getComments returned an unexpected comment")
 		})
 	}
 }
@@ -757,7 +830,7 @@ func TestProcessComment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var required bool
-			processComment(tt.schema, tt.comment)
+			processComment(tt.schema, []string{tt.comment})
 			assert.Equal(t, tt.expectedSchema, tt.schema)
 			assert.Equal(t, tt.expectedRequired, required)
 		})
@@ -769,77 +842,106 @@ func TestSplitCommentByParts(t *testing.T) {
 		Key, Value string
 	}
 	tests := []struct {
-		name    string
-		comment string
-		want    []Pair
+		name     string
+		comments []string
+		want     []Pair
 	}{
 		{
-			name:    "empty",
-			comment: "",
-			want:    nil,
+			name:     "empty",
+			comments: nil,
+			want:     nil,
 		},
 		{
-			name:    "no keys",
-			comment: "# @schema ",
-			want:    nil,
+			name:     "no keys",
+			comments: []string{"# @schema "},
+			want:     nil,
 		},
 		{
 			// https://github.com/losisin/helm-values-schema-json/issues/152
-			name:    "ignore when missing @schema",
-			comment: "# ; type:string",
-			want:    nil,
+			name:     "ignore when missing @schema",
+			comments: []string{"# ; type:string"},
+			want:     nil,
 		},
 		{
-			name:    "without whitespace",
-			comment: "#@schema type:string",
-			want:    []Pair{{"type", "string"}},
+			name:     "without whitespace",
+			comments: []string{"#@schema type:string"},
+			want:     []Pair{{"type", "string"}},
 		},
 		{
-			name:    "with extra whitespace",
-			comment: "#  \t  @schema \t type :  string",
-			want:    []Pair{{"type", "string"}},
+			name:     "with extra whitespace",
+			comments: []string{"#  \t  @schema \t type :  string"},
+			want:     []Pair{{"type", "string"}},
 		},
 		{
-			name:    "missing whitespace after after @schema",
-			comment: "# @schematype:string",
-			want:    nil,
+			name:     "missing whitespace after after @schema",
+			comments: []string{"# @schematype:string"},
+			want:     nil,
 		},
 		{
-			name:    "tab after @schema",
-			comment: "# @schema\ttype:string",
-			want:    []Pair{{"type", "string"}},
+			name:     "tab after @schema",
+			comments: []string{"# @schema\ttype:string"},
+			want:     []Pair{{"type", "string"}},
 		},
 		{
-			name:    "only key",
-			comment: "# @schema type",
-			want:    []Pair{{"type", ""}},
+			name:     "only key",
+			comments: []string{"# @schema type"},
+			want:     []Pair{{"type", ""}},
 		},
 		{
-			name:    "only value",
-			comment: "# @schema : string",
-			want:    []Pair{{"", "string"}},
+			name:     "only value",
+			comments: []string{"# @schema : string"},
+			want:     []Pair{{"", "string"}},
 		},
 		{
-			name:    "multiple pairs",
-			comment: "# @schema type:string; foo:bar",
-			want:    []Pair{{"type", "string"}, {"foo", "bar"}},
+			name:     "multiple pairs",
+			comments: []string{"# @schema type:string; foo:bar"},
+			want:     []Pair{{"type", "string"}, {"foo", "bar"}},
 		},
 		{
-			name:    "same pair multiple times",
-			comment: "# @schema type:string; type:integer",
-			want:    []Pair{{"type", "string"}, {"type", "integer"}},
+			name:     "same pair multiple times",
+			comments: []string{"# @schema type:string; type:integer"},
+			want:     []Pair{{"type", "string"}, {"type", "integer"}},
 		},
 		{
-			name:    "array value",
-			comment: "# @schema type:[string, integer]",
-			want:    []Pair{{"type", "[string, integer]"}},
+			name:     "array value",
+			comments: []string{"# @schema type:[string, integer]"},
+			want:     []Pair{{"type", "[string, integer]"}},
+		},
+		{
+			name: "multiple comments",
+			comments: []string{
+				"# @schema type:string",
+				"# @schema foo:bar",
+				"# @schema moo:doo",
+			},
+			want: []Pair{
+				{"type", "string"},
+				{"foo", "bar"},
+				{"moo", "doo"},
+			},
+		},
+		{
+			name: "multiple pairs on multiple comments",
+			comments: []string{
+				"# @schema type:string; lorem:ipsum",
+				"# @schema foo:bar; foz:baz",
+				"# @schema moo:doo; moz:doz",
+			},
+			want: []Pair{
+				{"type", "string"},
+				{"lorem", "ipsum"},
+				{"foo", "bar"},
+				{"foz", "baz"},
+				{"moo", "doo"},
+				{"moz", "doz"},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var pairs []Pair
-			for key, value := range splitCommentByParts(tt.comment) {
+			for key, value := range splitCommentByParts(tt.comments) {
 				pairs = append(pairs, Pair{key, value})
 			}
 			assert.Equal(t, tt.want, pairs)
@@ -852,10 +954,10 @@ func TestSplitCommentByParts_break(t *testing.T) {
 		Key, Value string
 	}
 
-	const comment = "# @schema foo:bar; moo:doo; baz:boz"
+	comments := []string{"# @schema foo:bar; moo:doo; baz:boz"}
 
 	var pairs []Pair
-	for key, value := range splitCommentByParts(comment) {
+	for key, value := range splitCommentByParts(comments) {
 		pairs = append(pairs, Pair{key, value})
 		if len(pairs) == 2 {
 			break
