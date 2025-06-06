@@ -1,178 +1,111 @@
 package pkg
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
-	"io"
 	"os"
-	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/posflag"
+	"github.com/knadh/koanf/v2"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// Parse flags
-func ParseFlags(progname string, args []string) (*Config, string, error) {
-	flags := flag.NewFlagSet(progname, flag.ContinueOnError)
-	var buf bytes.Buffer
-	flags.SetOutput(&buf)
+func NewCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:  "helm schema",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			config, err := LoadConfig(cmd)
+			if err != nil {
+				return err
+			}
+			return GenerateJsonSchema(config)
+		},
+		SilenceUsage: true,
+	}
 
-	conf := &Config{}
-	flags.Var(&conf.Input, "input", "Multiple yaml files as inputs (comma-separated)")
-	flags.StringVar(&conf.OutputPath, "output", "values.schema.json", "Output file path")
-	flags.IntVar(&conf.Draft, "draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
-	flags.IntVar(&conf.Indent, "indent", 4, "Indentation spaces (even number)")
-	flags.Var(&conf.NoAdditionalProperties, "noAdditionalProperties", "Default additionalProperties to false for all objects in the schema")
+	cmd.PersistentFlags().String("config", ".schema.yaml", "Config file for setting defaults.")
 
-	flags.Var(&conf.Bundle, "bundle", "Bundle referenced ($ref) subschemas into a single file inside $defs")
-	flags.Var(&conf.BundleWithoutID, "bundleWithoutID", "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
-	flags.StringVar(&conf.BundleRoot, "bundleRoot", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
+	cmd.Flags().StringSliceP("input", "i", []string{"values.yaml"}, "Multiple yaml files as inputs. Use comma-separated list or supply flag multiple times")
+	cmd.Flags().String("output", "values.schema.json", "Output file path")
+	cmd.Flags().Int("draft", 2020, "Draft version (4, 6, 7, 2019, or 2020)")
+	cmd.Flags().Int("indent", 4, "Indentation spaces (even number)")
+	cmd.Flags().Bool("noAdditionalProperties", false, "Default additionalProperties to false for all objects in the schema")
 
-	flags.StringVar(&conf.K8sSchemaURL, "k8sSchemaURL", "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/", "URL template used in $ref: $k8s/... alias")
-	flags.StringVar(&conf.K8sSchemaVersion, "k8sSchemaVersion", "", "Version used in the --k8sSchemaURL template for $ref: $k8s/... alias")
+	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
+	cmd.Flags().Bool("bundleWithoutID", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
+	cmd.Flags().String("bundleRoot", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
+
+	cmd.Flags().String("k8sSchemaURL", "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/", "URL template used in $ref: $k8s/... alias")
+	cmd.Flags().String("k8sSchemaVersion", "", "Version used in the --k8sSchemaURL template for $ref: $k8s/... alias")
 
 	// Nested SchemaRoot flags
-	flags.StringVar(&conf.SchemaRoot.ID, "schemaRoot.id", "", "JSON schema ID")
-	flags.StringVar(&conf.SchemaRoot.Ref, "schemaRoot.ref", "", "JSON schema URI reference. Relative to current working directory when using \"-bundle true\".")
-	flags.StringVar(&conf.SchemaRoot.Title, "schemaRoot.title", "", "JSON schema title")
-	flags.StringVar(&conf.SchemaRoot.Description, "schemaRoot.description", "", "JSON schema description")
-	flags.Var(&conf.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties", "Allow additional properties")
+	cmd.Flags().String("schemaRoot.id", "", "JSON schema ID")
+	cmd.Flags().String("schemaRoot.ref", "", "JSON schema URI reference. Relative to current working directory when using \"-bundle true\".")
+	cmd.Flags().String("schemaRoot.title", "", "JSON schema title")
+	cmd.Flags().String("schemaRoot.description", "", "JSON schema description")
+	cmd.Flags().Bool("schemaRoot.additionalProperties", false, "Allow additional properties")
 
-	err := flags.Parse(args)
-	if err != nil {
-		fmt.Println("Usage: helm schema [options...] <arguments>")
-		return nil, buf.String(), err
-	}
-
-	if flags.NArg() >= 1 && flags.Arg(0) == "__complete" {
-		return nil, "", ErrCompletionRequested{FlagSet: flags}
-	}
-
-	// Mark fields as set if they were provided as flags
-	flags.Visit(func(f *flag.Flag) {
-		switch f.Name {
-		case "output":
-			conf.OutputPathSet = true
-		case "draft":
-			conf.DraftSet = true
-		case "indent":
-			conf.IndentSet = true
-		case "k8sSchemaURL":
-			conf.K8sSchemaURLSet = true
-		}
-	})
-
-	conf.Args = flags.Args()
-	return conf, buf.String(), nil
+	return cmd
 }
 
-// LoadConfig loads configuration from a YAML file
-var readFileFunc = os.ReadFile
+func LoadConfig(cmd *cobra.Command) (*Config, error) {
+	k := koanf.New(".")
 
-func LoadConfig(configPath string) (*Config, error) {
-	data, err := readFileFunc(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// Return an empty config if the file does not exist
-			return &Config{}, nil
+	configFlag := cmd.Flag("config")
+	configPath := configFlag.Value.String()
+	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
+		// ignore "not exists" errors, unless user specified the "--config" flag
+		if !os.IsNotExist(err) || configFlag.Changed {
+			return nil, fmt.Errorf("load file %s: %w", configPath, err)
 		}
-		return nil, err
+	}
+
+	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, interface{}) {
+		if !f.Changed && f.Value.Type() == "bool" {
+			// ignore boolean flags that are not explicitly set
+			// this allows "schemaRoot.additionalProperties" to stay as null when unset
+			return "", nil
+		}
+		return f.Name, posflag.FlagVal(cmd.Flags(), f)
+	}), nil); err != nil {
+		return nil, fmt.Errorf("load flags: %w", err)
 	}
 
 	var config Config
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
+	if err := k.UnmarshalWithConf("", &config, koanf.UnmarshalConf{
+		Tag: "yaml",
+	}); err != nil {
+		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 
 	return &config, nil
 }
 
-// MergeConfig merges CLI flags into the configuration file values, giving precedence to CLI flags
-func MergeConfig(fileConfig, flagConfig *Config) *Config {
-	mergedConfig := *fileConfig
-
-	if len(flagConfig.Input) > 0 {
-		mergedConfig.Input = flagConfig.Input
-	}
-	if flagConfig.OutputPathSet || mergedConfig.OutputPath == "" {
-		mergedConfig.OutputPath = flagConfig.OutputPath
-	}
-	if flagConfig.DraftSet || mergedConfig.Draft == 0 {
-		mergedConfig.Draft = flagConfig.Draft
-	}
-	if flagConfig.IndentSet || mergedConfig.Indent == 0 {
-		mergedConfig.Indent = flagConfig.Indent
-	}
-
-	if flagConfig.NoAdditionalProperties.IsSet() {
-		mergedConfig.NoAdditionalProperties = flagConfig.NoAdditionalProperties
-	}
-	if flagConfig.Bundle.IsSet() {
-		mergedConfig.Bundle = flagConfig.Bundle
-	}
-	if flagConfig.BundleWithoutID.IsSet() {
-		mergedConfig.BundleWithoutID = flagConfig.BundleWithoutID
-	}
-	if flagConfig.BundleRoot != "" {
-		mergedConfig.BundleRoot = flagConfig.BundleRoot
-	}
-	if flagConfig.K8sSchemaURLSet || mergedConfig.K8sSchemaURL == "" {
-		mergedConfig.K8sSchemaURL = flagConfig.K8sSchemaURL
-	}
-	if flagConfig.K8sSchemaVersion != "" {
-		mergedConfig.K8sSchemaVersion = flagConfig.K8sSchemaVersion
-	}
-	if flagConfig.SchemaRoot.ID != "" {
-		mergedConfig.SchemaRoot.ID = flagConfig.SchemaRoot.ID
-	}
-	if flagConfig.SchemaRoot.Ref != "" {
-		mergedConfig.SchemaRoot.Ref = flagConfig.SchemaRoot.Ref
-	}
-	if flagConfig.SchemaRoot.Title != "" {
-		mergedConfig.SchemaRoot.Title = flagConfig.SchemaRoot.Title
-	}
-	if flagConfig.SchemaRoot.Description != "" {
-		mergedConfig.SchemaRoot.Description = flagConfig.SchemaRoot.Description
-	}
-	if flagConfig.SchemaRoot.AdditionalProperties.IsSet() {
-		mergedConfig.SchemaRoot.AdditionalProperties = flagConfig.SchemaRoot.AdditionalProperties
-	}
-	mergedConfig.Args = flagConfig.Args
-
-	return &mergedConfig
+// SchemaRoot struct defines root object of schema
+type SchemaRoot struct {
+	ID                   string `yaml:"id"`
+	Ref                  string `yaml:"ref"`
+	Title                string `yaml:"title"`
+	Description          string `yaml:"description"`
+	AdditionalProperties *bool  `yaml:"additionalProperties"`
 }
 
-type ErrCompletionRequested struct {
-	FlagSet *flag.FlagSet
-}
+// Save values of parsed flags in Config
+type Config struct {
+	Input                  []string `yaml:"input"`
+	Output                 string   `yaml:"output"`
+	Draft                  int      `yaml:"draft"`
+	Indent                 int      `yaml:"indent"`
+	NoAdditionalProperties bool     `yaml:"noAdditionalProperties"`
+	Bundle                 bool     `yaml:"bundle"`
+	BundleRoot             string   `yaml:"bundleRoot"`
+	BundleWithoutID        bool     `yaml:"bundleWithoutID"`
 
-// Error implements [error].
-func (ErrCompletionRequested) Error() string {
-	return "completion requested"
-}
+	K8sSchemaURL     string `yaml:"k8sSchemaURL"`
+	K8sSchemaVersion string `yaml:"k8sSchemaVersion"`
 
-func (err ErrCompletionRequested) Fprint(writer io.Writer) {
-	args := err.FlagSet.Args()
-	if len(args) > 1 && args[1] == "__complete" {
-		args = args[2:]
-	}
-	if len(args) >= 2 {
-		prevArg := args[len(args)-2]
-		currArg := args[len(args)-1]
-		if strings.HasPrefix(prevArg, "-") && !strings.Contains(prevArg, "=") &&
-			!strings.HasPrefix(currArg, "-") {
-			// Don't suggest any flags as the last argument was "--foo",
-			// so the user must provide a flag value
-			return
-		}
-	}
-	err.FlagSet.VisitAll(func(f *flag.Flag) {
-		switch f.Value.(type) {
-		case *BoolFlag:
-			_, _ = fmt.Fprintf(writer, "--%s=true\t%s\n", f.Name, f.Usage)
-		default:
-			_, _ = fmt.Fprintf(writer, "--%s\t%s\n", f.Name, f.Usage)
-		}
-	})
+	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
 }

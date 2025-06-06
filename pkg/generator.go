@@ -101,7 +101,7 @@ func GenerateJsonSchema(config *Config) error {
 			return err
 		}
 
-		if config.Bundle.Value() {
+		if config.Bundle {
 			ctx := context.Background()
 
 			// https://github.com/losisin/helm-values-schema-json/issues/159
@@ -122,7 +122,7 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
 	}
 
-	if config.Bundle.Value() && config.BundleWithoutID.Value() {
+	if config.Bundle && config.BundleWithoutID {
 		if err := BundleRemoveIDs(mergedSchema); err != nil {
 			return fmt.Errorf("remove bundled $id: %w", err)
 		}
@@ -132,15 +132,15 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
-	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties.value, config.Draft); err != nil {
+	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.Draft); err != nil {
 		return err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version
 	mergedSchema.Type = "object"
 
-	if config.SchemaRoot.AdditionalProperties.IsSet() {
-		mergedSchema.AdditionalProperties = SchemaBool(config.SchemaRoot.AdditionalProperties.Value())
-	} else if config.NoAdditionalProperties.value {
+	if config.SchemaRoot.AdditionalProperties != nil {
+		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
+	} else if config.NoAdditionalProperties {
 		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
@@ -152,7 +152,7 @@ func GenerateJsonSchema(config *Config) error {
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	outputPath := config.OutputPath
+	outputPath := config.Output
 	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
 		return errors.New("error writing schema to file")
 	}
