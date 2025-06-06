@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - v1
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
