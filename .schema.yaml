@@ -15,7 +15,7 @@ k8sSchemaVersion: "v1.33.1"
 
 schemaRoot:
   id: https://example.com/schema
-  ref: bundle/simple-subschema.schema.json
+  ref: testdata/bundle/simple-subschema.schema.json
   title: Helm Values Schema
   description: Schema for Helm values
   additionalProperties: true
