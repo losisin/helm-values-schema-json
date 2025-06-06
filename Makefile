@@ -1,4 +1,4 @@
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 
 BINNAME := schema
 PLUGIN_SHORTNAME := json-schema
