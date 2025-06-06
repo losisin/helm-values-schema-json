@@ -52,6 +52,74 @@ func TestSchemaKindIsBool(t *testing.T) {
 	}
 }
 
+func TestSchemaIsZero(t *testing.T) {
+	var (
+		exampleUint64      = uint64(1)
+		exampleFloat64     = float64(1)
+		exampleString      = "foo"
+		exampleBool        = true
+		exampleSchema      = &Schema{ID: exampleString}
+		exampleMap         = map[string]*Schema{exampleString: exampleSchema}
+		exampleSchemaSlice = []*Schema{exampleSchema}
+		exampleAnySlice    = []any{exampleString}
+	)
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   bool
+	}{
+		{name: "nil", schema: nil, want: true},
+		{name: "empty", schema: &Schema{}, want: true},
+		{name: "SkipProperties", schema: &Schema{SkipProperties: true}, want: true},
+		{name: "Hidden", schema: &Schema{Hidden: true}, want: true},
+
+		{name: "Kind", schema: &Schema{kind: SchemaKindTrue}},
+		{name: "Schema", schema: &Schema{Schema: exampleString}},
+		{name: "ID", schema: &Schema{ID: exampleString}},
+		{name: "Title", schema: &Schema{Title: exampleString}},
+		{name: "Description", schema: &Schema{Description: exampleString}},
+		{name: "Comment", schema: &Schema{Comment: exampleString}},
+		{name: "ReadOnly", schema: &Schema{ReadOnly: exampleBool}},
+		{name: "Default", schema: &Schema{Default: exampleString}},
+		{name: "Ref", schema: &Schema{Ref: exampleString}},
+		{name: "Type", schema: &Schema{Type: exampleString}},
+		{name: "Enum", schema: &Schema{Enum: exampleAnySlice}},
+		{name: "AllOf", schema: &Schema{AllOf: exampleSchemaSlice}},
+		{name: "AnyOf", schema: &Schema{AnyOf: exampleSchemaSlice}},
+		{name: "OneOf", schema: &Schema{OneOf: exampleSchemaSlice}},
+		{name: "Not", schema: &Schema{Not: &Schema{ID: exampleString}}},
+		{name: "Maximum", schema: &Schema{Maximum: &exampleFloat64}},
+		{name: "Minimum", schema: &Schema{Minimum: &exampleFloat64}},
+		{name: "MultipleOf", schema: &Schema{MultipleOf: &exampleFloat64}},
+		{name: "Pattern", schema: &Schema{Pattern: exampleString}},
+		{name: "MaxLength", schema: &Schema{MaxLength: &exampleUint64}},
+		{name: "MinLength", schema: &Schema{MinLength: &exampleUint64}},
+		{name: "MaxItems", schema: &Schema{MaxItems: &exampleUint64}},
+		{name: "MinItems", schema: &Schema{MinItems: &exampleUint64}},
+		{name: "UniqueItems", schema: &Schema{UniqueItems: exampleBool}},
+		{name: "Items", schema: &Schema{Items: &Schema{ID: exampleString}}},
+		{name: "AdditionalItems", schema: &Schema{AdditionalItems: &Schema{ID: exampleString}}},
+		{name: "Required", schema: &Schema{Required: []string{exampleString}}},
+		{name: "MaxProperties", schema: &Schema{MaxProperties: &exampleUint64}},
+		{name: "MinProperties", schema: &Schema{MinProperties: &exampleUint64}},
+		{name: "Properties", schema: &Schema{Properties: exampleMap}},
+		{name: "PatternProperties", schema: &Schema{PatternProperties: exampleMap}},
+		{name: "AdditionalProperties", schema: &Schema{AdditionalProperties: exampleSchema}},
+		{name: "UnevaluatedProperties", schema: &Schema{UnevaluatedProperties: &exampleBool}},
+		{name: "Defs", schema: &Schema{Defs: exampleMap}},
+		{name: "Definitions", schema: &Schema{Definitions: exampleMap}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.schema.IsZero()
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %t\ngot:  %t", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestSchemaJSONUnmarshal(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -694,6 +762,108 @@ func TestProcessComment(t *testing.T) {
 			assert.Equal(t, tt.expectedRequired, required)
 		})
 	}
+}
+
+func TestSplitCommentByParts(t *testing.T) {
+	type Pair struct {
+		Key, Value string
+	}
+	tests := []struct {
+		name    string
+		comment string
+		want    []Pair
+	}{
+		{
+			name:    "empty",
+			comment: "",
+			want:    nil,
+		},
+		{
+			name:    "no keys",
+			comment: "# @schema ",
+			want:    nil,
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/152
+			name:    "ignore when missing @schema",
+			comment: "# ; type:string",
+			want:    nil,
+		},
+		{
+			name:    "without whitespace",
+			comment: "#@schema type:string",
+			want:    []Pair{{"type", "string"}},
+		},
+		{
+			name:    "with extra whitespace",
+			comment: "#  \t  @schema \t type :  string",
+			want:    []Pair{{"type", "string"}},
+		},
+		{
+			name:    "missing whitespace after after @schema",
+			comment: "# @schematype:string",
+			want:    nil,
+		},
+		{
+			name:    "tab after @schema",
+			comment: "# @schema\ttype:string",
+			want:    []Pair{{"type", "string"}},
+		},
+		{
+			name:    "only key",
+			comment: "# @schema type",
+			want:    []Pair{{"type", ""}},
+		},
+		{
+			name:    "only value",
+			comment: "# @schema : string",
+			want:    []Pair{{"", "string"}},
+		},
+		{
+			name:    "multiple pairs",
+			comment: "# @schema type:string; foo:bar",
+			want:    []Pair{{"type", "string"}, {"foo", "bar"}},
+		},
+		{
+			name:    "same pair multiple times",
+			comment: "# @schema type:string; type:integer",
+			want:    []Pair{{"type", "string"}, {"type", "integer"}},
+		},
+		{
+			name:    "array value",
+			comment: "# @schema type:[string, integer]",
+			want:    []Pair{{"type", "[string, integer]"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var pairs []Pair
+			for key, value := range splitCommentByParts(tt.comment) {
+				pairs = append(pairs, Pair{key, value})
+			}
+			assert.Equal(t, tt.want, pairs)
+		})
+	}
+}
+
+func TestSplitCommentByParts_break(t *testing.T) {
+	type Pair struct {
+		Key, Value string
+	}
+
+	const comment = "# @schema foo:bar; moo:doo; baz:boz"
+
+	var pairs []Pair
+	for key, value := range splitCommentByParts(comment) {
+		pairs = append(pairs, Pair{key, value})
+		if len(pairs) == 2 {
+			break
+		}
+	}
+
+	want := []Pair{{"foo", "bar"}, {"moo", "doo"}}
+	assert.Equal(t, want, pairs)
 }
 
 func TestParseNode(t *testing.T) {
