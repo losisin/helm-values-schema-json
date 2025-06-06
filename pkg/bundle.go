@@ -437,7 +437,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
 	}
 
-	fmt.Printf("=> got %dKB\n", len(b)/1000)
+	fmt.Printf("=> got %s\n", formatSizeBytes(len(b)))
 
 	switch filepath.Ext(path) {
 	case ".yml", ".yaml":
@@ -593,7 +593,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	}
 
 	duration := time.Since(start)
-	fmt.Printf("=> got %dKB in %s\n", len(b)/1000, duration.Truncate(time.Millisecond))
+	fmt.Printf("=> got %s in %s\n", formatSizeBytes(len(b)), duration.Truncate(time.Millisecond))
 
 	if isYAML {
 		var schema Schema
@@ -616,4 +616,15 @@ var loaderContextReferrer = loaderContextKey(1)
 
 func ContextWithLoaderReferrer(parent context.Context, referrer string) context.Context {
 	return context.WithValue(parent, loaderContextReferrer, referrer)
+}
+
+func formatSizeBytes(size int) string {
+	switch {
+	case size < 2_000:
+		return fmt.Sprintf("%dB", size)
+	case size < 2_000_000:
+		return fmt.Sprintf("%dKB", size/1_000)
+	default:
+		return fmt.Sprintf("%dMB", size/1_000_000)
+	}
 }

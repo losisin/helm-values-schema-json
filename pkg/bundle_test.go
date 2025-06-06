@@ -1293,6 +1293,34 @@ func TestHTTPLoader_Error(t *testing.T) {
 	})
 }
 
+func TestFormatSizeBytes(t *testing.T) {
+	tests := []struct {
+		name string
+		size int
+		want string
+	}{
+		{size: 0, want: "0B"},
+		{size: 1000, want: "1000B"},
+		{size: 1999, want: "1999B"},
+		{size: 2000, want: "2KB"},
+		{size: 10_000, want: "10KB"},
+		{size: 1_000_000, want: "1000KB"},
+		{size: 1_999_999, want: "1999KB"},
+		{size: 2_000_000, want: "2MB"},
+		{size: 10_000_000, want: "10MB"},
+		{size: 3_000_000_000_000, want: "3000000MB"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got := formatSizeBytes(tt.size)
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
+			}
+		})
+	}
+}
+
 func mustParseURL(rawURL string) *url.URL {
 	u, err := url.Parse(rawURL)
 	if err != nil {
