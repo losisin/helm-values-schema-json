@@ -1,4 +1,4 @@
-module github.com/losisin/helm-values-schema-json
+module github.com/losisin/helm-values-schema-json/v2
 
 go 1.24.2
 

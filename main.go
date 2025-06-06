@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/losisin/helm-values-schema-json/pkg"
+	"github.com/losisin/helm-values-schema-json/v2/pkg"
 )
 
 func main() {
