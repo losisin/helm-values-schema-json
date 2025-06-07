@@ -432,7 +432,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 		name                   string
 		noAdditionalProperties bool
 		additionalProperties   *bool
-		expected               interface{}
+		expected               any
 	}{
 		{
 			name:                 "AdditionalProperties set to true",
@@ -485,7 +485,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			generatedBytes, err := os.ReadFile(config.Output)
 			assert.NoError(t, err)
 
-			var generatedSchema map[string]interface{}
+			var generatedSchema map[string]any
 			err = json.Unmarshal(generatedBytes, &generatedSchema)
 			assert.NoError(t, err)
 
