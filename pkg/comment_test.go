@@ -9,10 +9,11 @@ import (
 
 func TestGetComment(t *testing.T) {
 	tests := []struct {
-		name            string
-		keyNode         *yaml.Node
-		valNode         *yaml.Node
-		expectedComment []string
+		name         string
+		keyNode      *yaml.Node
+		valNode      *yaml.Node
+		wantComment  []string
+		wantHelmDocs []string
 	}{
 		{
 			name: "value node with comment",
@@ -25,7 +26,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "some value",
 				LineComment: "# Value comment",
 			},
-			expectedComment: []string{"# Value comment"},
+			wantComment: []string{"# Value comment"},
 		},
 		{
 			name: "value node without comment, key node with comment",
@@ -38,7 +39,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "some value",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Key comment"},
+			wantComment: []string{"# Key comment"},
 		},
 		{
 			name: "empty value node, key node with comment",
@@ -51,7 +52,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Key comment"},
+			wantComment: []string{"# Key comment"},
 		},
 		{
 			name: "head comment single line",
@@ -65,7 +66,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Key comment"},
+			wantComment: []string{"# Key comment"},
 		},
 		{
 			name: "head comment multi line",
@@ -79,7 +80,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Key comment", "# Second line"},
+			wantComment: []string{"# Key comment", "# Second line"},
 		},
 		{
 			name: "head comment only last comment group",
@@ -95,7 +96,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Last comment group", "# second line 3"},
+			wantComment: []string{"# Last comment group", "# second line 3"},
 		},
 		{
 			name: "foot comment multi line",
@@ -109,7 +110,7 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Key comment", "# Second line"},
+			wantComment: []string{"# Key comment", "# Second line"},
 		},
 		{
 			name: "head, line, and foot comment",
@@ -124,11 +125,12 @@ func TestGetComment(t *testing.T) {
 				Value:       "",
 				LineComment: "",
 			},
-			expectedComment: []string{"# Head comment", "# Line comment", "# Foot comment"},
+			wantComment: []string{"# Head comment", "# Line comment", "# Foot comment"},
 		},
 
 		{
-			name: "helm-docs/ignore after comment",
+			// Helm-docs comments are further tested in TestSplitHeadCommentsByHelmDocs
+			name: "helm-docs",
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
@@ -139,168 +141,23 @@ func TestGetComment(t *testing.T) {
 				FootComment: "# Foot comment",
 			},
 			valNode: &yaml.Node{},
-			expectedComment: []string{
+			wantComment: []string{
 				"# @schema type:string",
 				"# Line comment",
 				"# Foot comment",
 			},
-		},
-		{
-			name: "helm-docs/ignore after multiline comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# -- This is my description\n" +
-					"# some other text for the description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/ignore after typed comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# -- (string) This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/ignore after pathed comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# myField.foobar -- (string) This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/ignore after quoted path comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# myField.\"foo bar! :D\".hello -- (string) This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/ignore after compact comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# --(string)This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/ignore after a lot of dashes",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# ----- This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/keep after invalid pathed comment",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# a b -- This is my description\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# a b -- This is my description",
+			wantHelmDocs: []string{
+				"# -- This is my description",
 				"# @schema foo:bar",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			// The "# -- Description" line is required. Without it helm-docs ignores its other comments like "@default"
-			name: "helm-docs/keep default without description line",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-					"# @schema type:string\n" +
-					"# @default -- foobar\n" +
-					"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# @default -- foobar",
-				"# @schema foo:bar",
-				"# Line comment",
-				"# Foot comment",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			comments := getComments(tt.keyNode, tt.valNode)
-			assert.Equal(t, tt.expectedComment, comments, "getComments returned an unexpected comment")
+			comments, helmDocs := getComments(tt.keyNode, tt.valNode)
+			assert.Equal(t, tt.wantComment, comments, "schema comments")
+			assert.Equal(t, tt.wantHelmDocs, helmDocs, "helm-docs comments")
 		})
 	}
 }

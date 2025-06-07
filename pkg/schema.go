@@ -335,7 +335,9 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	propIsRequired, isHidden := processComment(schema, getComments(keyNode, valNode))
+	schemaComments, helmDocsComments := getComments(keyNode, valNode)
+	_ = helmDocsComments // TODO: use this if --helm-docs flag
+	propIsRequired, isHidden := processComment(schema, schemaComments)
 	if isHidden {
 		return nil, false
 	}

@@ -3,6 +3,7 @@ package pkg
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -186,7 +187,8 @@ func SplitHelmDocsComment(headComment string) (before, helmDocs []string) {
 
 	for i, comment := range comments {
 		if helmDocsCommentRegexp.MatchString(comment) {
-			return comments[:i], comments[i:]
+			// Clone second slice so it doesn't get messed up when someone append to the first slice
+			return comments[:i], slices.Clone(comments[i:])
 		}
 	}
 	return comments, nil

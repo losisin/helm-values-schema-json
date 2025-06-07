@@ -9,12 +9,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func getComments(keyNode, valNode *yaml.Node) []string {
-	var comments []string
+func getComments(keyNode, valNode *yaml.Node) (comments, helmDocs []string) {
 	if keyNode != nil {
 		if keyNode.HeadComment != "" {
-			schemaComments, _ := SplitHelmDocsComment(keyNode.HeadComment)
-			comments = append(comments, schemaComments...)
+			comments, helmDocs = SplitHelmDocsComment(keyNode.HeadComment)
 		}
 		if keyNode.LineComment != "" {
 			comments = append(comments, keyNode.LineComment)
@@ -29,7 +27,7 @@ func getComments(keyNode, valNode *yaml.Node) []string {
 			comments = append(comments, strings.Split(keyNode.FootComment, "\n")...)
 		}
 	}
-	return comments
+	return comments, helmDocs
 }
 
 func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
