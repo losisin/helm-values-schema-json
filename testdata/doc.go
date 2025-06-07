@@ -25,3 +25,5 @@ package testdata
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-without-id.schema.json --bundle-without-id=true
 //go:generate go run .. --bundle=true --values bundle/yaml.yaml --output bundle/yaml.schema.json
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-root-ref.schema.json --schema-root.ref ./bundle/simple-subschema.schema.json
+
+//go:generate go run .. --use-helm-docs --values helm-docs/values.yaml --output helm-docs/values.schema.json

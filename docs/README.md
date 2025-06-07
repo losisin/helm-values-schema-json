@@ -1,8 +1,9 @@
 # Annotations from comments
 
 JSON schema is partially implemented in this tool.
-It supports both comments directly above, directly below, and on the same line
-to add annotations for the schema.
+
+It supports both comments directly above, directly below,
+and on the same line to add annotations for the schema.
 The comment must start with `# @schema`, which is used to avoid interference
 with tools like [helm-docs](https://github.com/norwoodj/helm-docs).
 
@@ -52,22 +53,9 @@ This will generate following schema:
 }
 ```
 
-Keep in mind that if you use [helm-docs](https://github.com/norwoodj/helm-docs)
-and comments above the field then you want to place the `# @schema` comments
-above the helm-docs description comment to avoid having the schema annotations
-included in the description:
-
-```yaml
-# ✅ good:
-# @schema maxLength:10
-# -- My awesome nameOverride description
-nameOverride: "myapp"
-
-# ❌ bad:
-# -- My awesome nameOverride description
-# @schema maxLength:10
-nameOverride: "myapp"
-```
+> aside: Support for comments above and below the property was introduced
+> in v2.0.0. If you're using a version before v2.0.0 then only comments at the
+> end of the same line is supported.
 
 The following annotations are supported:
 
@@ -104,6 +92,7 @@ The following annotations are supported:
     * [bundling](#bundling)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
+    * [helm-docs](#helm-docs)
     * [default](#default)
     * [readOnly](#readonly)
 * [Schema Composition](#schema-composition)
@@ -751,6 +740,70 @@ fullnameOverride: bar # @schema title: My title ; description: My description
     "type": "string"
 },
 ```
+
+### helm-docs
+
+(since v2.0.0)
+
+Use description from <https://github.com/norwoodj/helm-docs> comments.
+Must be enabled to be used via the `--use-helm-docs` flag.
+
+```bash
+helm schema --use-helm-docs
+```
+
+```yaml
+# -- My description
+fullnameOverride: bar
+```
+
+```json
+"fullnameOverride": {
+    "description": "My description",
+    "type": "string"
+},
+```
+
+The following helm-docs features are not supported:
+
+- Helm-docs specific properties:
+
+  - `# @default --`
+  - `# @section --`
+  - *etc.*
+
+- Detached comments. Meaning, comments that are not directly above the property.
+  For example:
+
+  ```yaml
+  # fullnameOverride -- This works
+  fullnameOverride: bar
+  ```
+
+  ```yaml
+  fullnameOverride: bar
+
+  # fullnameOverride -- This does not work. Helm-docs will see the comment,
+  # but this schema plugin will not.
+  ```
+
+While this plugin supports helm-docs, helm-docs does not support this plugin.
+So on comments above the field must have the `# @schema` comments
+above the helm-docs description comment to avoid having the schema annotations
+getting included in the description:
+
+```yaml
+# ✅ good:
+# @schema maxLength:10
+# -- My awesome nameOverride description
+nameOverride: "myapp"
+
+# ❌ bad:
+# -- My awesome nameOverride description
+# @schema maxLength:10
+nameOverride: "myapp"
+```
+
 
 ### default
 

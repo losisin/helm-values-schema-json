@@ -167,6 +167,29 @@ func TestParseFlagsPass(t *testing.T) {
 				BundleWithoutID: false,
 			},
 		},
+
+		{
+			[]string{"--use-helm-docs"},
+			Config{
+				Values:       []string{"values.yaml"},
+				Indent:       4,
+				Output:       "values.schema.json",
+				Draft:        2020,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:  true,
+			},
+		},
+		{
+			[]string{"--use-helm-docs=false"},
+			Config{
+				Values:       []string{"values.yaml"},
+				Indent:       4,
+				Output:       "values.schema.json",
+				Draft:        2020,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:  false,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -191,6 +214,7 @@ func TestParseFlagsFail(t *testing.T) {
 		{[]string{"--schema-root.additional-properties=123"}, "invalid syntax"},
 		{[]string{"--bundle=123"}, "invalid syntax"},
 		{[]string{"--bundle-without-id=123"}, "invalid syntax"},
+		{[]string{"--use-helm-docs=123"}, "invalid syntax"},
 	}
 
 	for _, tt := range tests {
@@ -220,6 +244,7 @@ indent: 2
 bundle: true
 bundleRoot: ./
 bundleWithoutID: true
+useHelmDocs: true
 schemaRoot:
   id: https://example.com/schema
   ref: schema/product.json
@@ -235,6 +260,7 @@ schemaRoot:
 				Bundle:          true,
 				BundleRoot:      "./",
 				BundleWithoutID: true,
+				UseHelmDocs:     true,
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					Title:                "Helm Values Schema",
@@ -351,6 +377,7 @@ indent: 4
 noAdditionalProperties: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
+useHelmDocs: true
 schemaRoot:
   id: fileID
   ref: fileRef
@@ -366,6 +393,7 @@ schemaRoot:
 				"--no-additional-properties=false",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
+				"--use-helm-docs=false",
 				"--schema-root.id=flagID",
 				"--schema-root.ref=flagRef",
 				"--schema-root.title=flagTitle",
@@ -380,6 +408,7 @@ schemaRoot:
 				NoAdditionalProperties: false,
 				K8sSchemaURL:           "flagURL",
 				K8sSchemaVersion:       "flagVersion",
+				UseHelmDocs:            false,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
@@ -399,6 +428,7 @@ indent: 4
 noAdditionalProperties: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
+useHelmDocs: true
 schemaRoot:
   id: fileID
   ref: fileRef
@@ -415,6 +445,7 @@ schemaRoot:
 				K8sSchemaURL:           "fileURL",
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
+				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
@@ -434,6 +465,7 @@ indent: 4
 noAdditionalProperties: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
+useHelmDocs: true
 schemaRoot:
   id: fileID
   ref: fileRef
@@ -452,6 +484,7 @@ schemaRoot:
 				K8sSchemaURL:           "fileURL",
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
+				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
@@ -472,6 +505,7 @@ schemaRoot:
 				"--no-additional-properties=false",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
+				"--use-helm-docs=true",
 				"--schema-root.id=flagID",
 				"--schema-root.ref=flagRef",
 				"--schema-root.title=flagTitle",
@@ -485,6 +519,7 @@ schemaRoot:
 				Indent:           2,
 				K8sSchemaURL:     "flagURL",
 				K8sSchemaVersion: "flagVersion",
+				UseHelmDocs:      true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",

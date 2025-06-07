@@ -22,7 +22,8 @@ func NewCmd() *cobra.Command {
 			}
 			return GenerateJsonSchema(config)
 		},
-		SilenceUsage: true,
+		SilenceErrors: true,
+		SilenceUsage:  true,
 	}
 
 	cmd.PersistentFlags().String("config", ".schema.yaml", "Config file for setting defaults.")
@@ -39,6 +40,8 @@ func NewCmd() *cobra.Command {
 
 	cmd.Flags().String("k8s-schema-url", DefaultConfig.K8sSchemaURL, "URL template used in $ref: $k8s/... alias")
 	cmd.Flags().String("k8s-schema-version", "", "Version used in the --k8s-schema-url template for $ref: $k8s/... alias")
+
+	cmd.Flags().Bool("use-helm-docs", false, "Read description from https://github.com/norwoodj/helm-docs comments")
 
 	// Nested SchemaRoot flags
 	cmd.Flags().String("schema-root.id", "", "JSON schema ID")
@@ -113,6 +116,8 @@ type Config struct {
 
 	K8sSchemaURL     string `yaml:"k8sSchemaURL" koanf:"k8s-schema-url"`
 	K8sSchemaVersion string `yaml:"k8sSchemaVersion" koanf:"k8s-schema-version"`
+
+	UseHelmDocs bool `yaml:"useHelmDocs" koanf:"use-helm-docs"`
 
 	SchemaRoot SchemaRoot `yaml:"schemaRoot" koanf:"schema-root"`
 }
