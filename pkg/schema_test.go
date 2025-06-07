@@ -645,55 +645,55 @@ func TestProcessList(t *testing.T) {
 		name         string
 		comment      string
 		stringsOnly  bool
-		expectedList []interface{}
+		expectedList []any
 	}{
 		{
 			name:         "empty list",
 			comment:      "[]",
 			stringsOnly:  false,
-			expectedList: []interface{}{""},
+			expectedList: []any{""},
 		},
 		{
 			name:         "single string",
 			comment:      "[\"value\"]",
 			stringsOnly:  true,
-			expectedList: []interface{}{"value"},
+			expectedList: []any{"value"},
 		},
 		{
 			name:         "single string without quotes",
 			comment:      "[value]",
 			stringsOnly:  true,
-			expectedList: []interface{}{"value"},
+			expectedList: []any{"value"},
 		},
 		{
 			name:         "multiple strings",
 			comment:      "[\"value1\", \"value2\"]",
 			stringsOnly:  true,
-			expectedList: []interface{}{"value1", "value2"},
+			expectedList: []any{"value1", "value2"},
 		},
 		{
 			name:         "null allowed",
 			comment:      "[null]",
 			stringsOnly:  false,
-			expectedList: []interface{}{nil},
+			expectedList: []any{nil},
 		},
 		{
 			name:         "null not treated as special",
 			comment:      "[null]",
 			stringsOnly:  true,
-			expectedList: []interface{}{"null"},
+			expectedList: []any{"null"},
 		},
 		{
 			name:         "mixed strings and null",
 			comment:      "[\"value1\", null, \"value2\"]",
 			stringsOnly:  false,
-			expectedList: []interface{}{"value1", nil, "value2"},
+			expectedList: []any{"value1", nil, "value2"},
 		},
 		{
 			name:         "whitespace trimming",
 			comment:      "[ value1, value2 ]",
 			stringsOnly:  true,
-			expectedList: []interface{}{"value1", "value2"},
+			expectedList: []any{"value1", "value2"},
 		},
 	}
 

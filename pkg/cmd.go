@@ -63,7 +63,7 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 
-	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, interface{}) {
+	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, any) {
 		if !f.Changed && f.Value.Type() == "bool" {
 			// ignore boolean flags that are not explicitly set
 			// this allows "schemaRoot.additionalProperties" to stay as null when unset
