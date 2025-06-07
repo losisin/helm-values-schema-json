@@ -7,7 +7,7 @@ indent: 4 # @schema default: 4
 output: values.schema.json # @schema default: values.schema.json
 
 bundle: true # @schema default: false
-bundleRoot: testdata # @schema default: ""
+bundleRoot: "" # @schema default: ""
 bundleWithoutID: true # @schema default: false
 
 k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
