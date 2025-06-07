@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // This became a quite long regexp, but it needs to handle the following special cases:
@@ -17,7 +18,14 @@ import (
 //	# myField.foobar -- (string) This is my description
 //	# myField."foo bar! :D".hello -- (string) This is my description
 //	# myField."kubernetes.io/hostname" -- (string) This is my description
-var helmDocsCommentRegexp = regexp.MustCompile(`^#\s+(?P<path>(?:\w[^\s\.]*)(?:\.(?:\S+|"[^"]*"))*)?\s*--\s*(?:\((?P<type>[\w/\.-]+)\)\s*)?(?P<desc>.*)`)
+//
+// If you're having issues grasping the regexp, then this site could help:
+// https://regexper.com/#%5E%23%5Cs%2B%28%28%3F%3A%22%5B%5E%22%5D*%22%7C%5B%5E%40%5C-%5Cs%5D*%29%28%3F%3A%5C.%28%3F%3A%22%5B%5E%22%5D*%22%7C%5B%5E%5Cs%5C.%5D*%29%29*%29%3F%5Cs*--%5Cs*%28%3F%3A%5C%28%28%5B%5Cw%2F%5C.-%5D%2B%29%5C%29%5Cs*%29%3F%28.*%29
+var helmDocsCommentRegexp = regexp.MustCompile(`^#\s+(?<path>(?:"[^"]*"|[^@\-\s]*)(?:\.(?:"[^"]*"|[^\s\.]*))*)?\s*--\s*(?:\((?<type>[\w/\.-]+)\)\s*)?(?<desc>.*)`)
+
+// This regex only matches 1 segment from a path until the next dot.
+// It's meant to be re-run on the substring after each dot until all path segments are found.
+var helmDocsPathRegexp = regexp.MustCompile(`^(?:"[^"]*"|(?:[^\s\."]*(?:"[^"]*"|[^\s\."]*)*))`)
 
 type HelmDocsComment struct {
 	Path         []string // Example: "# myPath.foo.bar -- My description"
@@ -48,8 +56,11 @@ func ParseHelmDocsComment(headComment string) (HelmDocsComment, error) {
 	descriptionLines := []string{groups[3]}
 
 	if pathString != "" {
-		// TODO: implement proper parsing of path
-		helmDocs.Path = append(helmDocs.Path, pathString)
+		path, err := ParseHelmDocsPath(pathString)
+		if err != nil {
+			return HelmDocsComment{}, err
+		}
+		helmDocs.Path = path
 	}
 
 	for _, line := range helmDocsComments[1:] {
@@ -82,6 +93,72 @@ func ParseHelmDocsComment(headComment string) (HelmDocsComment, error) {
 	helmDocs.Description = strings.Join(descriptionLines, " ")
 
 	return helmDocs, nil
+}
+
+// ParseHelmDocsPath parses the path part of a helm-docs comment. This has
+// some weird parsing logic, but it's created to try replicate the logic
+// observed when running helm-docs. We can't just copy or reference their
+// implementation due to licensing conflicts (MIT vs GPL v3.0)
+//
+// Example:
+//
+//	# some-path.foobar -- This is my description
+//
+// or also with quoted syntax:
+//
+//	# labels."kubernetes.io/hostname" -- This is my description
+func ParseHelmDocsPath(path string) ([]string, error) {
+	if path == "" {
+		return nil, nil
+	}
+
+	firstMatch := helmDocsPathRegexp.FindString(path)
+	if firstMatch == "" {
+		// all we can say is "invalid syntax", because the Regex may have failed
+		// because of a multitude of reasons
+		return nil, fmt.Errorf("invalid syntax: %s", path)
+	}
+	if strings.HasPrefix(firstMatch, "\"") {
+		return nil, fmt.Errorf("must not start with a quote: %s", path)
+	}
+
+	parts := []string{firstMatch}
+	rest := path[len(firstMatch):]
+
+	for rest != "" {
+		if !strings.HasPrefix(rest, ".") {
+			r, _ := utf8.DecodeRuneInString(rest)
+			return nil, fmt.Errorf("expected dot separator, but got %q in: %s", r, rest)
+		}
+
+		rest = rest[1:]
+		if rest == "" {
+			return nil, fmt.Errorf("expected value after final dot: %s", path)
+		}
+
+		match := helmDocsPathRegexp.FindString(rest)
+		if match == "" {
+			// all we can say is "invalid syntax", because the Regex may have failed
+			// because of a multitude of reasons
+			return nil, fmt.Errorf("invalid syntax: %s", path)
+		}
+		rest = rest[len(match):]
+
+		if strings.HasPrefix(match, "\"") {
+			// Remove quotes.
+			match = match[1 : len(match)-1]
+
+			// The string could contain quotes inside the path,
+			// but we don't want to remove those as helm-docs doesn't seem to remove them either.
+			// E.g:
+			//	`foo."bar".moo` -> []string{`foo`, `bar`, `moo`}
+			//	`foo"bar"moo` -> []string{`foo"bar"moo`}
+		}
+
+		parts = append(parts, match)
+	}
+
+	return parts, nil
 }
 
 // splitHeadCommentsByHelmDocs will split a head comment by line and return:

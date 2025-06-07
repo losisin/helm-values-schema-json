@@ -196,8 +196,8 @@ func TestParseHelmDocsComment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			helmDocs, err := ParseHelmDocsComment(tt.comment)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, helmDocs)
+			require.NoErrorf(t, err, "Comment: %q", tt.comment)
+			assert.Equalf(t, tt.want, helmDocs, "Comment: %q", tt.comment)
 		})
 	}
 }
@@ -222,12 +222,116 @@ func TestParseHelmDocsComment_Error(t *testing.T) {
 				"#@schema foo:bar",
 			wantErr: "'# @schema' comments are not supported in helm-docs comments",
 		},
+		{
+			name:    "invalid path",
+			comment: "# foo.\"bar -- This is my description",
+			wantErr: "invalid syntax",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseHelmDocsComment(tt.comment)
-			require.ErrorContains(t, err, tt.wantErr)
+			require.ErrorContainsf(t, err, tt.wantErr, "Comment: %q", tt.comment)
+		})
+	}
+}
+
+func TestParseHelmDocsPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{
+			name: "empty",
+			path: ``,
+			want: nil,
+		},
+		{
+			name: "single value",
+			path: `foo`,
+			want: []string{"foo"},
+		},
+		{
+			name: "quote in unquoted",
+			path: `foo"bar"baz`,
+			want: []string{"foo\"bar\"baz"},
+		},
+		{
+			name: "quote in unquoted then EOL",
+			path: `foo"bar"`,
+			want: []string{"foo\"bar\""},
+		},
+		{
+			name: "quote in unquoted then next key",
+			path: `foo"bar".baz`,
+			want: []string{"foo\"bar\"", "baz"},
+		},
+		{
+			name: "quote with special char in unquoted",
+			path: `foo"./bar"`,
+			want: []string{"foo\"./bar\""},
+		},
+		{
+			name: "multiple values",
+			path: `foo.bar.moo.doo`,
+			want: []string{"foo", "bar", "moo", "doo"},
+		},
+		{
+			name: "quoted simple value",
+			path: `foo."barmoo".doo`,
+			want: []string{"foo", "barmoo", "doo"},
+		},
+		{
+			name: "quoted value with special characters",
+			path: `foo."bar.moo/baz!".doo`,
+			want: []string{"foo", "bar.moo/baz!", "doo"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseHelmDocsPath(tt.path)
+			require.NoErrorf(t, err, "Path: %q", tt.path)
+			assert.Equalf(t, tt.want, got, "Path: %q", tt.path)
+		})
+	}
+}
+
+func TestParseHelmDocsPath_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr string
+	}{
+		{
+			name:    "start with dot",
+			path:    `.foo`,
+			wantErr: "invalid syntax",
+		},
+		{
+			// This may seem like valid syntax. But helm-docs does not support it, so neither do we
+			name:    "start with quote",
+			path:    `"foo"`,
+			wantErr: "must not start with a quote",
+		},
+		{
+			name:    "unclosed quote",
+			path:    `foo."bar`,
+			wantErr: "invalid syntax",
+		},
+		{
+			name:    "escaped quote",
+			path:    `foo."bar\"moo"`,
+			wantErr: "expected dot separator, but got 'm' in: moo\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseHelmDocsPath(tt.path)
+			require.ErrorContainsf(t, err, tt.wantErr, "Path: %q", tt.path)
 		})
 	}
 }
@@ -373,19 +477,6 @@ func TestSplitHeadCommentsByHelmDocs(t *testing.T) {
 				"# ----- This is my description",
 				"# @schema foo:bar",
 			},
-		},
-		{
-			name: "ignore after invalid first path quoted",
-			comment: "" +
-				"# @schema type:string\n" +
-				"# \"foo\" -- Quotes on first element is not supported by helm-docs\n" +
-				"# @schema foo:bar",
-			wantSchema: []string{
-				"# @schema type:string",
-				"# \"foo\" -- Quotes on first element is not supported by helm-docs",
-				"# @schema foo:bar",
-			},
-			wantHelmDocs: nil,
 		},
 		{
 			name: "ignore after invalid pathed comment",

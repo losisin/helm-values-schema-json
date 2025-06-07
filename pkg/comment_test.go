@@ -150,10 +150,10 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# -- This is my description\n"+
-				"# some other text for the description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# -- This is my description\n" +
+					"# some other text for the description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -169,9 +169,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# -- (string) This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# -- (string) This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -187,9 +187,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# myField.foobar -- (string) This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# myField.foobar -- (string) This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -205,9 +205,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# myField.\"foo bar! :D\".hello -- (string) This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# myField.\"foo bar! :D\".hello -- (string) This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -223,9 +223,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"#--(string)This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# --(string)This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -241,35 +241,15 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# ----- This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# ----- This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
 			valNode: &yaml.Node{},
 			expectedComment: []string{
 				"# @schema type:string",
-				"# Line comment",
-				"# Foot comment",
-			},
-		},
-		{
-			name: "helm-docs/keep after invalid first path quoted",
-			keyNode: &yaml.Node{
-				Kind: yaml.ScalarNode,
-				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# \"foo\" -- Quotes on first element is not supported by helm-docs\n"+
-				"# @schema foo:bar",
-				LineComment: "# Line comment",
-				FootComment: "# Foot comment",
-			},
-			valNode: &yaml.Node{},
-			expectedComment: []string{
-				"# @schema type:string",
-				"# \"foo\" -- Quotes on first element is not supported by helm-docs",
-				"# @schema foo:bar",
 				"# Line comment",
 				"# Foot comment",
 			},
@@ -279,9 +259,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# a b -- This is my description\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# a b -- This is my description\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
@@ -300,9 +280,9 @@ func TestGetComment(t *testing.T) {
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
-				"# @schema type:string\n"+
-				"# @default -- foobar\n"+
-				"# @schema foo:bar",
+					"# @schema type:string\n" +
+					"# @default -- foobar\n" +
+					"# @schema foo:bar",
 				LineComment: "# Line comment",
 				FootComment: "# Foot comment",
 			},
