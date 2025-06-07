@@ -71,7 +71,10 @@ func GenerateJsonSchema(config *Config) error {
 		for i := 0; i < len(rootNode.Content); i += 2 {
 			keyNode := rootNode.Content[i]
 			valNode := rootNode.Content[i+1]
-			schema, isRequired := parseNode(keyNode, valNode)
+			schema, isRequired, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
+			if err != nil {
+				return fmt.Errorf("parse schema: %w", err)
+			}
 
 			// Exclude hidden nodes
 			if schema != nil && !schema.Hidden {
