@@ -35,16 +35,8 @@ func getComments(keyNode, valNode *yaml.Node) []string {
 func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
 	return func(yield func(string, string) bool) {
 		for _, comment := range commentLines {
-			withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
-			withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
+			trimmed, ok := cutSchemaComment(comment)
 			if !ok {
-				continue
-			}
-			trimmed := strings.TrimSpace(withoutSchema)
-			if len(trimmed) == len(withoutSchema) {
-				// this checks if we had "# @schemafoo" instead of "# @schema foo"
-				// which works as we trimmed space before.
-				// So the check is if len("foo") == len(" foo")
 				continue
 			}
 
@@ -59,6 +51,29 @@ func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
 			}
 		}
 	}
+}
+
+// cutSchemaComment turns this:
+//
+//	"# @schema foo bar"
+//
+// into this:
+//
+//	"foo bar"
+func cutSchemaComment(line string) (string, bool) {
+	withoutPound := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+	withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
+	if !ok {
+		return "", false
+	}
+	trimmed := strings.TrimSpace(withoutSchema)
+	if len(trimmed) == len(withoutSchema) {
+		// this checks if we had "# @schemafoo" instead of "# @schema foo"
+		// which works as we trimmed space before.
+		// So the check is if len("foo") == len(" foo")
+		return "", false
+	}
+	return trimmed, true
 }
 
 func getYAMLKind(value string) string {

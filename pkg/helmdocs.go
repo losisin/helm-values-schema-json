@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -30,8 +30,58 @@ type HelmDocsComment struct {
 	CommentsAbove []string // lines above the first "# -- My description"
 }
 
-func ParseHelmDocsComment(s string) (HelmDocsComment, error) {
-	return HelmDocsComment{}, errors.New("not implemented")
+func ParseHelmDocsComment(headComment string) (HelmDocsComment, error) {
+	commentsAbove, helmDocsComments := splitHeadCommentsByHelmDocs(headComment)
+	helmDocs := HelmDocsComment{}
+	if len(commentsAbove) > 0 {
+		helmDocs.CommentsAbove = commentsAbove
+	}
+
+	if len(helmDocsComments) == 0 {
+		return helmDocs, nil
+	}
+
+	firstLine := helmDocsComments[0]
+	groups := helmDocsCommentRegexp.FindStringSubmatch(firstLine)
+	pathString := groups[1]
+	helmDocs.Type = groups[2]
+	descriptionLines := []string{groups[3]}
+
+	if pathString != "" {
+		// TODO: implement proper parsing of path
+		helmDocs.Path = append(helmDocs.Path, pathString)
+	}
+
+	for _, line := range helmDocsComments[1:] {
+		if _, ok := cutSchemaComment(line); ok {
+			return HelmDocsComment{}, fmt.Errorf(
+				"'# @schema' comments are not supported in helm-docs comments. " +
+					"Please set the '# @schema' comment above the helm-docs '# --' line; " +
+					"alternatively put it on the line as the YAML key or as a foot comment on the YAML key. " +
+					"See the helm-values-schema-json docs for more information: https://github.com/losisin/helm-values-schema-json/blob/main/docs/README.md")
+		}
+
+		withoutPound := strings.TrimSpace(strings.TrimPrefix(line, "#"))
+		annotation, value, ok := strings.Cut(withoutPound, "--")
+		if !ok {
+			descriptionLines = append(descriptionLines, withoutPound)
+			continue
+		}
+		annotation = strings.TrimSpace(annotation)
+		value = strings.TrimSpace(value)
+		switch annotation {
+		case "@notationType":
+			helmDocs.NotationType = value
+		case "@default":
+			helmDocs.Default = value
+		case "@section":
+			helmDocs.Section = value
+		}
+	}
+
+	helmDocs.Description = strings.Join(descriptionLines, " ")
+
+	return helmDocs, nil
 }
 
 // splitHeadCommentsByHelmDocs will split a head comment by line and return:

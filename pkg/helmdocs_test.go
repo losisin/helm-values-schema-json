@@ -118,6 +118,22 @@ func TestParseHelmDocsComment(t *testing.T) {
 				Path:        []string{"myField"},
 			},
 		},
+		{
+			name:    "path with segments",
+			comment: "# myField.foo.bar -- This is my description",
+			want: HelmDocsComment{
+				Description: "This is my description",
+				Path:        []string{"myField", "foo", "bar"},
+			},
+		},
+		{
+			name:    "path with quoted segments",
+			comment: "# myField.\"foo.bar\" -- This is my description",
+			want: HelmDocsComment{
+				Description: "This is my description",
+				Path:        []string{"myField", "foo.bar"},
+			},
+		},
 
 		{
 			name: "notationType tpl",
@@ -161,18 +177,18 @@ func TestParseHelmDocsComment(t *testing.T) {
 			name: "section value",
 			comment: "" +
 				"# --\n" +
-				"# @section -- 123",
+				"# @section -- foo",
 			want: HelmDocsComment{
-				Default: "123",
+				Section: "foo",
 			},
 		},
 		{
 			name: "section fail",
 			comment: "" +
 				"# --\n" +
-				"# @section 123",
+				"# @section foo",
 			want: HelmDocsComment{
-				Description: " @section 123",
+				Description: " @section foo",
 			},
 		},
 	}
@@ -182,6 +198,36 @@ func TestParseHelmDocsComment(t *testing.T) {
 			helmDocs, err := ParseHelmDocsComment(tt.comment)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, helmDocs)
+		})
+	}
+}
+
+func TestParseHelmDocsComment_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		wantErr string
+	}{
+		{
+			name: "schema annotations in helm-docs",
+			comment: "" +
+				"# -- This is my description\n" +
+				"# @schema foo: bar",
+			wantErr: "'# @schema' comments are not supported in helm-docs comments",
+		},
+		{
+			name: "schema annotations with minimal spacing in helm-docs",
+			comment: "" +
+				"# -- This is my description\n" +
+				"#@schema foo:bar",
+			wantErr: "'# @schema' comments are not supported in helm-docs comments",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseHelmDocsComment(tt.comment)
+			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
