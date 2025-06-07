@@ -19,10 +19,16 @@ Installed plugin: schema
 
 ## Features
 
-- Add multiple values files and merge them together - required
-- Save output with custom name and location - default is values.schema.json in current working directory
+- Add multiple values files and merge them together - default is `values.yaml` in the current working directory
+- Save output with custom name and location - default is `values.schema.json` in current working directory
 - Use preferred schema draft version - default is draft 2020
-- Read annotations from comments. See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs) for more info or checkout example yaml files in [testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
+- Read annotations from comments.
+- Read description from [helm-docs](https://github.com/norwoodj/helm-docs)
+- Bundling subschemas referenced in `$ref`
+
+See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs)
+for more info or checkout example yaml files in
+[testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
 
 ## Integrations
 

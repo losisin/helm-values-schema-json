@@ -1,0 +1,33 @@
+# The helm-docs type (the "(integer)" part) is ignored by this plugin.
+# You need to use "@schema type" annotation in addition to the helm-docs type:
+# @schema type:integer
+# -- (integer) Number of replicas
+replicas: 1
+
+# -- Description from helm-docs
+nameOverride: "" # @schema description: Description from schema
+
+# service -- Kubernetes Service type
+service: ClusterIP # @schema enum: [ClusterIP, LoadBalancer, null]
+
+image:
+  # -- Docker image name
+  # @section -- Image
+  repository: nginx
+  # -- Docker image tag
+  # @section -- Image
+  # @default -- Defaults to chart `appVersion`
+  tag: ""
+  # -- Image pull policy
+  # @section -- Image
+  pullPolicy: Always # @schema enum: [Always, IfNotPresent, Never]
+
+labels:
+  # labels.app -- App name
+  app: my-app
+
+  # Quoted path when path includes dots
+  # labels."kubernetes.io/hostname" -- Common label for Kubernetes Node hostname
+  kubernetes.io/hostname: localhost
+# this is the footer for "labels", where you can set additional schema annotations
+# @schema type:object,null

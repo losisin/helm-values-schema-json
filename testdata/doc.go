@@ -15,6 +15,8 @@ package testdata
 //go:generate go run .. --input ref.yaml --output ref-draft7.schema.json --draft 7
 //go:generate go run .. --input subschema.yaml --output subschema.schema.json
 
+//go:generate go run .. --useHelmDocs --input helm-docs/values.yaml --output helm-docs/values.schema.json
+
 //go:generate go run .. --bundle=true --input bundle/fragment.yaml --output bundle/fragment.schema.json
 //go:generate go run .. --bundle=true --input bundle/fragment.yaml --output bundle/fragment-without-id.schema.json --bundleWithoutID=true
 //go:generate go run .. --bundle=true --input bundle/namecollision.yaml --output bundle/namecollision.schema.json
