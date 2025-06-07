@@ -12,6 +12,7 @@ func TestGetComment(t *testing.T) {
 		name         string
 		keyNode      *yaml.Node
 		valNode      *yaml.Node
+		useHelmDocs  bool
 		wantComment  []string
 		wantHelmDocs []string
 	}{
@@ -130,7 +131,8 @@ func TestGetComment(t *testing.T) {
 
 		{
 			// Helm-docs comments are further tested in TestSplitHeadCommentsByHelmDocs
-			name: "helm-docs",
+			name:        "helm-docs/on",
+			useHelmDocs: true,
 			keyNode: &yaml.Node{
 				Kind: yaml.ScalarNode,
 				HeadComment: "" +
@@ -151,11 +153,32 @@ func TestGetComment(t *testing.T) {
 				"# @schema foo:bar",
 			},
 		},
+		{
+			name:        "helm-docs/off",
+			useHelmDocs: false,
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+					"# @schema type:string\n" +
+					"# -- This is my description\n" +
+					"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			wantComment: []string{
+				"# @schema type:string",
+				"# -- This is my description",
+				"# @schema foo:bar",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			comments, helmDocs := getComments(tt.keyNode, tt.valNode)
+			comments, helmDocs := getComments(tt.keyNode, tt.valNode, tt.useHelmDocs)
 			assert.Equal(t, tt.wantComment, comments, "schema comments")
 			assert.Equal(t, tt.wantHelmDocs, helmDocs, "helm-docs comments")
 		})

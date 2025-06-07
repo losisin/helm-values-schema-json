@@ -9,10 +9,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func getComments(keyNode, valNode *yaml.Node) (comments, helmDocs []string) {
+func getComments(keyNode, valNode *yaml.Node, useHelmDocs bool) (comments, helmDocs []string) {
 	if keyNode != nil {
 		if keyNode.HeadComment != "" {
 			comments, helmDocs = SplitHelmDocsComment(keyNode.HeadComment)
+			if !useHelmDocs {
+				comments = append(comments, helmDocs...)
+				helmDocs = nil
+			}
 		}
 		if keyNode.LineComment != "" {
 			comments = append(comments, keyNode.LineComment)

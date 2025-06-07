@@ -278,7 +278,7 @@ func getSchemaURL(draft int) (string, error) {
 	}
 }
 
-func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
+func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, bool, error) {
 	schema := &Schema{}
 
 	switch valNode.Kind {
@@ -288,7 +288,10 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		for i := 0; i < len(valNode.Content); i += 2 {
 			childKeyNode := valNode.Content[i]
 			childValNode := valNode.Content[i+1]
-			childSchema, childRequired := parseNode(childKeyNode, childValNode)
+			childSchema, childRequired, err := parseNode(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs)
+			if err != nil {
+				return nil, false, err
+			}
 
 			// Exclude hidden child schemas
 			if childSchema != nil && !childSchema.Hidden {
@@ -315,8 +318,11 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		mergedItemSchema := &Schema{}
 		hasItems := false
 
-		for _, itemNode := range valNode.Content {
-			itemSchema, _ := parseNode(nil, itemNode)
+		for i, itemNode := range valNode.Content {
+			itemSchema, _, err := parseNode(ptr.Item(i), nil, itemNode, useHelmDocs)
+			if err != nil {
+				return nil, false, err
+			}
 			if itemSchema != nil && !itemSchema.Hidden {
 				mergedItemSchema = mergeSchemas(mergedItemSchema, itemSchema)
 				hasItems = true
@@ -335,18 +341,26 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	schemaComments, helmDocsComments := getComments(keyNode, valNode)
-	_ = helmDocsComments // TODO: use this if --helm-docs flag
+	schemaComments, helmDocsComments := getComments(keyNode, valNode, useHelmDocs)
+
+	if useHelmDocs {
+		helmDocs, err := ParseHelmDocsComment(helmDocsComments)
+		if err != nil {
+			return nil, false, fmt.Errorf("%s: parse helm-docs comment: %w", ptr, err)
+		}
+		schema.Description = helmDocs.Description
+	}
+
 	propIsRequired, isHidden := processComment(schema, schemaComments)
 	if isHidden {
-		return nil, false
+		return nil, false, nil
 	}
 
 	if schema.SkipProperties && schema.Type == "object" {
 		schema.Properties = nil
 	}
 
-	return schema, propIsRequired
+	return schema, propIsRequired, nil
 }
 
 func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {

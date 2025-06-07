@@ -582,7 +582,8 @@ func TestParseNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema, isRequired := parseNode(tt.keyNode, tt.valNode)
+			schema, isRequired, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, false)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedType, schema.Type)
 			assert.Equal(t, tt.expectedProps, schema.Properties)
 			assert.Equal(t, tt.expectedItems, schema.Items)

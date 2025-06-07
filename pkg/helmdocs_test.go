@@ -354,7 +354,7 @@ func TestParseHelmDocsPath_Error(t *testing.T) {
 		{
 			name:    "escaped quote",
 			path:    `foo."bar\"moo"`,
-			wantErr: "expected dot separator, but got 'm' in: moo\"",
+			wantErr: "expected dot separator, but got 'm' in: foo.\"bar\\\"moo\"",
 		},
 	}
 

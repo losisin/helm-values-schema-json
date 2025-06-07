@@ -67,10 +67,11 @@ func ParseHelmDocsComment(helmDocsComments []string) (HelmDocsComment, error) {
 	for _, line := range helmDocsComments[1:] {
 		if _, ok := cutSchemaComment(line); ok {
 			return HelmDocsComment{}, fmt.Errorf(
-				"'# @schema' comments are not supported in helm-docs comments. " +
-					"Please set the '# @schema' comment above the helm-docs '# --' line; " +
-					"alternatively put it on the line as the YAML key or as a foot comment on the YAML key. " +
-					"See the helm-values-schema-json docs for more information: https://github.com/losisin/helm-values-schema-json/blob/main/docs/README.md")
+				"'# @schema' comments are not supported in helm-docs comments.\n" +
+					"\tPlease set the '# @schema' comment above the helm-docs '# --' line;\n" +
+					"\talternatively put it on the line as the YAML key or as a foot comment on the YAML key.\n" +
+					"\tSee the helm-values-schema-json docs for more information:\n" +
+					"\thttps://github.com/losisin/helm-values-schema-json/blob/main/docs/README.md")
 		}
 
 		withoutPound := strings.TrimSpace(strings.TrimPrefix(line, "#"))
@@ -129,7 +130,7 @@ func ParseHelmDocsPath(path string) ([]string, error) {
 	for rest != "" {
 		if !strings.HasPrefix(rest, ".") {
 			r, _ := utf8.DecodeRuneInString(rest)
-			return nil, fmt.Errorf("expected dot separator, but got %q in: %s", r, rest)
+			return nil, fmt.Errorf("expected dot separator, but got %q in: %s", r, path)
 		}
 
 		rest = rest[1:]
