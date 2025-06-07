@@ -13,6 +13,8 @@ bundleWithoutID: true # @schema default: false
 k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
 k8sSchemaVersion: "v1.33.1"
 
+useHelmDocs: true # @schema default: false
+
 schemaRoot:
   id: https://example.com/schema
   ref: testdata/bundle/simple-subschema.schema.json

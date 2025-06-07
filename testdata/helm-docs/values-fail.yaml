@@ -1,0 +1,6 @@
+# This comment fails because it's considered invalid to have @schema
+# annotations inside helm-docs comments.
+
+# -- This is my helm-docs description
+# @schema type:integer,null
+foo: 1
