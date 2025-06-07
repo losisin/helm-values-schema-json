@@ -238,6 +238,20 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
 		},
+
+		{
+			name: "helm-docs",
+			config: &Config{
+				Draft:       2020,
+				Indent:      4,
+				UseHelmDocs: true,
+				Input: []string{
+					"../testdata/helm-docs/values.yaml",
+				},
+				Output: "../testdata/helm-docs/values_output.json",
+			},
+			templateSchemaFile: "../testdata/helm-docs/values.schema.json",
+		},
 	}
 
 	for _, tt := range tests {
@@ -403,6 +417,19 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Output: "../testdata/fail-type_output.json",
 			},
 			expectedErr: errors.New("/properties/nameOverride/type/0: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
+		},
+		{
+			name: "invalid helm-docs comment",
+			config: &Config{
+				Draft:       2020,
+				Indent:      4,
+				UseHelmDocs: true,
+				Input: []string{
+					"../testdata/helm-docs/values-fail.yaml",
+				},
+				Output: "../testdata/helm-docs/values-fail_output.json",
+			},
+			expectedErr: errors.New("parse schema: /foo: parse helm-docs comment: '# @schema' comments are not supported in helm-docs comments."),
 		},
 	}
 
