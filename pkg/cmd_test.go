@@ -513,6 +513,7 @@ func writeTempFile(t *testing.T, content string) string {
 	tmpFile, err := os.CreateTemp("", "config-*.yaml")
 	require.NoError(t, err)
 	t.Cleanup(func() {
+		assert.NoError(t, tmpFile.Close())
 		assert.NoError(t, os.Remove(tmpFile.Name()))
 	})
 	_, err = tmpFile.WriteString(content)

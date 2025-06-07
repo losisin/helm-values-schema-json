@@ -30,16 +30,9 @@ func TestRead_FileNotFound(t *testing.T) {
 }
 
 func TestRead_YAMLError(t *testing.T) {
-	file, err := os.CreateTemp("", "yamlfile-*")
-	require.NoError(t, err)
-	defer file.Close()
-	defer os.Remove(file.Name())
-
-	file.WriteString("foo: bar:\n")
-
 	var cfg struct{}
-	p := Provider(cfg, file.Name(), "mytag")
-	_, err = p.Read()
+	p := Provider(cfg, writeTempFile(t, "foo: bar:\n"), "mytag")
+	_, err := p.Read()
 	assert.ErrorContains(t, err, "yaml: mapping values are not allowed in this context")
 }
 
@@ -52,14 +45,7 @@ func TestRead_Success(t *testing.T) {
 		B: "default b",
 	}
 
-	file, err := os.CreateTemp("", "yamlfile-*")
-	require.NoError(t, err)
-	defer file.Close()
-	defer os.Remove(file.Name())
-
-	file.WriteString("yamlA: yaml a\n")
-
-	p := Provider(cfg, file.Name(), "mytag")
+	p := Provider(cfg, writeTempFile(t, "yamlA: yaml a\n"), "mytag")
 	got, err := p.Read()
 	require.NoError(t, err)
 
@@ -68,4 +54,16 @@ func TestRead_Success(t *testing.T) {
 		"mytagB": "default b",
 	}
 	assert.Equal(t, want, got)
+}
+
+func writeTempFile(t *testing.T, content string) string {
+	tmpFile, err := os.CreateTemp("", "yamlfile-*.yaml")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, tmpFile.Close())
+		assert.NoError(t, os.Remove(tmpFile.Name()))
+	})
+	_, err = tmpFile.WriteString(content)
+	require.NoError(t, err)
+	return tmpFile.Name()
 }
