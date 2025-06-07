@@ -2,11 +2,114 @@ package pkg
 
 import (
 	"net/url"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestHTTPCache_CacheDir(t *testing.T) {
+	resetEnvAfterTest(t)
+	os.Clearenv()
+	os.Setenv("HOME", "/foo/bar")
+
+	cache := NewHTTPCache()
+
+	dir, err := cache.cacheDirFunc()
+	require.NoError(t, err)
+	assert.Equal(t, "/foo/bar/.cache/helm-values-schema-json/httploader", dir)
+}
+
+func TestHTTPCache_CacheDir_Error(t *testing.T) {
+	resetEnvAfterTest(t)
+	// Remove $HOME and $XDG_CONFIG_DIR, which makes [os.UserCacheDir] fail
+	os.Clearenv()
+
+	cache := NewHTTPCache()
+	_, err := cache.cacheDirFunc()
+	assert.Error(t, err)
+}
+
+func resetEnvAfterTest(t *testing.T) {
+	envs := os.Environ()
+	t.Cleanup(func() {
+		for _, env := range envs {
+			k, v, _ := strings.Cut(env, "=")
+			os.Setenv(k, v)
+		}
+	})
+}
+
+func TestGetCacheControlMaxAge(t *testing.T) {
+	tests := []struct {
+		name   string
+		header string
+		want   time.Duration
+	}{
+		{
+			name:   "empty",
+			header: "",
+			want:   0,
+		},
+		{
+			name:   "only max-age",
+			header: "max-age=123",
+			want:   123 * time.Second,
+		},
+		{
+			name:   "only no max-age value",
+			header: "max-age",
+			want:   0,
+		},
+		{
+			name:   "only invalid max-age value",
+			header: "max-age=foo",
+			want:   0,
+		},
+		{
+			name:   "valid max-age and max-age with no value",
+			header: "max-age=123, max-age",
+			want:   123 * time.Second,
+		},
+		{
+			name:   "valid max-age and invalid max-age value",
+			header: "max-age=123, max-age=foo",
+			want:   123 * time.Second,
+		},
+		{
+			name:   "max-age with other settings",
+			header: "foo, bar, moo, max-age=123, doo, lorem",
+			want:   123 * time.Second,
+		},
+		{
+			name:   "max-age before no-cache",
+			header: "max-age=123, no-cache",
+			want:   0,
+		},
+		{
+			name:   "max-age after no-cache",
+			header: "no-cache, max-age=123",
+			want:   0,
+		},
+		{
+			name:   "no-cache with value",
+			header: "no-cache=lorem, max-age=123",
+			want:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getCacheControlMaxAge(tt.header)
+			if tt.want != got {
+				t.Errorf("wrong result\nwant: %s\ngot:  %s", tt.want, got)
+			}
+		})
+	}
+}
 
 func TestURLToCachePath(t *testing.T) {
 	urlWithInvalidPath := mustParseURL("https://example.com/")

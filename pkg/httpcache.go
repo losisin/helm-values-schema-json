@@ -107,7 +107,7 @@ func getCacheControlMaxAge(header string) time.Duration {
 		case "max-age":
 			seconds, err := strconv.Atoi(value)
 			if err != nil {
-				return 0
+				continue
 			}
 			maxAge = time.Duration(seconds) * time.Second
 		}
