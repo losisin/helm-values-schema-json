@@ -80,9 +80,9 @@ type Schema struct {
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	Default               any        `json:"default,omitempty" yaml:"default,omitempty"`
+	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Type                  any        `json:"type,omitempty" yaml:"type,omitempty"`
+	Type                  any                `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
 	AnyOf                 []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
