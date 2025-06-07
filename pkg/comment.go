@@ -2,36 +2,19 @@ package pkg
 
 import (
 	"encoding/json"
-	"errors"
 	"iter"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-var helmDocsCommentRegexp = regexp.MustCompile(``)
-
 func getComments(keyNode, valNode *yaml.Node) []string {
 	var comments []string
 	if keyNode != nil {
 		if keyNode.HeadComment != "" {
-			comment := keyNode.HeadComment
-			if index := strings.LastIndex(comment, "\n\n"); index != -1 {
-				// Splits after the last "comment group". In other words, given this:
-				//
-				//	# foo
-				//	# bar
-				//
-				//	# moo
-				//	# doo
-				//	hello: ""
-				//
-				// Then only consider the last "# moo" & "# doo" comments
-				comment = comment[index+2:] // +2 to get rid of the "\n\n"
-			}
-			comments = strings.Split(comment, "\n")
+			schemaComments, _ := splitHeadCommentsByHelmDocs(keyNode.HeadComment)
+			comments = append(comments, schemaComments...)
 		}
 		if keyNode.LineComment != "" {
 			comments = append(comments, keyNode.LineComment)
@@ -49,12 +32,10 @@ func getComments(keyNode, valNode *yaml.Node) []string {
 	return comments
 }
 
-
-func splitCommentByParts(commentLines []string) iter.Seq2[string, string] {
+func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
 	return func(yield func(string, string) bool) {
 		for _, comment := range commentLines {
 			withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
-
 			withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
 			if !ok {
 				continue
@@ -96,23 +77,6 @@ func getYAMLKind(value string) string {
 	return "null"
 }
 
-func getSchemaURL(draft int) (string, error) {
-	switch draft {
-	case 4:
-		return "http://json-schema.org/draft-04/schema#", nil
-	case 6:
-		return "http://json-schema.org/draft-06/schema#", nil
-	case 7:
-		return "http://json-schema.org/draft-07/schema#", nil
-	case 2019:
-		return "https://json-schema.org/draft/2019-09/schema", nil
-	case 2020:
-		return "https://json-schema.org/draft/2020-12/schema", nil
-	default:
-		return "", errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020")
-	}
-}
-
 func processList(comment string, stringsOnly bool) []any {
 	comment = strings.Trim(comment, "[]")
 	items := strings.Split(comment, ",")
@@ -134,7 +98,7 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 	isRequired = false
 	isHidden = false
 
-	for key, value := range splitCommentByParts(commentLines) {
+	for key, value := range splitCommentsByParts(commentLines) {
 		switch key {
 		case "enum":
 			schema.Enum = processList(value, false)

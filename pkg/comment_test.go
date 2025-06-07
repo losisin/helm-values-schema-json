@@ -126,6 +126,195 @@ func TestGetComment(t *testing.T) {
 			},
 			expectedComment: []string{"# Head comment", "# Line comment", "# Foot comment"},
 		},
+
+		{
+			name: "helm-docs/ignore after comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+					"# @schema type:string\n" +
+					"# -- This is my description\n" +
+					"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after multiline comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# -- This is my description\n"+
+				"# some other text for the description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after typed comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# -- (string) This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after pathed comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# myField.foobar -- (string) This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after quoted path comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# myField.\"foo bar! :D\".hello -- (string) This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after compact comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"#--(string)This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/ignore after a lot of dashes",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# ----- This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/keep after invalid first path quoted",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# \"foo\" -- Quotes on first element is not supported by helm-docs\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# \"foo\" -- Quotes on first element is not supported by helm-docs",
+				"# @schema foo:bar",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			name: "helm-docs/keep after invalid pathed comment",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# a b -- This is my description\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# a b -- This is my description",
+				"# @schema foo:bar",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
+		{
+			// The "# -- Description" line is required. Without it helm-docs ignores its other comments like "@default"
+			name: "helm-docs/keep default without description line",
+			keyNode: &yaml.Node{
+				Kind: yaml.ScalarNode,
+				HeadComment: "" +
+				"# @schema type:string\n"+
+				"# @default -- foobar\n"+
+				"# @schema foo:bar",
+				LineComment: "# Line comment",
+				FootComment: "# Foot comment",
+			},
+			valNode: &yaml.Node{},
+			expectedComment: []string{
+				"# @schema type:string",
+				"# @default -- foobar",
+				"# @schema foo:bar",
+				"# Line comment",
+				"# Foot comment",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -135,7 +324,6 @@ func TestGetComment(t *testing.T) {
 		})
 	}
 }
-
 
 func TestSplitCommentByParts(t *testing.T) {
 	type Pair struct {
@@ -241,7 +429,7 @@ func TestSplitCommentByParts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var pairs []Pair
-			for key, value := range splitCommentByParts(tt.comments) {
+			for key, value := range splitCommentsByParts(tt.comments) {
 				pairs = append(pairs, Pair{key, value})
 			}
 			assert.Equal(t, tt.want, pairs)
@@ -249,7 +437,7 @@ func TestSplitCommentByParts(t *testing.T) {
 	}
 }
 
-func TestSplitCommentByParts_break(t *testing.T) {
+func TestSplitCommentsByParts_break(t *testing.T) {
 	type Pair struct {
 		Key, Value string
 	}
@@ -257,7 +445,7 @@ func TestSplitCommentByParts_break(t *testing.T) {
 	comments := []string{"# @schema foo:bar; moo:doo; baz:boz"}
 
 	var pairs []Pair
-	for key, value := range splitCommentByParts(comments) {
+	for key, value := range splitCommentsByParts(comments) {
 		pairs = append(pairs, Pair{key, value})
 		if len(pairs) == 2 {
 			break

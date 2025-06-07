@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"iter"
 	"maps"
@@ -257,6 +258,23 @@ func (s *Schema) SetKind(kind SchemaKind) {
 		s.kind = SchemaKindObject
 	default:
 		panic(fmt.Errorf("Schema.SetKind(%#v): unexpected kind", kind))
+	}
+}
+
+func getSchemaURL(draft int) (string, error) {
+	switch draft {
+	case 4:
+		return "http://json-schema.org/draft-04/schema#", nil
+	case 6:
+		return "http://json-schema.org/draft-06/schema#", nil
+	case 7:
+		return "http://json-schema.org/draft-07/schema#", nil
+	case 2019:
+		return "https://json-schema.org/draft/2019-09/schema", nil
+	case 2020:
+		return "https://json-schema.org/draft/2020-12/schema", nil
+	default:
+		return "", errors.New("invalid draft version. Please use one of: 4, 6, 7, 2019, 2020")
 	}
 }
 
