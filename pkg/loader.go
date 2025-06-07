@@ -25,7 +25,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -155,11 +154,8 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 }
 
 func pathWindowsFix(path string) string {
-	if runtime.GOOS == "windows" {
-		path = strings.TrimPrefix(path, "/")
-		path = filepath.FromSlash(path)
-	}
-	return path
+	// This is practically a no-op on Linux, but is required on Windows
+	return filepath.FromSlash(strings.TrimPrefix(path, "/"))
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
