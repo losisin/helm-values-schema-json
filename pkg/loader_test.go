@@ -440,6 +440,14 @@ func TestHTTPLoader_Error(t *testing.T) {
 	})
 }
 
+func TestHTTPLoader_NewRequestError(t *testing.T) {
+	failHTTPLoaderNewRequest = true
+	defer func() { failHTTPLoaderNewRequest = false }()
+	loader := NewHTTPLoader(http.DefaultClient)
+	_, err := loader.Load(t.Context(), mustParseURL("file://localhost"))
+	assert.ErrorContains(t, err, `create request: `)
+}
+
 func TestFormatSizeBytes(t *testing.T) {
 	tests := []struct {
 		name string

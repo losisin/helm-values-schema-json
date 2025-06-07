@@ -308,11 +308,11 @@ func FixRootSchemaRef(rootSchemaRef, filePath string) string {
 	if rootSchemaRef == "" {
 		return ""
 	}
-	parsed, err := url.Parse(pathWindowsFix(rootSchemaRef))
+	parsed, err := url.Parse(rootSchemaRef)
 	if err != nil || parsed.Scheme != "" {
 		return rootSchemaRef
 	}
-	relPath, err := filepath.Rel(filepath.Dir(filePath), parsed.Path)
+	relPath, err := filepath.Rel(filepath.Dir(filePath), filepath.FromSlash(parsed.Path))
 	if err != nil {
 		err := fmt.Errorf("tried to fix root schema $ref path for bundling: get relative path from file %q to schema root ref %q: %w", filePath, rootSchemaRef, err)
 		fmt.Println("Warning:", err)

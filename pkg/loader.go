@@ -25,7 +25,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -120,7 +119,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if ref.Path == "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
-	path := pathWindowsFix(ref.Path)
+	path := filepath.FromSlash(ref.Path)
 	if loader.basePath != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(loader.basePath, path)
 	}
@@ -152,14 +151,6 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		}
 		return &schema, nil
 	}
-}
-
-func pathWindowsFix(path string) string {
-	if runtime.GOOS == "windows" {
-		path = strings.TrimPrefix(path, "/")
-		path = filepath.FromSlash(path)
-	}
-	return path
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
@@ -220,6 +211,9 @@ var _ Loader = HTTPLoader{}
 
 var yamlMediaTypeRegexp = regexp.MustCompile(`^application/(.*\+)?yaml$`)
 
+// Flag is only used in testing to achieve better test coverage
+var failHTTPLoaderNewRequest bool
+
 // Load implements [Loader].
 func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
 	// Hardcoding a higher limit so CI/CD pipelines don't get stuck
@@ -230,8 +224,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	refClone.Fragment = ""
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
-	if err != nil {
-		return nil, err
+	if err != nil || failHTTPLoaderNewRequest {
+		// The [http.NewRequestWithContext] will never fail,
+		// so we have to induce a fake failure via [failHTTPLoaderNewRequest]
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 	// YAML now has a proper media type since Feb 2024 :D
 	// https://datatracker.ietf.org/doc/rfc9512/
