@@ -22,36 +22,36 @@ func TestMain(t *testing.T) {
 		{
 			name:          "HelpFlag",
 			args:          []string{"schema", "-h"},
-			expectedOut:   "Usage of schema",
+			expectedOut:   "Usage:\n  helm schema",
 			expectedError: "",
 		},
 		{
 			name:          "CompleteFlag",
-			args:          []string{"schema", "__complete"},
+			args:          []string{"schema", "__complete", "--d"},
 			expectedOut:   "--draft\tDraft version",
 			expectedError: "",
 		},
 		{
 			name:          "InvalidFlags",
-			args:          []string{"schema", "-fail"},
+			args:          []string{"schema", "--fail"},
 			expectedOut:   "",
-			expectedError: "flag provided but not defined",
+			expectedError: "unknown flag: --fail",
 		},
 		{
 			name:          "SuccessfulRun",
-			args:          []string{"schema", "-input", "testdata/basic.yaml"},
+			args:          []string{"schema", "--input", "testdata/basic.yaml"},
 			expectedOut:   "JSON schema successfully generated",
 			expectedError: "",
 		},
 		{
 			name:          "GenerateError",
-			args:          []string{"schema", "-input", "fail.yaml", "-draft", "2020"},
+			args:          []string{"schema", "--input", "fail.yaml", "--draft", "2020"},
 			expectedOut:   "error reading YAML file(s)",
 			expectedError: "",
 		},
 		{
 			name: "ErrorLoadingConfigFile",
-			args: []string{"schema", "-input", "testdata/basic.yaml"},
+			args: []string{"schema", "--input", "testdata/basic.yaml"},
 			setup: func() {
 				if _, err := os.Stat(".schema.yaml"); err == nil {
 					if err := os.Rename(".schema.yaml", ".schema.yaml.bak"); err != nil {
@@ -84,14 +84,18 @@ func TestMain(t *testing.T) {
 				}
 			},
 			expectedOut:   "",
-			expectedError: "Error loading config file",
+			expectedError: "Error: parsing config:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			originalArgs := os.Args
-			originalStdout := os.Stdout
+			defer func(args []string, stdout, stderr *os.File) {
+				// Reset to original args/stdout/stderr at end of test
+				os.Args = args
+				os.Stdout = stdout
+				os.Stderr = stderr
+			}(os.Args, os.Stdout, os.Stderr)
 
 			if tt.setup != nil {
 				tt.setup()
@@ -102,6 +106,7 @@ func TestMain(t *testing.T) {
 
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			os.Stderr = w
 
 			os.Args = tt.args
 
@@ -124,9 +129,6 @@ func TestMain(t *testing.T) {
 			if err != nil {
 				t.Errorf("Error reading stdout: %v", err)
 			}
-
-			os.Args = originalArgs
-			os.Stdout = originalStdout
 
 			out := buf.String()
 
