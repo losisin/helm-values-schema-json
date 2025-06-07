@@ -83,9 +83,9 @@ type Schema struct {
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	Default               interface{}        `json:"default,omitempty" yaml:"default,omitempty"`
+	Default               any        `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Type                  interface{}        `json:"type,omitempty" yaml:"type,omitempty"`
+	Type                  any        `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
 	AnyOf                 []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
@@ -228,7 +228,7 @@ func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 }
 
 // MarshalYAML implements [yaml.Marshaler].
-func (s *Schema) MarshalYAML() (interface{}, error) {
+func (s *Schema) MarshalYAML() (any, error) {
 	switch s.Kind() {
 	case SchemaKindTrue:
 		return true, nil
@@ -332,11 +332,11 @@ func getComments(keyNode, valNode *yaml.Node) []string {
 	return comments
 }
 
-func processList(comment string, stringsOnly bool) []interface{} {
+func processList(comment string, stringsOnly bool) []any {
 	comment = strings.Trim(comment, "[]")
 	items := strings.Split(comment, ",")
 
-	var list []interface{}
+	var list []any
 	for _, item := range items {
 		trimmedItem := strings.TrimSpace(item)
 		if !stringsOnly && trimmedItem == "null" {
@@ -425,7 +425,7 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 				schema.ReadOnly = v
 			}
 		case "default":
-			var jsonObject interface{}
+			var jsonObject any
 			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
 				schema.Default = jsonObject
 			}
