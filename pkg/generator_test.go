@@ -20,7 +20,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 		{
 			name: "full json schema",
 			config: &Config{
-				Input: []string{
+				Values: []string{
 					"../testdata/full.yaml",
 					"../testdata/empty.yaml",
 				},
@@ -43,7 +43,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Draft:                  2020,
 				Indent:                 4,
 				NoAdditionalProperties: true,
-				Input: []string{
+				Values: []string{
 					"../testdata/noAdditionalProperties.yaml",
 				},
 				Output: "../testdata/output1.json",
@@ -58,7 +58,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:           4,
 				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				K8sSchemaVersion: "v1.33.1",
-				Input: []string{
+				Values: []string{
 					"../testdata/k8sRef.yaml",
 				},
 				Output: "../testdata/k8sRef_output.json",
@@ -71,7 +71,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:  7,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/ref.yaml",
 				},
 				Output: "../testdata/ref-draft7_output.json",
@@ -83,7 +83,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/ref.yaml",
 				},
 				Output: "../testdata/ref-draft2020_output.json",
@@ -98,7 +98,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "../",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle/simple_output.json",
@@ -111,7 +111,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Draft:  2020,
 				Indent: 4,
 				Bundle: false,
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle/simple-disabled_output.json",
@@ -126,7 +126,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Bundle:          true,
 				BundleWithoutID: true,
 				BundleRoot:      "../",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
@@ -140,7 +140,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/nested.yaml",
 				},
 				Output: "../testdata/bundle/nested_output.json",
@@ -155,7 +155,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Bundle:          true,
 				BundleWithoutID: true,
 				BundleRoot:      "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/nested.yaml",
 				},
 				Output: "../testdata/bundle/nested-without-id_output.json",
@@ -169,7 +169,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/fragment.yaml",
 				},
 				Output: "../testdata/bundle/fragment_output.json",
@@ -184,7 +184,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Bundle:          true,
 				BundleWithoutID: true,
 				BundleRoot:      "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/fragment.yaml",
 				},
 				Output: "../testdata/bundle/fragment-without-id_output.json",
@@ -198,7 +198,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/namecollision.yaml",
 				},
 				Output: "../testdata/bundle/namecollision_output.json",
@@ -212,7 +212,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/yaml.yaml",
 				},
 				Output: "../testdata/bundle/yaml_output.json",
@@ -231,7 +231,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 					// Should be relative to CWD, which is this ./pkg dir
 					Ref: "../testdata/bundle/simple-subschema.schema.json",
 				},
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle/simple-root-ref_output.json",
@@ -271,26 +271,26 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "Missing input flag",
+			name: "Missing values flag",
 			config: &Config{
-				Input:  nil,
+				Values: nil,
 				Draft:  2020,
 				Indent: 0,
 			},
-			expectedErr: errors.New("input flag is required"),
+			expectedErr: errors.New("values flag is required"),
 		},
 		{
 			name: "Invalid draft version",
 			config: &Config{
-				Input: []string{"../testdata/basic.yaml"},
-				Draft: 5,
+				Values: []string{"../testdata/basic.yaml"},
+				Draft:  5,
 			},
 			expectedErr: errors.New("invalid draft version"),
 		},
 		{
 			name: "Negative indentation number",
 			config: &Config{
-				Input:  []string{"../testdata/basic.yaml"},
+				Values: []string{"../testdata/basic.yaml"},
 				Draft:  2020,
 				Output: "testdata/failure/output_readonly_schema.json",
 				Indent: 0,
@@ -300,7 +300,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Odd indentation number",
 			config: &Config{
-				Input:  []string{"../testdata/basic.yaml"},
+				Values: []string{"../testdata/basic.yaml"},
 				Draft:  2020,
 				Output: "testdata/failure/output_readonly_schema.json",
 				Indent: 1,
@@ -310,7 +310,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Missing file",
 			config: &Config{
-				Input:  []string{"missing.yaml"},
+				Values: []string{"missing.yaml"},
 				Draft:  2020,
 				Indent: 4,
 			},
@@ -319,7 +319,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Fail Unmarshal",
 			config: &Config{
-				Input:  []string{"../testdata/fail"},
+				Values: []string{"../testdata/fail"},
 				Output: "testdata/failure/output_readonly_schema.json",
 				Draft:  2020,
 				Indent: 4,
@@ -329,7 +329,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Read-only filesystem",
 			config: &Config{
-				Input:  []string{"../testdata/basic.yaml"},
+				Values: []string{"../testdata/basic.yaml"},
 				Output: "testdata/failure/output_readonly_schema.json",
 				Draft:  2020,
 				Indent: 4,
@@ -343,7 +343,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: "\000", // null byte is invalid in both linux & windows
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
@@ -357,7 +357,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: ".",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
@@ -371,7 +371,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:     4,
 				Bundle:     true,
 				BundleRoot: filepath.Clean("/"),
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
@@ -385,7 +385,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:           4,
 				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				K8sSchemaVersion: "",
-				Input: []string{
+				Values: []string{
 					"../testdata/k8sRef.yaml",
 				},
 				Output: "../testdata/k8sRef_output.json",
@@ -397,7 +397,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/fail-type.yaml",
 				},
 				Output: "../testdata/fail-type_output.json",
@@ -466,7 +466,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &Config{
-				Input:                  []string{"../testdata/empty.yaml"},
+				Values:                 []string{"../testdata/empty.yaml"},
 				Output:                 "../testdata/empty.schema.json",
 				Draft:                  2020,
 				Indent:                 4,

@@ -663,11 +663,11 @@ subchart: # @schema $ref: https://example.com/schema.json
 You can use `$ref: $k8s/...` as a shorthand for
 `https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/...`
 
-To use that you must provide the `--k8sSchemaVersion` flag or `k8sSchemaVersion`
+To use that you must provide the `--k8s-schema-version` flag or `k8s-schema-version`
 config. For example:
 
 ```bash
-helm schema --input values.yaml --k8sSchemaVersion v1.33.1
+helm schema --values values.yaml --k8s-schema-version v1.33.1
 ```
 
 ```yaml
@@ -696,12 +696,12 @@ memory: # @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.apimachinery.
 You can bundle referenced schemas, which will resolve the `$ref` and embeds the
 result in `$defs`. To enable bundling, use the command-line flags:
 
-- `--bundle true` enables bundling (default: `false`)
+- `--bundle` enables bundling (default: `false`)
 
-- `--bundleRoot /some/path` sets the root directory from which file `$ref` are
+- `--bundle-root /some/path` sets the root directory from which file `$ref` are
   allowed to read files from (default: current working directory)
 
-- `--bundleWithoutID true` works as a compatibility mode by disabling usage of
+- `--bundle-without-id` works as a compatibility mode by disabling usage of
   `$id` and overriding `$ref` with syntax like `"$ref": "#/$defs/schema.json"`
   instead of retaining the original `$ref`. This is helpful for VSCode and
   other editors using Microsoft's JSON language server as that implementation
