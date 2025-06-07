@@ -764,9 +764,28 @@ fullnameOverride: bar
 },
 ```
 
-The helm-docs integration only supports using descriptions.
-Setting type, `@default --`, `@section --`, or any other helm-docs setting
-has no effect on the generated schema.
+The following helm-docs features are not supported:
+
+- Helm-docs specific properties:
+
+  - `# @default --`
+  - `# @section --`
+  - *etc.*
+
+- Detached comments. Meaning, comments that are not directly above the property.
+  For example:
+
+  ```yaml
+  # fullnameOverride -- This works
+  fullnameOverride: bar
+  ```
+
+  ```yaml
+  fullnameOverride: bar
+
+  # fullnameOverride -- This does not work. Helm-docs will see the comment,
+  # but this schema plugin will not.
+  ```
 
 While this plugin supports helm-docs, helm-docs does not support this plugin.
 So on comments above the field must have the `# @schema` comments
