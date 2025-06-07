@@ -265,7 +265,7 @@ func TestHTTPLoader(t *testing.T) {
 
 			ctx := t.Context()
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			schema, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, schema, "Schema")
@@ -290,7 +290,7 @@ func TestHTTPLoader(t *testing.T) {
 
 			ctx := t.Context()
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			schema, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, schema, "Schema")
@@ -313,7 +313,7 @@ func TestHTTPLoader(t *testing.T) {
 			ctx := t.Context()
 			ctx = ContextWithLoaderReferrer(ctx, "http://some-referrerer")
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
 			assert.Equal(t, `<http://some-referrerer>; rel="describedby"`, linkHeader, "Link header")
@@ -382,7 +382,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 			ctx := t.Context()
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
@@ -400,7 +400,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `unsupported content encoding: "foobar"`)
 	})
@@ -417,7 +417,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `connect: connection refused`)
 	})
@@ -434,7 +434,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `create gzip reader: unexpected EOF`)
 	})
