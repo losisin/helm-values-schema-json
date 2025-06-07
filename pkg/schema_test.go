@@ -593,6 +593,63 @@ func TestParseNode(t *testing.T) {
 	}
 }
 
+func TestParseNode_Error(t *testing.T) {
+	tests := []struct {
+		name        string
+		keyNode     *yaml.Node
+		valNode     *yaml.Node
+		useHelmDocs bool
+		wantErr     string
+	}{
+		{
+			name: "helm-docs map",
+			valNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind: yaml.ScalarNode, Value: "key",
+						HeadComment: "" +
+							"# -- Desc\n" +
+							"# @schema this should not be here",
+					},
+					{Kind: yaml.ScalarNode, Value: "value"},
+				},
+			},
+			useHelmDocs: true,
+			wantErr:     "/key: parse helm-docs comment",
+		},
+		{
+			name: "helm-docs seq",
+			valNode: &yaml.Node{
+				Kind: yaml.SequenceNode,
+				Content: []*yaml.Node{
+					{
+						Kind: yaml.MappingNode,
+						Content: []*yaml.Node{
+							{
+								Kind: yaml.ScalarNode, Value: "key",
+								HeadComment: "" +
+									"# -- Desc\n" +
+									"# @schema this should not be here",
+							},
+							{Kind: yaml.ScalarNode, Value: "value"},
+						},
+					},
+				},
+			},
+			useHelmDocs: true,
+			wantErr:     "/key: parse helm-docs comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, tt.useHelmDocs)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestSchemaSubschemas_order(t *testing.T) {
 	tests := []struct {
 		name   string

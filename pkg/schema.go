@@ -348,7 +348,9 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		if err != nil {
 			return nil, false, fmt.Errorf("%s: parse helm-docs comment: %w", ptr, err)
 		}
-		schema.Description = helmDocs.Description
+		if len(helmDocs.Path) == 0 || ptr.Equals(NewPtr(helmDocs.Path...)) {
+			schema.Description = helmDocs.Description
+		}
 	}
 
 	propIsRequired, isHidden := processComment(schema, schemaComments)

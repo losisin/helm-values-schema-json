@@ -318,6 +318,11 @@ func TestParseHelmDocsPath(t *testing.T) {
 			path: `foo."bar.moo/baz!".doo`,
 			want: []string{"foo", "bar.moo/baz!", "doo"},
 		},
+		{
+			name: "label",
+			path: `labels."kubernetes.io/hostname"`,
+			want: []string{"labels", "kubernetes.io/hostname"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -339,6 +344,11 @@ func TestParseHelmDocsPath_Error(t *testing.T) {
 			name:    "start with dot",
 			path:    `.foo`,
 			wantErr: "invalid syntax",
+		},
+		{
+			name:    "end with dot",
+			path:    `foo.`,
+			wantErr: "expected value after final dot: foo.",
 		},
 		{
 			// This may seem like valid syntax. But helm-docs does not support it, so neither do we
