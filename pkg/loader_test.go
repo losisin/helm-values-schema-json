@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -95,11 +96,62 @@ func TestFileLoader_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := NewFileLoader(root, "")
+			loader := NewFileLoader((*RootFS)(root), "")
 			_, err := loader.Load(t.Context(), tt.url)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+type DummyFS struct {
+	OpenFunc func(name string) (fs.File, error)
+}
+
+var _ fs.FS = DummyFS{}
+
+// Open implements [fs.FS].
+func (d DummyFS) Open(name string) (fs.File, error) {
+	return d.OpenFunc(name)
+}
+
+type DummyFile struct {
+	StatFunc  func() (fs.FileInfo, error)
+	ReadFunc  func([]byte) (int, error)
+	CloseFunc func() error
+}
+
+var _ fs.File = DummyFile{}
+
+// Close implements [fs.File].
+func (d DummyFile) Close() error {
+	return d.CloseFunc()
+}
+
+// Read implements [fs.File].
+func (d DummyFile) Read(b []byte) (int, error) {
+	return d.ReadFunc(b)
+}
+
+// Stat implements [fs.File].
+func (d DummyFile) Stat() (fs.FileInfo, error) {
+	return d.StatFunc()
+}
+
+func TestFileLoader_TestFSError(t *testing.T) {
+	root := DummyFS{
+		OpenFunc: func(name string) (fs.File, error) {
+			return DummyFile{
+				CloseFunc: func() error { return nil },
+				ReadFunc: func([]byte) (int, error) {
+					return 0, fmt.Errorf("dummy error")
+				},
+			}, nil
+		},
+	}
+
+	loader := NewFileLoader(root, "")
+	_, err := loader.Load(t.Context(), mustParseURL("./some-fake-file.txt"))
+	assert.ErrorContains(t, err, "read $ref=\"./some-fake-file.txt\" file: dummy error")
 }
 
 func TestURLSchemeLoader_Error(t *testing.T) {

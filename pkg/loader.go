@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"maps"
 	"mime"
 	"net/http"
@@ -32,8 +33,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func NewDefaultLoader(client *http.Client, root *os.Root, basePath string) Loader {
-	fileLoader := NewFileLoader(root, basePath)
+// RootFS is a replacement for [os.Root.FS] that intentionally doesn't call
+// [fs.ValidPath] as that messes up the error messages and doesn't add any
+// security guarantees as all the security is implemented in [os.Root] already.
+type RootFS os.Root
+
+var _ fs.FS = &RootFS{}
+
+// Open implements [fs.FS].
+func (r *RootFS) Open(name string) (fs.File, error) {
+	return ((*os.Root)(r)).Open(name)
+}
+
+func NewDefaultLoader(client *http.Client, fs fs.FS, basePath string) Loader {
+	fileLoader := NewFileLoader(fs, basePath)
 	httpLoader := NewHTTPLoader(client)
 	return NewCacheLoader(URLSchemeLoader{
 		"http":  httpLoader,
@@ -86,13 +99,13 @@ func (loader DummyLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 // FileLoader loads a schema from a "$ref: file:/some/path" reference
 // from the local file-system.
 type FileLoader struct {
-	root     *os.Root
+	fs       fs.FS
 	basePath string
 }
 
-func NewFileLoader(root *os.Root, basePath string) FileLoader {
+func NewFileLoader(fs fs.FS, basePath string) FileLoader {
 	return FileLoader{
-		root:     root,
+		fs:       fs,
 		basePath: basePath,
 	}
 }
@@ -113,7 +126,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	}
 
 	fmt.Println("Loading file", path)
-	f, err := loader.root.Open(path)
+	f, err := loader.fs.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
 	}

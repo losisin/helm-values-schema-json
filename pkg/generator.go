@@ -111,7 +111,7 @@ func GenerateJsonSchema(config *Config) error {
 			if err != nil {
 				return fmt.Errorf("get relative path from bundle root to file %q: %w", filePath, err)
 			}
-			loader := NewDefaultLoader(http.DefaultClient, root, basePath)
+			loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), basePath)
 			if err := BundleSchema(ctx, loader, tempSchema); err != nil {
 				return fmt.Errorf("bundle schemas on %q: %w", filePath, err)
 			}
