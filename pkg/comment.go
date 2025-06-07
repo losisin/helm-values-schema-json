@@ -13,7 +13,7 @@ func getComments(keyNode, valNode *yaml.Node) []string {
 	var comments []string
 	if keyNode != nil {
 		if keyNode.HeadComment != "" {
-			schemaComments, _ := splitHeadCommentsByHelmDocs(keyNode.HeadComment)
+			schemaComments, _ := SplitHelmDocsComment(keyNode.HeadComment)
 			comments = append(comments, schemaComments...)
 		}
 		if keyNode.LineComment != "" {

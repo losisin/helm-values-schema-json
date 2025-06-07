@@ -10,76 +10,84 @@ import (
 func TestParseHelmDocsComment(t *testing.T) {
 	tests := []struct {
 		name    string
-		comment string
+		comment []string
 		want    HelmDocsComment
 	}{
 		{
-			name:    "empty",
-			comment: "",
+			name:    "empty slice",
+			comment: []string{},
 			want:    HelmDocsComment{},
 		},
 		{
-			name:    "no helm-docs",
-			comment: "# @schema type:string",
-			want: HelmDocsComment{
-				CommentsAbove: []string{"# @schema type:string"},
-			},
+			name:    "empty string",
+			comment: []string{""},
+			want:    HelmDocsComment{},
 		},
 
 		{
-			name:    "description simple",
-			comment: "# -- This is my description",
+			name: "description simple",
+			comment: []string{
+				"# -- This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 			},
 		},
 		{
 			name: "description multiline",
-			comment: "" +
-				"# -- This is\n" +
+			comment: []string{
+				"# -- This is",
 				"# my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 			},
 		},
 		{
 			name: "description only second line",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"#This is my description",
+			},
 			want: HelmDocsComment{
 				Description: " This is my description",
 			},
 		},
 		{
 			name: "description multiline no spacing",
-			comment: "" +
-				"# --This is\n" +
+			comment: []string{
+				"# --This is",
 				"#my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 			},
 		},
 		{
-			name:    "description no spacing",
-			comment: "# --This is my description",
+			name: "description no spacing",
+			comment: []string{
+				"# --This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 			},
 		},
 		{
-			name:    "description extra dashes",
-			comment: "# ------- This is my description",
+			name: "description extra dashes",
+			comment: []string{
+				"# ------- This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "----- This is my description",
 			},
 		},
 		{
 			name: "description continue after keyword",
-			comment: "" +
-				"# -- This is\n" +
-				"# @default -- foo\n" +
+			comment: []string{
+				"# -- This is",
+				"# @default -- foo",
 				"# my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 				Default:     "foo",
@@ -87,16 +95,20 @@ func TestParseHelmDocsComment(t *testing.T) {
 		},
 
 		{
-			name:    "type only",
-			comment: "# -- (myType)",
+			name: "type only",
+			comment: []string{
+				"# -- (myType)",
+			},
 			want: HelmDocsComment{
 				Description: "",
 				Type:        "myType",
 			},
 		},
 		{
-			name:    "type with description",
-			comment: "# -- (myType) This is my description",
+			name: "type with description",
+			comment: []string{
+				"# -- (myType) This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 				Type:        "myType",
@@ -104,31 +116,39 @@ func TestParseHelmDocsComment(t *testing.T) {
 		},
 
 		{
-			name:    "path only",
-			comment: "# myField --",
+			name: "path only",
+			comment: []string{
+				"# myField --",
+			},
 			want: HelmDocsComment{
 				Path: []string{"myField"},
 			},
 		},
 		{
-			name:    "path with description",
-			comment: "# myField -- This is my description",
+			name: "path with description",
+			comment: []string{
+				"# myField -- This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 				Path:        []string{"myField"},
 			},
 		},
 		{
-			name:    "path with segments",
-			comment: "# myField.foo.bar -- This is my description",
+			name: "path with segments",
+			comment: []string{
+				"# myField.foo.bar -- This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 				Path:        []string{"myField", "foo", "bar"},
 			},
 		},
 		{
-			name:    "path with quoted segments",
-			comment: "# myField.\"foo.bar\" -- This is my description",
+			name: "path with quoted segments",
+			comment: []string{
+				"# myField.\"foo.bar\" -- This is my description",
+			},
 			want: HelmDocsComment{
 				Description: "This is my description",
 				Path:        []string{"myField", "foo.bar"},
@@ -137,18 +157,20 @@ func TestParseHelmDocsComment(t *testing.T) {
 
 		{
 			name: "notationType tpl",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @notationType -- tpl",
+			},
 			want: HelmDocsComment{
 				NotationType: "tpl",
 			},
 		},
 		{
 			name: "notationType fail",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @notationType tpl",
+			},
 			want: HelmDocsComment{
 				Description: " @notationType tpl",
 			},
@@ -156,18 +178,20 @@ func TestParseHelmDocsComment(t *testing.T) {
 
 		{
 			name: "default value",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @default -- 123",
+			},
 			want: HelmDocsComment{
 				Default: "123",
 			},
 		},
 		{
 			name: "default fail",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @default 123",
+			},
 			want: HelmDocsComment{
 				Description: " @default 123",
 			},
@@ -175,18 +199,20 @@ func TestParseHelmDocsComment(t *testing.T) {
 
 		{
 			name: "section value",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @section -- foo",
+			},
 			want: HelmDocsComment{
 				Section: "foo",
 			},
 		},
 		{
 			name: "section fail",
-			comment: "" +
-				"# --\n" +
+			comment: []string{
+				"# --",
 				"# @section foo",
+			},
 			want: HelmDocsComment{
 				Description: " @section foo",
 			},
@@ -205,26 +231,30 @@ func TestParseHelmDocsComment(t *testing.T) {
 func TestParseHelmDocsComment_Error(t *testing.T) {
 	tests := []struct {
 		name    string
-		comment string
+		comment []string
 		wantErr string
 	}{
 		{
 			name: "schema annotations in helm-docs",
-			comment: "" +
-				"# -- This is my description\n" +
+			comment: []string{
+				"# -- This is my description",
 				"# @schema foo: bar",
+			},
 			wantErr: "'# @schema' comments are not supported in helm-docs comments",
 		},
 		{
 			name: "schema annotations with minimal spacing in helm-docs",
-			comment: "" +
-				"# -- This is my description\n" +
+			comment: []string{
+				"# -- This is my description",
 				"#@schema foo:bar",
+			},
 			wantErr: "'# @schema' comments are not supported in helm-docs comments",
 		},
 		{
-			name:    "invalid path",
-			comment: "# foo.\"bar -- This is my description",
+			name: "invalid path",
+			comment: []string{
+				"# foo.\"bar -- This is my description",
+			},
 			wantErr: "invalid syntax",
 		},
 	}
@@ -522,7 +552,7 @@ func TestSplitHeadCommentsByHelmDocs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schemaComments, helmDocsComments := splitHeadCommentsByHelmDocs(tt.comment)
+			schemaComments, helmDocsComments := SplitHelmDocsComment(tt.comment)
 			assert.Equal(t, tt.wantSchema, schemaComments, "Schema comments")
 			assert.Equal(t, tt.wantHelmDocs, helmDocsComments, "helm-docs comments")
 		})

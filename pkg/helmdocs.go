@@ -34,16 +34,10 @@ type HelmDocsComment struct {
 	NotationType string   // Example: "# @notationType -- myType"
 	Default      string   // Example: "# @default -- myDefault"
 	Section      string   // Example: "# @section -- mySection"
-
-	CommentsAbove []string // lines above the first "# -- My description"
 }
 
-func ParseHelmDocsComment(headComment string) (HelmDocsComment, error) {
-	commentsAbove, helmDocsComments := splitHeadCommentsByHelmDocs(headComment)
+func ParseHelmDocsComment(helmDocsComments []string) (HelmDocsComment, error) {
 	helmDocs := HelmDocsComment{}
-	if len(commentsAbove) > 0 {
-		helmDocs.CommentsAbove = commentsAbove
-	}
 
 	if len(helmDocsComments) == 0 {
 		return helmDocs, nil
@@ -51,6 +45,12 @@ func ParseHelmDocsComment(headComment string) (HelmDocsComment, error) {
 
 	firstLine := helmDocsComments[0]
 	groups := helmDocsCommentRegexp.FindStringSubmatch(firstLine)
+
+	if groups == nil {
+		// regexp returns nil on no match
+		return helmDocs, nil
+	}
+
 	pathString := groups[1]
 	helmDocs.Type = groups[2]
 	descriptionLines := []string{groups[3]}
@@ -161,11 +161,11 @@ func ParseHelmDocsPath(path string) ([]string, error) {
 	return parts, nil
 }
 
-// splitHeadCommentsByHelmDocs will split a head comment by line and return:
+// SplitHelmDocsComment will split a head comment by line and return:
 //
 // - Lines from last comment block, up until any helm-docs comments
 // - Liens from helm-docs comments
-func splitHeadCommentsByHelmDocs(headComment string) (schemaComments, helmDocs []string) {
+func SplitHelmDocsComment(headComment string) (before, helmDocs []string) {
 	if headComment == "" {
 		return nil, nil
 	}
