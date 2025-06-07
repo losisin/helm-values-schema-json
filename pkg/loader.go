@@ -32,6 +32,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func NewDefaultLoader(client *http.Client, root *os.Root, basePath string) Loader {
+	fileLoader := NewFileLoader(root, basePath)
+	httpLoader := NewHTTPLoader(client)
+	return NewCacheLoader(URLSchemeLoader{
+		"http":  httpLoader,
+		"https": httpLoader,
+		"file":  fileLoader, // Used for "file:///some/abs/path"
+		"":      fileLoader, // Used for "./foobar.json" or "/some/abs/path"
+	})
+}
+
 // Load uses a bundle [Loader] to resolve a schema "$ref".
 // Depending on the loader implementation, it may read from cache,
 // read files from disk, or fetch files from the web using HTTP.

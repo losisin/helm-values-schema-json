@@ -3,24 +3,11 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
 )
-
-func NewDefaultLoader(client *http.Client, root *os.Root, basePath string) Loader {
-	fileLoader := NewFileLoader(root, basePath)
-	httpLoader := NewHTTPLoader(client)
-	return NewCacheLoader(URLSchemeLoader{
-		"http":  httpLoader,
-		"https": httpLoader,
-		"file":  fileLoader, // Used for "file:///some/abs/path"
-		"":      fileLoader, // Used for "./foobar.json" or "/some/abs/path"
-	})
-}
 
 // BundleSchema will use the [Loader] to load any "$ref" references and
 // store them in "$defs".
