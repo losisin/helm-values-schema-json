@@ -3,7 +3,7 @@
     "type": "object",
     "properties": {
         "image": {
-            "$ref": "./yaml-subschema.schema.yaml",
+            "$ref": "yaml-subschema.schema.yaml",
             "type": "object",
             "properties": {
                 "pullPolicy": {
@@ -21,7 +21,7 @@
     "$defs": {
         "yaml-subschema.schema.yaml": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "./yaml-subschema.schema.yaml",
+            "$id": "yaml-subschema.schema.yaml",
             "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
             "type": "object",
             "properties": {

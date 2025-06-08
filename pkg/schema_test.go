@@ -372,7 +372,7 @@ func TestSchemaSetKind_panics(t *testing.T) {
 			name:    "set nil",
 			kind:    SchemaKindObject,
 			schema:  nil,
-			wantErr: "Schema.SetKind(object): method reciever must not be nil",
+			wantErr: "Schema.SetKind(object): method receiver must not be nil",
 		},
 		{
 			name:    "set invalid kind",
@@ -740,6 +740,466 @@ func TestSchemaSubschemas_order(t *testing.T) {
 				}
 				require.Equal(t, "abc", strings.Join(ids, ""))
 			}
+		})
+	}
+}
+
+func TestSchemaMakeAllRefSubdir(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		schema *Schema
+		want   *Schema
+	}{
+		{
+			name:   "empty schema",
+			path:   "foobar",
+			schema: &Schema{},
+			want:   &Schema{},
+		},
+		{
+			name: "change root ref",
+			path: "foobar",
+			schema: &Schema{
+				Ref: "moo.json",
+			},
+			want: &Schema{
+				Ref: "foobar/moo.json",
+			},
+		},
+		{
+			name: "change subschema ref",
+			path: "foobar",
+			schema: &Schema{
+				Items: &Schema{
+					Ref: "moo.json",
+				},
+			},
+			want: &Schema{
+				Items: &Schema{
+					Ref: "foobar/moo.json",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, tt.schema.MakeAllRefSubdir(tt.path))
+			assert.Equal(t, tt.want, tt.schema)
+		})
+	}
+}
+
+func TestSchemaMakeAllRefSubdir_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		schema  *Schema
+		wantErr string
+	}{
+		{
+			name: "root invalid URL",
+			schema: &Schema{
+				Ref: "::",
+			},
+			wantErr: "/$ref: parse \"::\"",
+		},
+		{
+			name: "subschema invalid URL",
+			schema: &Schema{
+				Items: &Schema{
+					Ref: "::",
+				},
+			},
+			wantErr: "/items/$ref: parse \"::\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.schema.MakeAllRefSubdir(tt.path)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestRefSubdir(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		path string
+		want string
+	}{
+		{
+			name: "empty ref",
+			ref:  "",
+			path: "moo/bar",
+			want: "",
+		},
+		{
+			name: "ignore when only fragment",
+			ref:  "#/foo/bar",
+			path: "moo/bar",
+			want: "#/foo/bar",
+		},
+		{
+			name: "ignore unknown scheme",
+			ref:  "http://example.com",
+			path: "moo/bar",
+			want: "http://example.com",
+		},
+
+		{
+			name: "relative to URL without trailing slash",
+			ref:  "foo.json",
+			path: "http://example.com",
+			want: "http://example.com/foo.json",
+		},
+
+		{
+			name: "file scheme hostname",
+			ref:  "file://foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "file scheme dot hostname",
+			ref:  "file://./foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "file scheme parent dir hostname",
+			ref:  "file://../foo",
+			path: "moo/bar",
+			want: "moo/foo",
+		},
+
+		{
+			name: "no scheme hostname",
+			ref:  "foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "no scheme dot hostname",
+			ref:  "./foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "no scheme parent dir hostname",
+			ref:  "../foo",
+			path: "moo/bar",
+			want: "moo/foo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RefSubdir(tt.ref, tt.path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRefSubdir_WithAndWithoutScheme(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		path string
+		want string
+	}{
+		{
+			name: "hostname",
+			ref:  "foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "dot hostname",
+			ref:  "./foo",
+			path: "moo/bar",
+			want: "moo/bar/foo",
+		},
+		{
+			name: "parent dir hostname",
+			ref:  "../foo",
+			path: "moo/bar",
+			want: "moo/foo",
+		},
+		{
+			name: "keep fragment",
+			ref:  "foo#heyo",
+			path: "moo/bar",
+			want: "moo/bar/foo#heyo",
+		},
+
+		{
+			name: "relative to URL with trailing slash",
+			ref:  "foo.json",
+			path: "http://example.com/",
+			want: "http://example.com/foo.json",
+		},
+		{
+			name: "relative to URL parent",
+			ref:  "../foo.json",
+			path: "http://example.com/doo/roo/",
+			want: "http://example.com/doo/foo.json",
+		},
+		{
+			name: "relative to URL overrides fragment and query",
+			ref:  "foo.json",
+			path: "http://example.com/?a=b#foobar",
+			want: "http://example.com/foo.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run("no scheme", func(t *testing.T) {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := RefSubdir(tt.ref, tt.path)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			})
+		})
+		t.Run("file scheme", func(t *testing.T) {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := RefSubdir("file://"+tt.ref, tt.path)
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			})
+		})
+	}
+}
+
+func TestRefSubdir_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		ref     string
+		path    string
+		wantErr string
+	}{
+		{
+			name:    "invalid referrer URL",
+			ref:     "foobar",
+			path:    "http:// ",
+			wantErr: "parse referrer:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := RefSubdir(tt.ref, tt.path)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestParseRefFile(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want RefFile
+	}{
+		{
+			name: "empty",
+			ref:  "",
+			want: RefFile{},
+		},
+		{
+			name: "not file scheme",
+			ref:  "http://x",
+			want: RefFile{},
+		},
+		{
+			name: "hostname",
+			ref:  "foo",
+			want: RefFile{"foo", ""},
+		},
+		{
+			name: "dot hostname",
+			ref:  "./foo",
+			want: RefFile{"./foo", ""},
+		},
+		{
+			name: "parent dir hostname",
+			ref:  "../foo",
+			want: RefFile{"../foo", ""},
+		},
+		{
+			name: "fragment",
+			ref:  "foo#heyo",
+			want: RefFile{"foo", "heyo"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseRefFile(tt.ref)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestParseRefFile_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		ref     string
+		wantErr string
+	}{
+		{
+			name:    "invalid URL",
+			ref:     "::",
+			wantErr: "parse \"::\"",
+		},
+		{
+			name:    "file scheme empty",
+			ref:     "file://",
+			wantErr: "unexpected empty file://",
+		},
+		{
+			name:    "query",
+			ref:     "foo?heyo=mayo",
+			wantErr: "file query parameters not supported",
+		},
+		{
+			name:    "userinfo",
+			ref:     "file://user:pass@foo",
+			wantErr: "file URL user info not supported",
+		},
+
+		{
+			name:    "no-scheme/absolute",
+			ref:     "/foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "no-scheme/dot absolute",
+			ref:     "/./foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "no-scheme/parent dir absolute",
+			ref:     "/../foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/absolute",
+			ref:     "file:///foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/dot absolute",
+			ref:     "file:///./foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/parent dir absolute",
+			ref:     "file:///../foo",
+			wantErr: "absolute paths not supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseRefFile(tt.ref)
+			assert.ErrorContains(t, err, tt.wantErr, "ParseRefFile")
+
+			t.Run("RefSubdir", func(t *testing.T) {
+				_, err := RefSubdir(tt.ref, "")
+				assert.ErrorContains(t, err, tt.wantErr, "RefSubdir")
+			})
+			t.Run("RefRelativeTo", func(t *testing.T) {
+				_, err := RefRelativeTo(tt.ref, "")
+				assert.ErrorContains(t, err, tt.wantErr, "RefRelativeTo")
+			})
+		})
+	}
+}
+
+func TestRefRelativeTo(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		path string
+		want string
+	}{
+		{
+			name: "empty ref",
+			ref:  "",
+			path: "moo/bar",
+			want: "",
+		},
+		{
+			name: "no subdirs",
+			ref:  "file.json",
+			path: ".",
+			want: "file.json",
+		},
+		{
+			name: "same directory",
+			ref:  "foo/file.json",
+			path: "foo",
+			want: "file.json",
+		},
+		{
+			name: "same deep directory",
+			ref:  "foo/bar/moo/file.json",
+			path: "foo/bar/moo",
+			want: "file.json",
+		},
+		{
+			name: "ref is lower",
+			ref:  "foo/bar/moo/file.json",
+			path: "foo",
+			want: "bar/moo/file.json",
+		},
+		{
+			name: "ref is higher",
+			ref:  "foo/file.json",
+			path: "foo/bar/moo",
+			want: "../../file.json",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RefRelativeTo(tt.ref, tt.path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRefRelativeTo_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		ref     string
+		path    string
+		wantErr string
+	}{
+		{
+			name:    "invalid ref",
+			ref:     "::",
+			path:    "foo",
+			wantErr: "parse \"::\": missing protocol scheme",
+		},
+		{
+			name:    "absolute path",
+			ref:     "foo.json",
+			path:    "/bar",
+			wantErr: "can't make . relative to /bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := RefRelativeTo(tt.ref, tt.path)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }

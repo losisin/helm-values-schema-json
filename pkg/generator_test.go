@@ -238,6 +238,62 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
 		},
+		{
+			name: "bundle/absolute path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     true,
+				BundleRoot: filepath.Clean("/"),
+				Values: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				Output: "../testdata/bundle/simple-abs_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-absolute-root.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: false,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: true,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values-without-id.schema.json",
+		},
 
 		{
 			name: "helm-docs",
@@ -257,13 +313,13 @@ func TestGenerateJsonSchema(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := GenerateJsonSchema(tt.config)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
 
 			generatedBytes, err := os.ReadFile(tt.config.Output)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from os.ReadFile on config.Output")
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from os.ReadFile on templateSchemaFile")
 
 			t.Logf("Generated output:\n%s\n", generatedBytes)
 
@@ -379,18 +435,21 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("path escapes from parent"),
 		},
 		{
-			name: "bundle fail to get relative path",
+			name: "bundle invalid root ref file",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
 				Bundle:     true,
-				BundleRoot: filepath.Clean("/"),
+				BundleRoot: "..",
+				SchemaRoot: SchemaRoot{
+					Ref: "::",
+				},
 				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("get relative path from bundle root to file"),
+			expectedErr: errors.New("../testdata/bundle/simple.yaml: root $ref=\"::\": change relative to file: parse \"::\": missing protocol scheme"),
 		},
 		{
 			name: "invalid k8s ref alias",

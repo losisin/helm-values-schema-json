@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"path"
-	"path/filepath"
 	"strings"
 )
 
@@ -302,25 +301,4 @@ func bundleRefURLToID(ref *url.URL) string {
 	refClone := *ref
 	refClone.Fragment = ""
 	return refClone.String()
-}
-
-func FixRootSchemaRef(rootSchemaRef, filePath string) string {
-	if rootSchemaRef == "" {
-		return ""
-	}
-	parsed, err := url.Parse(rootSchemaRef)
-	if err != nil || parsed.Scheme != "" {
-		return rootSchemaRef
-	}
-	relPath, err := filepath.Rel(filepath.Dir(filePath), filepath.FromSlash(parsed.Path))
-	if err != nil {
-		err := fmt.Errorf("tried to fix root schema $ref path for bundling: get relative path from file %q to schema root ref %q: %w", filePath, rootSchemaRef, err)
-		fmt.Println("Warning:", err)
-		return rootSchemaRef
-	}
-	relPath = filepath.ToSlash(relPath)
-	if !strings.HasPrefix(relPath, "./") && !strings.HasPrefix(relPath, "../") {
-		relPath = "./" + relPath
-	}
-	return relPath
 }

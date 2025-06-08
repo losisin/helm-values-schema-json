@@ -38,15 +38,10 @@ func GenerateJsonSchema(config *Config) error {
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
 
-	bundleRoot := config.BundleRoot
-	if bundleRoot == "" {
-		bundleRoot = "."
-	}
-	root, err := os.OpenRoot(bundleRoot)
+	absFirstFileDir, err := filepath.Abs(filepath.Dir(config.Values[0]))
 	if err != nil {
-		return fmt.Errorf("open bundle root: %w", err)
+		return fmt.Errorf("get absolute path for file %s: %w", config.Values[0], err)
 	}
-	defer closeIgnoreError(root)
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
@@ -99,30 +94,60 @@ func GenerateJsonSchema(config *Config) error {
 			Ref:         config.SchemaRoot.Ref,
 		}
 
-		// Apply "$ref: $k8s/..." transformation
-		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
-			return err
+		if config.Bundle && config.SchemaRoot.Ref != "" {
+			// Rewrite $ref to make sure we can resolve it when bundling
+			newRef, err := RefRelativeTo(config.SchemaRoot.Ref, filepath.Dir(filePath))
+			if err != nil {
+				return fmt.Errorf("%s: root $ref=%q: change relative to file: %w", filePath, config.SchemaRoot.Ref, err)
+			}
+			tempSchema.Ref = newRef
 		}
 
-		if config.Bundle {
-			ctx := context.Background()
+		// Apply "$ref: $k8s/..." transformation
+		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
+			return fmt.Errorf("%s: %w", filePath, err)
+		}
 
-			// https://github.com/losisin/helm-values-schema-json/issues/159
-			tempSchema.Ref = FixRootSchemaRef(tempSchema.Ref, filePath)
-
-			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
-			if err != nil {
-				return fmt.Errorf("get relative path from bundle root to file %q: %w", filePath, err)
-			}
-			loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), basePath)
-			if err := BundleSchema(ctx, loader, tempSchema); err != nil {
-				return fmt.Errorf("bundle schemas on %q: %w", filePath, err)
-			}
+		// TODO: test this
+		// TODO: change to relative to output dir instead of first file
+		parent, err := filepath.Rel(filepath.Dir(config.Values[0]), filepath.Dir(filePath))
+		if err != nil {
+			return fmt.Errorf("file %s -> file %s: get relative path: %w", config.Values[0], filePath, err)
+		}
+		if err := tempSchema.MakeAllRefSubdir(parent); err != nil {
+			return fmt.Errorf("%s: update $ref in schema be relative to file path: %w", filePath, err)
 		}
 
 		// Merge with existing data
 		mergedSchema = mergeSchemas(mergedSchema, tempSchema)
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
+	}
+
+	if config.Bundle {
+		ctx := context.Background()
+
+		bundleRoot := config.BundleRoot
+		if bundleRoot == "" {
+			bundleRoot = "."
+		}
+		root, err := os.OpenRoot(bundleRoot)
+		if err != nil {
+			return fmt.Errorf("open bundle root: %w", err)
+		}
+		defer closeIgnoreError(root)
+
+		absBundleRoot, err := filepath.Abs(bundleRoot)
+		if err != nil {
+			return fmt.Errorf("get absolute path for bundle root: %w", err)
+		}
+		base, err := filepath.Rel(absBundleRoot, absFirstFileDir)
+		if err != nil {
+			return fmt.Errorf("file %s -> bundle root %s: get relative path: %w", config.Values[0], bundleRoot, err)
+		}
+		loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), base)
+		if err := BundleSchema(ctx, loader, mergedSchema); err != nil {
+			return fmt.Errorf("bundle schemas: %w", err)
+		}
 	}
 
 	if config.Bundle && config.BundleWithoutID {

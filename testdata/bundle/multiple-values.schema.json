@@ -1,33 +1,44 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$ref": "simple-subschema.schema.json",
     "type": "object",
     "properties": {
-        "subchart": {
-            "$ref": "nested-subschema.schema.json",
+        "image": {
+            "$ref": "simple-subschema.schema.json",
+            "type": "null"
+        },
+        "resources": {
             "type": "object",
             "properties": {
-                "replicas": {
-                    "type": "integer"
+                "limits": {
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "type": "string"
+                        },
+                        "memory": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "requests": {
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "type": "string"
+                        },
+                        "memory": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         }
     },
     "$defs": {
-        "nested-subschema.schema.json": {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "nested-subschema.schema.json",
-            "$comment": "This subschema references some other schemas",
-            "type": "object",
-            "properties": {
-                "image": {
-                    "$ref": "./simple-subschema.schema.json"
-                }
-            },
-            "additionalProperties": false
-        },
         "simple-subschema.schema.json": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "./simple-subschema.schema.json",
+            "$id": "simple-subschema.schema.json",
             "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
             "type": "object",
             "properties": {

@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"iter"
 	"maps"
+	"net/url"
+	"path"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -247,7 +251,7 @@ func (s *Schema) Kind() SchemaKind {
 
 func (s *Schema) SetKind(kind SchemaKind) {
 	if s == nil {
-		panic(fmt.Errorf("Schema.SetKind(%#v): method reciever must not be nil", kind))
+		panic(fmt.Errorf("Schema.SetKind(%#v): method receiver must not be nil", kind))
 	}
 	switch kind {
 	case SchemaKindTrue:
@@ -433,4 +437,133 @@ func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
 			}
 		}
 	}
+}
+
+func (s *Schema) MakeAllRefSubdir(parent string) error {
+	return s.makeAllRefSubdir(NewPtr(), parent)
+}
+
+func (s *Schema) makeAllRefSubdir(ptr Ptr, parent string) error {
+	for ptr, subschema := range s.Subschemas() {
+		if err := subschema.makeAllRefSubdir(ptr.Add(ptr), parent); err != nil {
+			return err
+		}
+	}
+
+	if s.Ref == "" {
+		return nil
+	}
+
+	ref, err := RefSubdir(s.Ref, parent)
+	if err != nil {
+		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	}
+
+	s.Ref = ref
+	return nil
+}
+
+// RefSubdir converts a "$ref" to be a subdirectory to a give path.
+// The path can also be a HTTP URL.
+func RefSubdir(ref, parent string) (string, error) {
+	refFile, err := ParseRefFile(ref)
+	if err != nil {
+		return "", err
+	}
+	if refFile.Path == "" {
+		return ref, err
+	}
+
+	parent = filepath.ToSlash(parent)
+
+	// TODO: add a variant that does "filepath.Rel" or some "relative to" shenanigans
+
+	if strings.HasPrefix(parent, "http://") || strings.HasPrefix(parent, "https://") {
+		relativeToURL, err := url.Parse(parent)
+		if err != nil {
+			return "", fmt.Errorf("parse referrer: %w", err)
+		}
+		relativeToURL.Fragment = refFile.Fragment
+		relativeToURL.RawQuery = ""
+		relativeToURL.Path = path.Join(relativeToURL.Path, refFile.Path)
+		return relativeToURL.String(), nil
+	}
+
+	refFile.Path = path.Join(parent, refFile.Path)
+	return refFile.String(), nil
+}
+
+// RefRelativeTo converts a "$ref" to be relative to a give path.
+func RefRelativeTo(ref, relativeTo string) (string, error) {
+	refFile, err := ParseRefFile(ref)
+	if err != nil {
+		return "", err
+	}
+	if refFile.Path == "" {
+		return ref, err
+	}
+
+	relativeDir, err := filepath.Rel(relativeTo, filepath.Dir(filepath.FromSlash(refFile.Path)))
+	if err != nil {
+		return "", err
+	}
+	refFile.Path = path.Join(filepath.ToSlash(relativeDir), path.Base(refFile.Path))
+	return refFile.String(), nil
+}
+
+// RefFile is a parsed "$ref: file://" schema property
+type RefFile struct {
+	Path     string
+	Fragment string
+}
+
+func (r RefFile) String() string {
+	if r.Fragment != "" {
+		return fmt.Sprintf("%s#%s", r.Path, r.Fragment)
+	}
+	return r.Path
+}
+
+func ParseRefFile(ref string) (RefFile, error) {
+	if ref == "" {
+		return RefFile{}, nil
+	}
+	if strings.HasPrefix(ref, "#") {
+		return RefFile{Fragment: ref}, nil
+	}
+
+	u, err := url.Parse(ref)
+	if err != nil {
+		return RefFile{}, err
+	}
+
+	switch {
+	case u.Scheme != "" && u.Scheme != "file":
+		return RefFile{}, nil
+
+	case u.RawQuery != "":
+		return RefFile{}, fmt.Errorf("file query parameters not supported")
+
+	case u.User != nil:
+		return RefFile{}, fmt.Errorf("file URL user info not supported")
+
+	case u.Scheme == "file" && u.Host == "" && u.Path == "":
+		return RefFile{}, fmt.Errorf("unexpected empty file://")
+
+	case u.Scheme == "" && strings.HasPrefix(u.Path, "/"),
+		u.Scheme == "file" && u.Host == "" && u.Path != "":
+		// Treat "/foo" & "file:///" as invalid
+		return RefFile{}, fmt.Errorf("absolute paths not supported")
+	}
+	u.Scheme = ""
+
+	if u.Host != "" {
+		u.Path = path.Join(u.Host, u.Path)
+		u.Host = ""
+	}
+
+	return RefFile{
+		Path:     u.Path,
+		Fragment: u.Fragment,
+	}, nil
 }
