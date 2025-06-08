@@ -312,6 +312,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
+
 			cwd, err := os.Getwd()
 			require.NoError(t, err)
 			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
@@ -328,10 +334,6 @@ func TestGenerateJsonSchema(t *testing.T) {
 			t.Logf("Generated output:\n%s\n", generatedBytes)
 
 			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
-
-			if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
-				t.Errorf("failed to remove values.schema.json: %v", err)
-			}
 		})
 	}
 }
@@ -498,6 +500,12 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
+
 			if tt.setupFunc != nil {
 				err := tt.setupFunc()
 				assert.NoError(t, err)
