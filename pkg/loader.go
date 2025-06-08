@@ -200,11 +200,15 @@ func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 }
 
 type HTTPLoader struct {
-	client *http.Client
+	client    *http.Client
+	SizeLimit int64
 }
 
 func NewHTTPLoader(client *http.Client) HTTPLoader {
-	return HTTPLoader{client: client}
+	return HTTPLoader{
+		client:    client,
+		SizeLimit: 200 * 1000 * 1000, // arbitrary limit, but prevents CLI from eating all RAM
+	}
 }
 
 var _ Loader = HTTPLoader{}
@@ -254,7 +258,11 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	}
 	defer closeIgnoreError(resp.Body)
 
-	reader := resp.Body
+	var reader io.Reader = resp.Body
+	if loader.SizeLimit > 0 {
+		reader = LimitReaderWithError(reader, loader.SizeLimit,
+			fmt.Errorf("aborted request after reading more than %s", formatSizeBytes(int(loader.SizeLimit))))
+	}
 	switch resp.Header.Get("Content-Encoding") {
 	case "gzip":
 		r, err := gzip.NewReader(reader)
