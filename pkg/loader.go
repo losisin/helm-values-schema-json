@@ -71,13 +71,14 @@ func Load(ctx context.Context, loader Loader, ref *url.URL, basePath string) (*S
 		return nil, err
 	}
 
-	schema.ID = trimFragment(ref)
-	if ref.Scheme == "" && ref.Path != "" {
+	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
 		rel, err := filepath.Rel(basePath, ref.Path)
 		if err != nil {
 			return nil, err
 		}
 		schema.ID = filepath.ToSlash(filepath.Clean(rel))
+	} else {
+		schema.ID = trimFragment(ref)
 	}
 	return schema, nil
 }

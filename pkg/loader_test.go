@@ -47,7 +47,7 @@ func TestLoad_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := Load(t.Context(), tt.loader, tt.ref)
+			_, err := Load(t.Context(), tt.loader, tt.ref, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}

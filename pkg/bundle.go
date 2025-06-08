@@ -50,7 +50,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	}
 
 	// Make sure schema $ref corresponds with the corrected path
-	if ref.Scheme == "" && ref.Path != "" {
+	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
 		rel, err := filepath.Rel(basePath, ref.Path)
 		if err != nil {
 			return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)

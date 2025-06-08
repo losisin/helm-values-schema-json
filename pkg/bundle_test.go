@@ -347,7 +347,7 @@ func TestBundle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema)
+			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.schema)
 
@@ -399,7 +399,7 @@ func TestBundle_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema)
+			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
