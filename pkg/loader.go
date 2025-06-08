@@ -277,7 +277,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	defer closeIgnoreError(resp.Body)
 
 	if cached.ETag != "" && resp.StatusCode == http.StatusNotModified {
-		cached, schema, err := loader.LoadCacheETag(req, resp, cached)
+		cached, schema, err := loader.SaveCacheETag(req, resp, cached)
 		if err == nil {
 			duration := time.Since(start)
 			fmt.Printf("=> renewed cache of %s in %s (expires in %s)\n",
@@ -386,7 +386,7 @@ func (loader HTTPLoader) SaveCache(req *http.Request, resp *http.Response, body 
 	return cached, nil
 }
 
-func (loader HTTPLoader) LoadCacheETag(req *http.Request, resp *http.Response, cached CachedResponse) (CachedResponse, *Schema, error) {
+func (loader HTTPLoader) SaveCacheETag(req *http.Request, resp *http.Response, cached CachedResponse) (CachedResponse, *Schema, error) {
 	if loader.cache == nil {
 		return CachedResponse{}, nil, nil
 	}
@@ -407,6 +407,9 @@ func (loader HTTPLoader) LoadCache(req *http.Request) (CachedResponse, *Schema, 
 	}
 	cached, err := loader.cache.LoadCache(req)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return CachedResponse{}, nil, nil
+		}
 		return CachedResponse{}, nil, err
 	}
 	if cached.Expired() {

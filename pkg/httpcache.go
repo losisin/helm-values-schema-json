@@ -17,34 +17,27 @@ import (
 )
 
 type HTTPCache struct {
-	cacheDirFunc func() (string, error)
+	cacheDirFunc func() string
 }
 
 func NewHTTPCache() *HTTPCache {
 	return &HTTPCache{
-		cacheDirFunc: sync.OnceValues(func() (string, error) {
+		cacheDirFunc: sync.OnceValue(func() string {
 			dir, err := os.UserCacheDir()
 			if err != nil {
-				return "", err
+				// Default to /tmp if there's no user $HOME
+				dir = os.TempDir()
 			}
-			return filepath.Join(dir, "helm-values-schema-json", "httploader"), nil
+			return filepath.Join(dir, "helm-values-schema-json", "httploader")
 		}),
 	}
 }
 
 func (h *HTTPCache) LoadCache(req *http.Request) (CachedResponse, error) {
-	path := urlToCachePath(req.URL) + ".gob.gz"
-	dir, err := h.cacheDirFunc()
-	if err != nil {
-		return CachedResponse{}, err
-	}
-	path = filepath.Join(dir, path)
+	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
 
 	file, err := os.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return CachedResponse{}, nil
-		}
 		return CachedResponse{}, err
 	}
 	defer closeIgnoreError(file)
@@ -56,7 +49,7 @@ func (h *HTTPCache) LoadCache(req *http.Request) (CachedResponse, error) {
 	gobDecoder := gob.NewDecoder(gzipReader)
 	var cached CachedResponse
 	if err := gobDecoder.Decode(&cached); err != nil {
-		return CachedResponse{}, err
+		return CachedResponse{}, fmt.Errorf("decode cached response: %w", err)
 	}
 	return cached, nil
 }
@@ -67,19 +60,15 @@ func (h *HTTPCache) SaveCache(req *http.Request, resp *http.Response, body []byt
 		// Response doesn't want to be cached.
 		return CachedResponse{}, nil
 	}
+
 	cached := CachedResponse{
 		Data:     body,
 		CachedAt: time.Now(),
 		MaxAge:   maxAge,
 		ETag:     resp.Header.Get("ETag"),
 	}
+	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
 
-	path := urlToCachePath(req.URL) + ".gob.gz"
-	dir, err := h.cacheDirFunc()
-	if err != nil {
-		return CachedResponse{}, err
-	}
-	path = filepath.Join(dir, path)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return CachedResponse{}, fmt.Errorf("mkdir: %w", err)
 	}
@@ -134,19 +123,23 @@ func urlToCachePath(u *url.URL) string {
 	if port := u.Port(); port != "" {
 		segments = append(segments, port)
 	}
-	urlPath := strings.TrimPrefix(filepath.Clean(u.Path), "/")
-	if urlPath == "." {
-		urlPath = ""
-	}
+	urlPath := strings.TrimPrefix(u.Path, "/")
 	if urlPath != "" {
-		pathSegments := filepath.SplitList(urlPath)
+		pathSegments := strings.Split(urlPath, "/")
 		for i, seg := range pathSegments {
-			if _, err := filepath.Localize(seg); err != nil {
-				// convert any invalid path segments into base32
-				pathSegments[i] = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString([]byte(seg))
+			switch seg {
+			case ".":
+				pathSegments[i] = "_dot"
+			case "..":
+				pathSegments[i] = "_up"
+			default:
+				if _, err := filepath.Localize(seg); err != nil {
+					// convert any invalid path segments into base32
+					pathSegments[i] = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString([]byte(seg))
+				}
 			}
 		}
-		urlPath = filepath.Join(pathSegments...)
+		urlPath = filepath.Clean(filepath.Join(pathSegments...))
 	}
 	segments = append(segments, cmp.Or(urlPath, "_index"))
 	return filepath.Join(segments...)

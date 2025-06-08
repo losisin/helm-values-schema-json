@@ -1,8 +1,13 @@
 package pkg
 
 import (
+	"compress/gzip"
+	"encoding/gob"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,8 +23,7 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 
 	cache := NewHTTPCache()
 
-	dir, err := cache.cacheDirFunc()
-	require.NoError(t, err)
+	dir := cache.cacheDirFunc()
 	assert.Equal(t, "/foo/bar/.cache/helm-values-schema-json/httploader", dir)
 }
 
@@ -29,8 +33,8 @@ func TestHTTPCache_CacheDir_Error(t *testing.T) {
 	os.Clearenv()
 
 	cache := NewHTTPCache()
-	_, err := cache.cacheDirFunc()
-	assert.Error(t, err)
+	dir := cache.cacheDirFunc()
+	assert.Equal(t, "/tmp/helm-values-schema-json/httploader", dir)
 }
 
 func resetEnvAfterTest(t *testing.T) {
@@ -41,6 +45,128 @@ func resetEnvAfterTest(t *testing.T) {
 			os.Setenv(k, v)
 		}
 	})
+}
+
+func TestLoadCache(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		setup   func(t *testing.T, dir string)
+		want    CachedResponse
+		wantErr string
+	}{
+		{
+			name:    "empty url",
+			url:     "",
+			setup:   func(t *testing.T, dir string) {},
+			wantErr: "no such file or directory",
+		},
+		{
+			name:    "file not found",
+			url:     "http://example.com/file.txt",
+			setup:   func(t *testing.T, dir string) {},
+			wantErr: "no such file or directory",
+		},
+		{
+			name: "dir",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.gob.gz"), 0755))
+			},
+			wantErr: "file.txt.gob.gz: is a directory",
+		},
+		{
+			name: "invalid gzip",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				subdir := filepath.Join(dir, "http", "example.com")
+				require.NoError(t, os.MkdirAll(subdir, 0755))
+				require.NoError(t, os.WriteFile(filepath.Join(subdir, "file.txt.gob.gz"), []byte("this is invalid gzip"), 0644))
+			},
+			wantErr: "gzip: invalid header",
+		},
+		{
+			name: "invalid gob",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				subdir := filepath.Join(dir, "http", "example.com")
+
+				require.NoError(t, os.MkdirAll(subdir, 0755))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.gob.gz"))
+				require.NoError(t, err)
+				defer func() { assert.NoError(t, file.Close()) }()
+
+				w := gzip.NewWriter(file)
+				defer func() { assert.NoError(t, w.Close()) }()
+
+				_, err = io.WriteString(w, "this is invalid gob")
+				require.NoError(t, err)
+			},
+			wantErr: "decode cached response: unexpected EOF",
+		},
+		{
+			name: "valid",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				subdir := filepath.Join(dir, "http", "example.com")
+
+				require.NoError(t, os.MkdirAll(subdir, 0755))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.gob.gz"))
+				require.NoError(t, err)
+				defer func() { assert.NoError(t, file.Close()) }()
+
+				w := gzip.NewWriter(file)
+				defer func() { assert.NoError(t, w.Close()) }()
+
+				// Copy the type here, so that we can detect regressions in case the real struct is changed
+				type CachedResponse struct {
+					CachedAt time.Time
+					MaxAge   time.Duration
+					ETag     string
+					Data     []byte
+				}
+
+				enc := gob.NewEncoder(w)
+				require.NoError(t, enc.Encode(CachedResponse{
+					CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
+					MaxAge:   time.Hour,
+					ETag:     "lorem ipsum",
+					Data:     []byte(`{"foo":"bar"}`),
+				}))
+			},
+			want: CachedResponse{
+				CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
+				MaxAge:   time.Hour,
+				ETag:     "lorem ipsum",
+				Data:     []byte(`{"foo":"bar"}`),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cache := NewHTTPCache()
+			dir, err := os.MkdirTemp("", "schema-httpcache-*")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				assert.NoError(t, os.RemoveAll(dir))
+			})
+			cache.cacheDirFunc = func() string { return dir }
+
+			req, err := http.NewRequest(http.MethodGet, tt.url, nil)
+			require.NoError(t, err)
+
+			tt.setup(t, dir)
+
+			cached, err := cache.LoadCache(req)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+			assert.Equal(t, tt.want, cached)
+		})
+	}
 }
 
 func TestGetCacheControlMaxAge(t *testing.T) {
@@ -172,13 +298,23 @@ func TestURLToCachePath(t *testing.T) {
 			url:  mustParseURL("https://example.com//subdir///index.html"),
 			want: "https/example.com/subdir/index.html",
 		},
+		{
+			name: "dots",
+			url:  mustParseURL("https://example.com/."),
+			want: "https/example.com/_dot",
+		},
+		{
+			name: "folder escape",
+			url:  mustParseURL("https://example.com/../../foo/../../index.html"),
+			want: "https/example.com/_up/_up/foo/_up/_up/index.html",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := urlToCachePath(tt.url)
 			if tt.want != got {
-				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
+				t.Errorf("wrong result\nurl:  %q\nwant: %q\ngot:  %q", tt.url, tt.want, got)
 			}
 		})
 	}
