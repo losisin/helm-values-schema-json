@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,20 +13,20 @@ import (
 // store them in "$defs".
 //
 // This function will update the schema in-place.
-func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
+func BundleSchema(ctx context.Context, loader Loader, schema *Schema, basePath string) error {
 	if loader == nil {
 		return fmt.Errorf("nil loader")
 	}
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, nil, loader, schema, schema)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema, basePath)
 }
 
-func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema, basePath string) error {
 	for path, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(path)
-		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema, basePath); err != nil {
 			return err
 		}
 	}
@@ -47,10 +48,19 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
 	}
-	// Make sure schema $ref corresponds with the corrected path
-	schema.Ref = ref.String()
 
-	loaded, err := Load(ctx, loader, ref)
+	// Make sure schema $ref corresponds with the corrected path
+	if ref.Scheme == "" && ref.Path != "" {
+		rel, err := filepath.Rel(basePath, ref.Path)
+		if err != nil {
+			return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+		}
+		schema.Ref = RefFile{Path: filepath.ToSlash(filepath.Clean(rel)), Fragment: ref.Fragment}.String()
+	} else {
+		schema.Ref = ref.String()
+	}
+
+	loaded, err := Load(ctx, loader, ref, basePath)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
 	}
@@ -65,7 +75,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, ptr, loader, root, loaded)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded, basePath)
 }
 
 func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
@@ -194,7 +204,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 	for name, def := range defs {
-		if def.ID == bundleRefURLToID(ref) {
+		if def.ID == trimFragment(ref) {
 			return name, true
 		}
 	}
@@ -301,10 +311,10 @@ func bundleRefToID(ref string) string {
 	if err != nil {
 		return ""
 	}
-	return bundleRefURLToID(refURL)
+	return trimFragment(refURL)
 }
 
-func bundleRefURLToID(ref *url.URL) string {
+func trimFragment(ref *url.URL) string {
 	refClone := *ref
 	refClone.Fragment = ""
 	return refClone.String()

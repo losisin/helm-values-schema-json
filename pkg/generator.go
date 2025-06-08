@@ -114,6 +114,11 @@ func GenerateJsonSchema(config *Config) error {
 	if config.Bundle {
 		ctx := context.Background()
 
+		absOutputDir, err := filepath.Abs(filepath.Dir(config.Output))
+		if err != nil {
+			return fmt.Errorf("get absolute path for output %q: %w", config.Output, err)
+		}
+
 		bundleRoot := cmp.Or(config.BundleRoot, ".")
 		root, err := os.OpenRoot(bundleRoot)
 		if err != nil {
@@ -126,7 +131,7 @@ func GenerateJsonSchema(config *Config) error {
 			return err
 		}
 		loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), base)
-		if err := BundleSchema(ctx, loader, mergedSchema); err != nil {
+		if err := BundleSchema(ctx, loader, mergedSchema, absOutputDir); err != nil {
 			return fmt.Errorf("bundle schemas: %w", err)
 		}
 	}

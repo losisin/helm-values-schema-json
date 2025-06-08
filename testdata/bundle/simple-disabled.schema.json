@@ -3,7 +3,7 @@
     "type": "object",
     "properties": {
         "image": {
-            "$ref": "simple-subschema.schema.json",
+            "$ref": "./simple-subschema.schema.json",
             "type": "object",
             "properties": {
                 "pullPolicy": {
