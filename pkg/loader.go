@@ -71,14 +71,17 @@ func Load(ctx context.Context, loader Loader, ref *url.URL, basePath string) (*S
 		return nil, err
 	}
 
+	// TODO: use same code as in bundle.go to make sure we have the same logic
 	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
+		// It's fine to modify the $id here, as it is not used any more times
+		// after this. So changing it is solely a cosmetic change.
 		rel, err := filepath.Rel(basePath, ref.Path)
 		if err != nil {
 			return nil, err
 		}
 		schema.ID = filepath.ToSlash(filepath.Clean(rel))
 	} else {
-		schema.ID = trimFragment(ref)
+		schema.ID = trimFragmentURL(ref)
 	}
 	return schema, nil
 }
@@ -212,7 +215,7 @@ var _ Loader = CacheLoader{}
 
 // Load implements [Loader].
 func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	urlString := trimFragment(ref)
+	urlString := trimFragmentURL(ref)
 	if schema := loader.schemas[urlString]; schema != nil {
 		return schema, nil
 	}

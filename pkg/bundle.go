@@ -36,7 +36,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 		return nil
 	}
 	for _, def := range root.Defs {
-		if def.ID == bundleRefToID(schema.Ref) {
+		if def.ID == trimFragment(schema.Ref) {
 			// Already bundled
 			return nil
 		}
@@ -50,7 +50,10 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	}
 
 	// Make sure schema $ref corresponds with the corrected path
+	// TODO: extract into function and reuse in loader.go
 	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
+		// It's fine to modify the $ref here, as it is not used any more times
+		// after this. So changing it is solely a cosmetic change.
 		rel, err := filepath.Rel(basePath, ref.Path)
 		if err != nil {
 			return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
@@ -204,7 +207,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 	for name, def := range defs {
-		if def.ID == trimFragment(ref) {
+		if def.ID == trimFragmentURL(ref) {
 			return name, true
 		}
 	}
@@ -306,15 +309,15 @@ func resolvePtr(schema *Schema, ptr Ptr) []*Schema {
 	}
 }
 
-func bundleRefToID(ref string) string {
+func trimFragment(ref string) string {
 	refURL, err := url.Parse(ref)
 	if err != nil {
 		return ""
 	}
-	return trimFragment(refURL)
+	return trimFragmentURL(refURL)
 }
 
-func trimFragment(ref *url.URL) string {
+func trimFragmentURL(ref *url.URL) string {
 	refClone := *ref
 	refClone.Fragment = ""
 	return refClone.String()
