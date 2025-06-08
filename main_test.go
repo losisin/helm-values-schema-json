@@ -39,19 +39,19 @@ func TestMain(t *testing.T) {
 		},
 		{
 			name:          "SuccessfulRun",
-			args:          []string{"schema", "--input", "testdata/basic.yaml"},
+			args:          []string{"schema", "--values", "testdata/basic.yaml"},
 			expectedOut:   "JSON schema successfully generated",
 			expectedError: "",
 		},
 		{
 			name:          "GenerateError",
-			args:          []string{"schema", "--input", "fail.yaml", "--draft", "2020"},
+			args:          []string{"schema", "--values", "fail.yaml", "--draft", "2020"},
 			expectedOut:   "error reading YAML file(s)",
 			expectedError: "",
 		},
 		{
 			name: "ErrorLoadingConfigFile",
-			args: []string{"schema", "--input", "testdata/basic.yaml"},
+			args: []string{"schema", "--values", "testdata/basic.yaml"},
 			setup: func() {
 				if _, err := os.Stat(".schema.yaml"); err == nil {
 					if err := os.Rename(".schema.yaml", ".schema.yaml.bak"); err != nil {
@@ -84,7 +84,7 @@ func TestMain(t *testing.T) {
 				}
 			},
 			expectedOut:   "",
-			expectedError: "Error: parsing config:",
+			expectedError: "Error: load config file .schema.yaml:",
 		},
 	}
 

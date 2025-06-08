@@ -15,9 +15,9 @@ import (
 
 // Generate JSON schema
 func GenerateJsonSchema(config *Config) error {
-	// Check if the input flag is set
-	if len(config.Input) == 0 {
-		return errors.New("input flag is required")
+	// Check if the values flag is set
+	if len(config.Values) == 0 {
+		return errors.New("values flag is required")
 	}
 
 	// Determine the schema URL based on the draft version
@@ -49,7 +49,7 @@ func GenerateJsonSchema(config *Config) error {
 	defer closeIgnoreError(root)
 
 	// Iterate over the input YAML files
-	for _, filePath := range config.Input {
+	for _, filePath := range config.Values {
 		content, err := os.ReadFile(filepath.Clean(filePath))
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
