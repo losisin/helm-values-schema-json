@@ -439,6 +439,9 @@ func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
 	}
 }
 
+// MakeAllRefSubdir converts all file "$ref" to be a subdirectory to the given
+// path using [RefSubdir].
+// The path can also be a HTTP URL.
 func (s *Schema) MakeAllRefSubdir(parent string) error {
 	return s.makeAllRefSubdir(NewPtr(), parent)
 }
@@ -463,7 +466,7 @@ func (s *Schema) makeAllRefSubdir(ptr Ptr, parent string) error {
 	return nil
 }
 
-// RefSubdir converts a "$ref" to be a subdirectory to a give path.
+// RefSubdir converts a file "$ref" to be a subdirectory to the given path.
 // The path can also be a HTTP URL.
 func RefSubdir(ref, parent string) (string, error) {
 	refFile, err := ParseRefFile(ref)
