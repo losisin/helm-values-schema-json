@@ -2,16 +2,13 @@ package pkg
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
-	"maps"
 	"net/url"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -423,16 +420,6 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 		}
 		if schema.Not != nil {
 			if schema.Not.Kind() == SchemaKindObject && !yield(NewPtr("not"), schema.Not) {
-				return
-			}
-		}
-	}
-}
-
-func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for _, k := range slices.Sorted(maps.Keys(m)) {
-			if !yield(k, m[k]) {
 				return
 			}
 		}

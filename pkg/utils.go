@@ -1,7 +1,11 @@
 package pkg
 
 import (
+	"cmp"
 	"io"
+	"iter"
+	"maps"
+	"slices"
 )
 
 func uniqueStringAppend(dest []string, src ...string) []string {
@@ -22,6 +26,16 @@ func uniqueStringAppend(dest []string, src ...string) []string {
 
 func closeIgnoreError(closer io.Closer) {
 	_ = closer.Close()
+}
+
+func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for _, k := range slices.Sorted(maps.Keys(m)) {
+			if !yield(k, m[k]) {
+				return
+			}
+		}
+	}
 }
 
 // LimitReaderWithError returns a wrapper around [io.LimitedReader] that
