@@ -267,50 +267,53 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	case "gzip":
 		r, err := gzip.NewReader(reader)
 		if err != nil {
-			return nil, fmt.Errorf("request $ref=%q over HTTP: create gzip reader: %w", ref, err)
+			return nil, fmt.Errorf("request $ref=%q over HTTP: create gzip reader: %w", ref.Redacted(), err)
 		}
 		reader = r
 	case "":
 		// Do nothing
 	default:
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported content encoding: %q", ref, errors.ErrUnsupported, resp.Header.Get("Content-Encoding"))
+		return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported content encoding: %q", ref.Redacted(), errors.ErrUnsupported, resp.Header.Get("Content-Encoding"))
 	}
 
 	var isYAML bool
-	if mediatype, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil {
+	if mediaType, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil {
 		switch strings.ToLower(params["charset"]) {
 		case "", "utf-8", "utf8":
 			// OK
 		default:
-			return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported response charset: %q", ref, errors.ErrUnsupported, params["charset"])
+			return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported response charset: %q", ref.Redacted(), errors.ErrUnsupported, params["charset"])
 		}
 
-		if yamlMediaTypeRegexp.MatchString(mediatype) {
+		if yamlMediaTypeRegexp.MatchString(mediaType) {
 			isYAML = true
 		}
 	}
 
 	b, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
+		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref.Redacted(), err)
 	}
 
 	duration := time.Since(start)
 	fmt.Printf("=> got %s in %s\n", formatSizeBytes(len(b)), duration.Truncate(time.Millisecond))
 
+	var schema Schema
 	if isYAML {
-		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q YAML: %w", ref, err)
+			return nil, fmt.Errorf("parse $ref=%q YAML: %w", ref.Redacted(), err)
 		}
-		return &schema, nil
 	} else {
-		var schema Schema
 		if err := json.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q JSON: %w", ref, err)
+			return nil, fmt.Errorf("parse $ref=%q JSON: %w", ref.Redacted(), err)
 		}
-		return &schema, nil
 	}
+
+	if err := schema.MakeAllRefSubdir(ref.String()); err != nil {
+		return nil, fmt.Errorf("change $ref in schema from $ref=%q to use relative URLs: %w", ref.Redacted(), err)
+	}
+
+	return &schema, nil
 }
 
 type loaderContextKey int

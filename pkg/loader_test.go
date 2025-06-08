@@ -225,6 +225,7 @@ func TestHTTPLoader(t *testing.T) {
 		response     string
 		responseType string
 		want         *Schema
+		wantFunc     func(serverURL string) *Schema
 	}{
 		{
 			name:     "empty object",
@@ -255,53 +256,85 @@ func TestHTTPLoader(t *testing.T) {
 			responseType: "application/yaml",
 			want:         &Schema{Comment: "hello"},
 		},
+		{
+			name:     "converts file ref",
+			response: `{"$ref": "foo.json"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{Ref: serverURL + "/foo.json"}
+			},
+		},
+		{
+			name:     "converts file ref subdir",
+			response: `{"$ref": "subdir/foo.json"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{Ref: serverURL + "/subdir/foo.json"}
+			},
+		},
+		{
+			name:     "converts file ref subdir fragment",
+			response: `{"$ref": "subdir/foo.json#/properties/foo"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{Ref: serverURL + "/subdir/foo.json#/properties/foo"}
+			},
+		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name+"/simple", func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				if tt.responseType != "" {
-					w.Header().Add("Content-Type", tt.responseType)
+	responseTypes := []struct {
+		name  string
+		write func(t *testing.T, w http.ResponseWriter, msg, contentType string)
+	}{
+		{
+			name: "uncompressed",
+			write: func(t *testing.T, w http.ResponseWriter, msg, contentType string) {
+				if contentType != "" {
+					w.Header().Add("Content-Type", contentType)
 				}
 				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte(tt.response))
+				_, err := w.Write([]byte(msg))
 				require.NoError(t, err)
-			}))
-			defer server.Close()
-
-			ctx := t.Context()
-
-			loader := NewHTTPLoader(server.Client())
-			schema, err := loader.Load(ctx, mustParseURL(server.URL))
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, schema, "Schema")
-		})
-
-		t.Run(tt.name+"/gzip", func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				if tt.responseType != "" {
-					w.Header().Add("Content-Type", tt.responseType)
+			},
+		},
+		{
+			name: "gzip",
+			write: func(t *testing.T, w http.ResponseWriter, msg, contentType string) {
+				if contentType != "" {
+					w.Header().Add("Content-Type", contentType)
 				}
 				w.Header().Add("Content-Encoding", "gzip")
 				w.WriteHeader(http.StatusOK)
 				gzipper := gzip.NewWriter(w)
 				defer func() {
-					require.NoError(t, gzipper.Close())
+					assert.NoError(t, gzipper.Close())
 				}()
-				_, err := gzipper.Write([]byte(tt.response))
+				_, err := gzipper.Write([]byte(msg))
 				require.NoError(t, err)
-			}))
-			defer server.Close()
+			},
+		},
+	}
 
-			ctx := t.Context()
+	for _, tt := range tests {
+		for _, writer := range responseTypes {
+			t.Run(tt.name+"/"+writer.name, func(t *testing.T) {
+				t.Parallel()
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					writer.write(t, w, tt.response, tt.responseType)
+				}))
+				defer server.Close()
 
-			loader := NewHTTPLoader(server.Client())
-			schema, err := loader.Load(ctx, mustParseURL(server.URL))
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, schema, "Schema")
-		})
+				ctx := t.Context()
+
+				loader := NewHTTPLoader(server.Client())
+				schema, err := loader.Load(ctx, mustParseURL(server.URL))
+				require.NoError(t, err)
+
+				want := tt.want
+				if tt.wantFunc != nil {
+					want = tt.wantFunc(server.URL)
+				}
+
+				assert.Equal(t, want, schema, "Schema")
+			})
+		}
 
 		t.Run(tt.name+"/link", func(t *testing.T) {
 			t.Parallel()
@@ -378,6 +411,12 @@ func TestHTTPLoader_Error(t *testing.T) {
 			response:     `{}`,
 			responseCode: http.StatusGone,
 			wantErr:      "got non-2xx status code: 410 Gone",
+		},
+		{
+			name:         "invalid ref",
+			response:     `{"$ref": "::"}`,
+			responseCode: http.StatusOK,
+			wantErr:      "parse \"::\": missing protocol scheme",
 		},
 	}
 
