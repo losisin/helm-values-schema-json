@@ -82,6 +82,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	}
 	if src.Ref != "" {
 		dest.Ref = src.Ref
+		dest.RefReferrer = src.RefReferrer
 	}
 	if src.Schema != "" {
 		dest.Schema = src.Schema

@@ -1,7 +1,9 @@
 package pkg
 
 import (
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -53,6 +55,9 @@ func TestExecute(t *testing.T) {
 }
 
 func TestParseFlagsPass(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		args []string
 		conf Config
@@ -122,6 +127,7 @@ func TestParseFlagsPass(t *testing.T) {
 				SchemaRoot: SchemaRoot{
 					ID:          "http://example.com/schema",
 					Ref:         "schema/product.json",
+					RefReferrer: ReferrerDir(cwd),
 					Title:       "MySchema",
 					Description: "My schema description",
 				},
@@ -227,6 +233,8 @@ func TestParseFlagsFail(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	tmpFile := createTempFile(t, "config-*.yaml")
+
 	tests := []struct {
 		name   string
 		config string
@@ -266,6 +274,7 @@ schemaRoot:
 					Title:                "Helm Values Schema",
 					ID:                   "https://example.com/schema",
 					Ref:                  "schema/product.json",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Description:          "Schema for Helm values",
 					AdditionalProperties: boolPtr(true),
 				},
@@ -286,9 +295,11 @@ schemaRoot:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			configFilePath := writeTempFile(t, tt.config)
+			// reuse the same file so we can have a predictable name as ref referrer
+			resetFile(t, tmpFile, tt.config)
+
 			cmd := NewCmd()
-			require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFilePath}))
+			require.NoError(t, cmd.ParseFlags([]string{"--config=" + tmpFile.Name()}))
 			conf, err := LoadConfig(cmd)
 
 			require.NoError(t, err)
@@ -360,7 +371,43 @@ func TestLoadConfig_UnmarshalError(t *testing.T) {
 	assert.ErrorContains(t, err, "parsing config: ")
 }
 
+func TestLoadConfig_SchemaRootRefReferrerConfigError(t *testing.T) {
+	failConfigConfigRefReferrerAbs = true
+	defer func() { failConfigConfigRefReferrerAbs = false }()
+
+	configFile := writeTempFile(t, `
+schemaRoot:
+  ref: foo/bar
+`)
+
+	cmd := NewCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile}))
+	_, err := LoadConfig(cmd)
+	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
+}
+
+func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
+	// Setting up to make [os.Getwd] to fail, which on Linux can be done
+	// by deleting the directory you're currently in.
+	tempDir, err := os.MkdirTemp("", "schema-cwd-*")
+	require.NoError(t, err)
+	previousWorkingDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tempDir))
+	t.Cleanup(func() { assert.NoError(t, os.Chdir(previousWorkingDir)) })
+	require.NoError(t, os.Remove(tempDir))
+
+	cmd := NewCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
+	_, err = LoadConfig(cmd)
+	assert.ErrorContains(t, err, "resolve current working directory: getwd: no such file or directory")
+}
+
 func TestMergeConfig(t *testing.T) {
+	tmpFile := createTempFile(t, "config-*.yaml")
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name  string
 		file  string
@@ -412,6 +459,7 @@ schemaRoot:
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
+					RefReferrer:          ReferrerDir(cwd),
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: boolPtr(false),
@@ -449,6 +497,7 @@ schemaRoot:
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: boolPtr(true),
@@ -488,6 +537,7 @@ schemaRoot:
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Title:                "fileTitle",
 					Description:          "fileDescription",
 					AdditionalProperties: boolPtr(true),
@@ -523,6 +573,7 @@ schemaRoot:
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
+					RefReferrer:          ReferrerDir(cwd),
 					Title:                "flagTitle",
 					Description:          "flagDescription",
 					AdditionalProperties: boolPtr(false),
@@ -533,8 +584,10 @@ schemaRoot:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetFile(t, tmpFile, tt.file)
+
 			cmd := NewCmd()
-			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+writeTempFile(t, tt.file))))
+			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+tmpFile.Name())))
 
 			conf, err := LoadConfig(cmd)
 			require.NoError(t, err)
@@ -544,14 +597,27 @@ schemaRoot:
 	}
 }
 
-func writeTempFile(t *testing.T, content string) string {
-	tmpFile, err := os.CreateTemp("", "config-*.yaml")
+func resetFile(t *testing.T, file *os.File, content string) {
+	_, err := file.Seek(0, io.SeekStart)
+	require.NoError(t, err)
+	require.NoError(t, file.Truncate(0))
+	_, err = file.WriteString(content)
+	require.NoError(t, file.Sync())
+}
+
+func createTempFile(t *testing.T, pattern string) *os.File {
+	tmpFile, err := os.CreateTemp("", pattern)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, tmpFile.Close())
 		assert.NoError(t, os.Remove(tmpFile.Name()))
 	})
-	_, err = tmpFile.WriteString(content)
+	return tmpFile
+}
+
+func writeTempFile(t *testing.T, content string) string {
+	tmpFile := createTempFile(t, "config-*.yaml")
+	_, err := tmpFile.WriteString(content)
 	require.NoError(t, err)
 	return tmpFile.Name()
 }

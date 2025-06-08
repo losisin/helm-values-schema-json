@@ -254,7 +254,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 		{
 			// https://github.com/losisin/helm-values-schema-json/issues/176
-			name: "bundle/multiple-values",
+			name: "bundle/multiple-values-with-id",
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
@@ -312,7 +312,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := GenerateJsonSchema(tt.config)
+			cwd, err := os.Getwd()
+			require.NoError(t, err)
+			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
+
+			err = GenerateJsonSchema(tt.config)
 			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
 
 			generatedBytes, err := os.ReadFile(tt.config.Output)
@@ -449,7 +453,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("../testdata/bundle/simple.yaml: root $ref=\"::\": change relative to file: parse \"::\": missing protocol scheme"),
+			expectedErr: errors.New("../testdata/bundle/simple.yaml: change relative to file: parse \"::\": missing protocol scheme"),
 		},
 		{
 			name: "invalid k8s ref alias",

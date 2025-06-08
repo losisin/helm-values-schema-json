@@ -392,7 +392,7 @@ func TestBundle_Errors(t *testing.T) {
 				},
 			},
 			loader:  DummyLoader{},
-			wantErr: `/properties/foo/$ref: parse $ref as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse "::": missing protocol scheme`,
 		},
 	}
 

@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -37,11 +38,6 @@ func GenerateJsonSchema(config *Config) error {
 
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
-
-	absFirstFileDir, err := filepath.Abs(filepath.Dir(config.Values[0]))
-	if err != nil {
-		return fmt.Errorf("get absolute path for file %s: %w", config.Values[0], err)
-	}
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
@@ -91,31 +87,23 @@ func GenerateJsonSchema(config *Config) error {
 			Title:       config.SchemaRoot.Title,
 			Description: config.SchemaRoot.Description,
 			ID:          config.SchemaRoot.ID,
-			Ref:         config.SchemaRoot.Ref,
 		}
 
-		if config.Bundle && config.SchemaRoot.Ref != "" {
-			// Rewrite $ref to make sure we can resolve it when bundling
-			newRef, err := RefRelativeTo(config.SchemaRoot.Ref, filepath.Dir(filePath))
-			if err != nil {
-				return fmt.Errorf("%s: root $ref=%q: change relative to file: %w", filePath, config.SchemaRoot.Ref, err)
-			}
-			tempSchema.Ref = newRef
+		filePathAbs, err := filepath.Abs(filePath)
+		if err != nil {
+			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
+		}
+
+		tempSchema.SetReferrer(ReferrerDir(filepath.Dir(filePathAbs)))
+		// Set root $ref after updating the referrer on all other $refs
+		if config.SchemaRoot.Ref != "" {
+			tempSchema.Ref = config.SchemaRoot.Ref
+			tempSchema.RefReferrer = config.SchemaRoot.RefReferrer
 		}
 
 		// Apply "$ref: $k8s/..." transformation
 		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
 			return fmt.Errorf("%s: %w", filePath, err)
-		}
-
-		// TODO: test this
-		// TODO: change to relative to output dir instead of first file
-		parent, err := filepath.Rel(filepath.Dir(config.Values[0]), filepath.Dir(filePath))
-		if err != nil {
-			return fmt.Errorf("file %s -> file %s: get relative path: %w", config.Values[0], filePath, err)
-		}
-		if err := tempSchema.MakeAllRefSubdir(parent); err != nil {
-			return fmt.Errorf("%s: update $ref in schema be relative to file path: %w", filePath, err)
 		}
 
 		// Merge with existing data
@@ -126,23 +114,16 @@ func GenerateJsonSchema(config *Config) error {
 	if config.Bundle {
 		ctx := context.Background()
 
-		bundleRoot := config.BundleRoot
-		if bundleRoot == "" {
-			bundleRoot = "."
-		}
+		bundleRoot := cmp.Or(config.BundleRoot, ".")
 		root, err := os.OpenRoot(bundleRoot)
 		if err != nil {
 			return fmt.Errorf("open bundle root: %w", err)
 		}
 		defer closeIgnoreError(root)
 
-		absBundleRoot, err := filepath.Abs(bundleRoot)
+		base, err := GetFileLoaderBasePath(config.Output, config.BundleRoot)
 		if err != nil {
-			return fmt.Errorf("get absolute path for bundle root: %w", err)
-		}
-		base, err := filepath.Rel(absBundleRoot, absFirstFileDir)
-		if err != nil {
-			return fmt.Errorf("file %s -> bundle root %s: get relative path: %w", config.Values[0], bundleRoot, err)
+			return err
 		}
 		loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), base)
 		if err := BundleSchema(ctx, loader, mergedSchema); err != nil {

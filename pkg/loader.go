@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -58,23 +59,19 @@ func NewDefaultLoader(client *http.Client, fs fs.FS, basePath string) Loader {
 // Load uses a bundle [Loader] to resolve a schema "$ref".
 // Depending on the loader implementation, it may read from cache,
 // read files from disk, or fetch files from the web using HTTP.
-func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
+func Load(ctx context.Context, loader Loader, ref *url.URL) (*Schema, error) {
 	if loader == nil {
 		return nil, fmt.Errorf("nil loader")
 	}
-	if ref == "" {
+	if ref == nil || *ref == (url.URL{}) {
 		return nil, fmt.Errorf("cannot load empty $ref")
 	}
-	refURL, err := url.Parse(ref)
-	if err != nil {
-		return nil, fmt.Errorf("parse $ref as URL: %w", err)
-	}
-	schema, err := loader.Load(ctx, refURL)
+	schema, err := loader.Load(ctx, ref)
 	if err != nil {
 		return nil, err
 	}
 
-	schema.ID = bundleRefURLToID(refURL)
+	schema.ID = bundleRefURLToID(ref)
 	return schema, nil
 }
 
@@ -109,6 +106,22 @@ func NewFileLoader(fs fs.FS, basePath string) FileLoader {
 	}
 }
 
+func GetFileLoaderBasePath(output, bundleRoot string) (string, error) {
+	absOutputDir, err := filepath.Abs(filepath.Dir(output))
+	if err != nil {
+		return "", fmt.Errorf("get absolute path for output dir %s: %w", output, err)
+	}
+	absBundleRoot, err := filepath.Abs(bundleRoot)
+	if err != nil {
+		return "", fmt.Errorf("get absolute path for bundle root: %w", err)
+	}
+	base, err := filepath.Rel(absBundleRoot, absOutputDir)
+	if err != nil {
+		return "", fmt.Errorf("file %s -> bundle root %s: get relative path: %w", output, bundleRoot, err)
+	}
+	return base, nil
+}
+
 var _ Loader = FileLoader{}
 
 // Load implements [Loader].
@@ -120,37 +133,41 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
 	path := filepath.FromSlash(ref.Path)
-	if loader.basePath != "" && !filepath.IsAbs(path) {
-		path = filepath.Join(loader.basePath, path)
-	}
+
+	//if loader.basePath != "" && !filepath.IsAbs(path) {
+	//	path = filepath.Join(loader.basePath, path)
+	//}
+
+	// TODO: idea: just use absolute paths everywhere, always.
+	// And then at the end do a "polishing pass" where we convert absolute path $id's into relative paths
 
 	fmt.Println("Loading file", path)
-	f, err := loader.fs.Open(path)
+	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
+		return nil, err
 	}
 	defer closeIgnoreError(f)
 	b, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
+		return nil, err
 	}
 
 	fmt.Printf("=> got %s\n", formatSizeBytes(len(b)))
 
+	var schema Schema
 	switch filepath.Ext(path) {
 	case ".yml", ".yaml":
-		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q YAML file: %w", ref, err)
+			return nil, fmt.Errorf("parse YAML file: %w", err)
 		}
-		return &schema, nil
 	default:
-		var schema Schema
 		if err := json.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q JSON file: %w", ref, err)
+			return nil, fmt.Errorf("parse JSON file: %w", err)
 		}
-		return &schema, nil
 	}
+
+	schema.SetReferrer(ReferrerDir(filepath.Dir(path)))
+	return &schema, nil
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
@@ -309,10 +326,12 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		}
 	}
 
-	if err := schema.MakeAllRefSubdir(ref.String()); err != nil {
-		return nil, fmt.Errorf("change $ref in schema from $ref=%q to use relative URLs: %w", ref.Redacted(), err)
+	refClone.Path = path.Dir(refClone.Path)
+	if ref.Path == "" {
+		// path.Dir turns empty path into "." and we don't want that
+		refClone.Path = ""
 	}
-
+	schema.SetReferrer(ReferrerURL(&refClone))
 	return &schema, nil
 }
 

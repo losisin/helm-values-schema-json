@@ -43,7 +43,14 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	if schema.ID != "" {
 		ctx = ContextWithLoaderReferrer(ctx, schema.ID)
 	}
-	loaded, err := Load(ctx, loader, schema.Ref)
+	ref, err := schema.ParseRef()
+	if err != nil {
+		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	}
+	// Make sure schema $ref corresponds with the corrected path
+	schema.Ref = ref.String()
+
+	loaded, err := Load(ctx, loader, ref)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
 	}

@@ -233,6 +233,12 @@ func TestMergeSchemas(t *testing.T) {
 			src:  &Schema{Type: "object", Not: &Schema{Type: "string"}},
 			want: &Schema{Type: "object", Not: &Schema{Type: "string"}},
 		},
+		{
+			name: "refReferrer",
+			dest: &Schema{RefReferrer: ReferrerDir("/foo")},
+			src:  &Schema{RefReferrer: ReferrerDir("/foo/bar")},
+			want: &Schema{RefReferrer: ReferrerDir("/foo/bar")},
+		},
 	}
 
 	for _, tt := range tests {

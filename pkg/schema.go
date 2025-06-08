@@ -84,6 +84,7 @@ type Schema struct {
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	RefReferrer           Referrer           `json:"-" yaml:"-"`
 	Type                  any                `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
@@ -426,79 +427,77 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 	}
 }
 
-// MakeAllRefSubdir converts all file "$ref" to be a subdirectory to the given
-// path using [RefSubdir].
-// The path can also be a HTTP URL.
-func (s *Schema) MakeAllRefSubdir(parent string) error {
-	return s.makeAllRefSubdir(NewPtr(), parent)
+func (s *Schema) ParseRef() (*url.URL, error) {
+	if s == nil || s.Ref == "" {
+		return nil, nil
+	}
+	ref, err := url.Parse(s.Ref)
+	if err != nil {
+		return nil, err
+	}
+	if s.RefReferrer.IsZero() {
+		return ref, nil
+	}
+	if ref.Scheme != "" && ref.Scheme != "file" {
+		// Only have custom logic when $ref is a local file
+		return ref, nil
+	}
+	refFile, err := ParseRefFileURL(ref)
+	if err != nil {
+		return nil, err
+	}
+	return s.RefReferrer.Join(refFile), nil
 }
 
-func (s *Schema) makeAllRefSubdir(ptr Ptr, parent string) error {
-	for ptr, subschema := range s.Subschemas() {
-		if err := subschema.makeAllRefSubdir(ptr.Add(ptr), parent); err != nil {
-			return err
-		}
+func (s *Schema) SetReferrer(ref Referrer) {
+	if s == nil {
+		return
 	}
-
-	if s.Ref == "" {
-		return nil
+	for _, sub := range s.Subschemas() {
+		sub.SetReferrer(ref)
 	}
-
-	ref, err := RefSubdir(s.Ref, parent)
-	if err != nil {
-		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	if s.Ref != "" {
+		s.RefReferrer = ref
 	}
-
-	s.Ref = ref
-	return nil
 }
 
-// RefSubdir converts a file "$ref" to be a subdirectory to the given path.
-// The path can also be a HTTP URL.
-func RefSubdir(ref, parent string) (string, error) {
-	refFile, err := ParseRefFile(ref)
-	if err != nil {
-		return "", err
-	}
-	if refFile.Path == "" {
-		return ref, err
-	}
-
-	parent = filepath.ToSlash(parent)
-
-	// TODO: add a variant that does "filepath.Rel" or some "relative to" shenanigans
-
-	if strings.HasPrefix(parent, "http://") || strings.HasPrefix(parent, "https://") {
-		relativeToURL, err := url.Parse(parent)
-		if err != nil {
-			return "", fmt.Errorf("parse referrer: %w", err)
-		}
-		relativeToURL.Fragment = refFile.Fragment
-		relativeToURL.RawQuery = ""
-		relativeToURL.Path = path.Join(relativeToURL.Path, refFile.Path)
-		return relativeToURL.String(), nil
-	}
-
-	refFile.Path = path.Join(parent, refFile.Path)
-	return refFile.String(), nil
+// Referrer holds information about what is referencing a schema.
+// This is used when resolving $ref to load the appropriate files or URLs.
+// Only one of "File" or "URL" should to be set at a time.
+type Referrer struct {
+	dir string
+	url *url.URL
 }
 
-// RefRelativeTo converts a "$ref" to be relative to a give path.
-func RefRelativeTo(ref, relativeTo string) (string, error) {
-	refFile, err := ParseRefFile(ref)
-	if err != nil {
-		return "", err
-	}
-	if refFile.Path == "" {
-		return ref, err
+// ReferrerDir returns a [Referrer] using an path to a directory.
+func ReferrerDir(dir string) Referrer {
+	return Referrer{dir: dir}
+}
+
+// ReferrerURL returns a [Referrer] using a URL.
+func ReferrerURL(url *url.URL) Referrer {
+	// Clone it just to make sure we don't get any weird memory reuse bugs
+	clone := *url
+	return Referrer{url: &clone}
+}
+
+// IsZero returns true when neither File nor URL has been set.
+func (r Referrer) IsZero() bool {
+	return r == (Referrer{})
+}
+
+func (r Referrer) Join(refFile RefFile) *url.URL {
+	if r.url != nil {
+		urlClone := *r.url
+		urlClone.Path = path.Join(urlClone.Path, refFile.Path)
+		urlClone.Fragment = refFile.Fragment
+		return &urlClone
 	}
 
-	relativeDir, err := filepath.Rel(relativeTo, filepath.Dir(filepath.FromSlash(refFile.Path)))
-	if err != nil {
-		return "", err
+	return &url.URL{
+		Path:     path.Join(filepath.ToSlash(r.dir), refFile.Path),
+		Fragment: refFile.Fragment,
 	}
-	refFile.Path = path.Join(filepath.ToSlash(relativeDir), path.Base(refFile.Path))
-	return refFile.String(), nil
 }
 
 // RefFile is a parsed "$ref: file://" schema property
@@ -521,12 +520,14 @@ func ParseRefFile(ref string) (RefFile, error) {
 	if strings.HasPrefix(ref, "#") {
 		return RefFile{Fragment: ref}, nil
 	}
-
 	u, err := url.Parse(ref)
 	if err != nil {
 		return RefFile{}, err
 	}
+	return ParseRefFileURL(u)
+}
 
+func ParseRefFileURL(u *url.URL) (RefFile, error) {
 	switch {
 	case u.Scheme != "" && u.Scheme != "file":
 		return RefFile{}, nil

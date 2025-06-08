@@ -21,24 +21,26 @@ func TestLoad_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
 		loader  Loader
-		ref     string
+		ref     *url.URL
 		wantErr string
 	}{
 		{
 			name:    "nil loader",
 			loader:  nil,
+			ref:     mustParseURL(""),
 			wantErr: "nil loader",
+		},
+		{
+			name:    "nil ref",
+			loader:  DummyLoader{},
+			ref:     nil,
+			wantErr: "cannot load empty $ref",
 		},
 		{
 			name:    "empty ref",
 			loader:  DummyLoader{},
+			ref:     mustParseURL(""),
 			wantErr: "cannot load empty $ref",
-		},
-		{
-			name:    "invalid URL",
-			loader:  DummyLoader{},
-			ref:     "::",
-			wantErr: `parse $ref as URL: parse "::": missing protocol scheme`,
 		},
 	}
 
@@ -257,24 +259,43 @@ func TestHTTPLoader(t *testing.T) {
 			want:         &Schema{Comment: "hello"},
 		},
 		{
-			name:     "converts file ref",
+			name:     "with ref",
 			response: `{"$ref": "foo.json"}`,
 			wantFunc: func(serverURL string) *Schema {
-				return &Schema{Ref: serverURL + "/foo.json"}
+				return &Schema{
+					Ref:         "foo.json",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
 			},
 		},
 		{
-			name:     "converts file ref subdir",
+			name:     "with ref subdir",
 			response: `{"$ref": "subdir/foo.json"}`,
 			wantFunc: func(serverURL string) *Schema {
-				return &Schema{Ref: serverURL + "/subdir/foo.json"}
+				return &Schema{
+					Ref:         "subdir/foo.json",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
 			},
 		},
 		{
-			name:     "converts file ref subdir fragment",
+			name:     "with ref subdir fragment",
 			response: `{"$ref": "subdir/foo.json#/properties/foo"}`,
 			wantFunc: func(serverURL string) *Schema {
-				return &Schema{Ref: serverURL + "/subdir/foo.json#/properties/foo"}
+				return &Schema{
+					Ref:         "subdir/foo.json#/properties/foo",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
+			},
+		},
+		{
+			name:     "invalid ref isnt checked here",
+			response: `{"$ref": "::"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{
+					Ref:         "::",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
 			},
 		},
 	}
@@ -411,12 +432,6 @@ func TestHTTPLoader_Error(t *testing.T) {
 			response:     `{}`,
 			responseCode: http.StatusGone,
 			wantErr:      "got non-2xx status code: 410 Gone",
-		},
-		{
-			name:         "invalid ref",
-			response:     `{"$ref": "::"}`,
-			responseCode: http.StatusOK,
-			wantErr:      "parse \"::\": missing protocol scheme",
 		},
 	}
 
