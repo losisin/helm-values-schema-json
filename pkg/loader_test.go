@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -237,6 +238,12 @@ func TestHTTPLoader(t *testing.T) {
 			want:         &Schema{Comment: "hello"},
 		},
 		{
+			name:         "charset",
+			response:     `{"$comment": "hello"}`,
+			responseType: "application/json; charset=utf8",
+			want:         &Schema{Comment: "hello"},
+		},
+		{
 			name:         "JSON with YAML content type",
 			response:     `{"$comment": "hello"}`,
 			responseType: "application/yaml",
@@ -360,6 +367,13 @@ func TestHTTPLoader_Error(t *testing.T) {
 			wantErr:      "YAML: yaml: did not find expected key",
 		},
 		{
+			name:         "invalid charset",
+			response:     "{\"$comment\":\"hello\"}",
+			responseType: "application/json; charset=iso-whatever-123456",
+			responseCode: http.StatusOK,
+			wantErr:      "unsupported response charset",
+		},
+		{
 			name:         "invalid response code",
 			response:     `{}`,
 			responseCode: http.StatusGone,
@@ -405,6 +419,23 @@ func TestHTTPLoader_Error(t *testing.T) {
 		assert.ErrorContains(t, err, `unsupported content encoding: "foobar"`)
 	})
 
+	t.Run("size limit", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write(bytes.Repeat([]byte(" "), 1000))
+			require.NoError(t, err)
+		}))
+		defer server.Close()
+
+		ctx := t.Context()
+
+		loader := NewHTTPLoader(server.Client(), nil)
+		loader.SizeLimit = 20
+		_, err := loader.Load(ctx, mustParseURL(server.URL))
+		assert.ErrorContains(t, err, `aborted request after reading more than 20B`)
+	})
+
 	t.Run("shutdown server", func(t *testing.T) {
 		t.Parallel()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -438,6 +469,14 @@ func TestHTTPLoader_Error(t *testing.T) {
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `create gzip reader: unexpected EOF`)
 	})
+}
+
+func TestHTTPLoader_NewRequestError(t *testing.T) {
+	failHTTPLoaderNewRequest = true
+	defer func() { failHTTPLoaderNewRequest = false }()
+	loader := NewHTTPLoader(http.DefaultClient, nil)
+	_, err := loader.Load(t.Context(), mustParseURL("file://localhost"))
+	assert.ErrorContains(t, err, `create request: `)
 }
 
 func TestFormatSizeBytes(t *testing.T) {

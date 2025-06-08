@@ -119,7 +119,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if ref.Path == "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
-	path := pathWindowsFix(ref.Path)
+	path := filepath.FromSlash(ref.Path)
 	if loader.basePath != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(loader.basePath, path)
 	}
@@ -151,11 +151,6 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		}
 		return &schema, nil
 	}
-}
-
-func pathWindowsFix(path string) string {
-	// This is practically a no-op on Linux, but is required on Windows
-	return filepath.FromSlash(strings.TrimPrefix(path, "/"))
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
@@ -207,15 +202,24 @@ func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 type HTTPLoader struct {
 	client *http.Client
 	cache  *HTTPCache
+
+	SizeLimit int64
 }
 
 func NewHTTPLoader(client *http.Client, cache *HTTPCache) HTTPLoader {
-	return HTTPLoader{client: client, cache: cache}
+	return HTTPLoader{
+		client:    client,
+		cache:     cache,
+		SizeLimit: 200 * 1000 * 1000, // arbitrary limit, but prevents CLI from eating all RAM
+	}
 }
 
 var _ Loader = HTTPLoader{}
 
 var yamlMediaTypeRegexp = regexp.MustCompile(`^application/(.*\+)?yaml$`)
+
+// Flag is only used in testing to achieve better test coverage
+var failHTTPLoaderNewRequest bool
 
 // Load implements [Loader].
 func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
@@ -229,8 +233,10 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	start := time.Now()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
-	if err != nil {
-		return nil, err
+	if err != nil || failHTTPLoaderNewRequest {
+		// The [http.NewRequestWithContext] will never fail,
+		// so we have to induce a fake failure via [failHTTPLoaderNewRequest]
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	fmt.Println("Loading", req.URL.Redacted())
@@ -300,7 +306,11 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		return nil, fmt.Errorf("request $ref=%q over HTTP: got non-2xx status code: %s", ref.Redacted(), resp.Status)
 	}
 
-	reader := resp.Body
+	var reader io.Reader = resp.Body
+	if loader.SizeLimit > 0 {
+		reader = LimitReaderWithError(reader, loader.SizeLimit,
+			fmt.Errorf("aborted request after reading more than %s", formatSizeBytes(int(loader.SizeLimit))))
+	}
 	switch resp.Header.Get("Content-Encoding") {
 	case "gzip":
 		r, err := gzip.NewReader(reader)
