@@ -97,7 +97,7 @@ var _ HTTPCache = &HTTPFileCache{}
 func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
 	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
 
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
 	if err != nil {
 		return CachedResponse{}, err
 	}
@@ -134,7 +134,7 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 		return CachedResponse{}, fmt.Errorf("mkdir: %w", err)
 	}
 
-	file, err := os.Create(path)
+	file, err := os.Create(path) // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
 	if err != nil {
 		return CachedResponse{}, fmt.Errorf("create cache file: %w", err)
 	}
