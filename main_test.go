@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,6 +139,81 @@ func TestMain(t *testing.T) {
 			}
 			if err := os.Remove("values.schema.json"); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetVersion(t *testing.T) {
+	Version = "v1.2.3"
+	assert.Equal(t, "v1.2.3", getVersion())
+
+	Version = "1.2.3"
+	assert.Equal(t, "v1.2.3", getVersion())
+
+	Version = ""
+	assert.Equal(t, "(devel)", getVersion())
+}
+
+func TestGetVersionFromBuildInfo(t *testing.T) {
+	Version = ""
+	tests := []struct {
+		name    string
+		version string
+		info    *debug.BuildInfo
+		want    string
+	}{
+		{
+			name: "nil",
+			info: nil,
+			want: "(devel)",
+		},
+		{
+			name: "main version",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "v4.5.6"},
+			},
+			want: "v4.5.6",
+		},
+		{
+			name: "vcs revision",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "some-sha-value"},
+				},
+			},
+			want: "some-sha-value",
+		},
+		{
+			name: "vcs dirty revision",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "some-sha-value"},
+					{Key: "vcs.modified", Value: "true"},
+				},
+			},
+			want: "some-sha-value-dirty",
+		},
+		{
+			name: "no vcs",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: ""},
+					{Key: "vcs.modified", Value: "false"},
+				},
+			},
+			want: "(devel)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getVersionFromBuildInfo(tt.info, tt.info != nil)
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
 			}
 		})
 	}

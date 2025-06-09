@@ -260,7 +260,10 @@ func TestHTTPLoader(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name+"/simple", func(t *testing.T) {
 			t.Parallel()
+
+			var gotUserAgent string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				gotUserAgent = req.Header.Get("User-Agent")
 				if tt.responseType != "" {
 					w.Header().Add("Content-Type", tt.responseType)
 				}
@@ -273,9 +276,12 @@ func TestHTTPLoader(t *testing.T) {
 			ctx := t.Context()
 
 			loader := NewHTTPLoader(server.Client())
+			loader.UserAgent = "test/" + t.Name()
 			schema, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, schema, "Schema")
+
+			assert.Equal(t, "test/"+t.Name(), gotUserAgent, "User-Agent")
 		})
 
 		t.Run(tt.name+"/gzip", func(t *testing.T) {
