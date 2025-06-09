@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,17 @@ func TestMakeGetwdFail(t *testing.T) {
 	MakeGetwdFail(t)
 
 	_, err = os.Getwd()
-	require.ErrorContains(t, err, "getwd: no such file or directory")
+	// Check error based on OS
+	switch runtime.GOOS {
+	case "windows":
+		require.Error(t, err)
+		require.ErrorContains(t, err, "The process cannot access the file")
+	case "darwin":
+		require.NoError(t, err)
+	default:
+		require.Error(t, err)
+		require.ErrorContains(t, err, "getwd: no such file or directory")
+	}
 }
 
 func TestCreateTempFile(t *testing.T) {
