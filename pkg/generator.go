@@ -1,12 +1,9 @@
 package pkg
 
 import (
-	"cmp"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,38 +109,9 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	if config.Bundle {
-		ctx := context.Background()
-
-		absOutputDir, err := filepath.Abs(filepath.Dir(config.Output))
-		if err != nil {
-			return fmt.Errorf("output %s: get absolute path: %w", config.Output, err)
+		if err := Bundle(mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
+			return err
 		}
-
-		bundleRoot := cmp.Or(config.BundleRoot, ".")
-		bundleRootAbs, err := filepath.Abs(bundleRoot)
-		if err != nil {
-			return fmt.Errorf("bundle root %s: get absolute path: %w", config.BundleRoot, err)
-		}
-
-		root, err := os.OpenRoot(bundleRootAbs)
-		if err != nil {
-			return fmt.Errorf("bundle root %s: %w", config.BundleRoot, err)
-		}
-		defer closeIgnoreError(root)
-
-		loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
-		if err := BundleSchema(ctx, loader, mergedSchema, absOutputDir); err != nil {
-			return fmt.Errorf("bundle schemas: %w", err)
-		}
-	}
-
-	if config.Bundle && config.BundleWithoutID {
-		if err := BundleRemoveIDs(mergedSchema); err != nil {
-			return fmt.Errorf("remove bundled $id: %w", err)
-		}
-
-		// Cleanup unused $defs after all other bundling tasks
-		RemoveUnusedDefs(mergedSchema)
 	}
 
 	// Ensure merged Schema is JSON Schema compliant

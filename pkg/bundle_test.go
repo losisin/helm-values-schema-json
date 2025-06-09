@@ -11,6 +11,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestBundleWithLoader_RemoveIDsError(t *testing.T) {
+	var (
+		loader = DummyLoader{
+			LoadFunc: func(context.Context, *url.URL) (*Schema, error) {
+				// Intentionally not load anything
+				return nil, nil
+			},
+		}
+		schema = &Schema{
+			Ref: "foo.json",
+		}
+		absOutputDir = ""
+		withoutIDs   = true
+	)
+
+	err := bundleWithLoader(t.Context(), loader, schema, absOutputDir, withoutIDs)
+	assert.ErrorContains(t, err, "remove bundled $id: /$ref: no $defs found that matches $ref=\"foo.json\"")
+}
+
 func TestRefRelativeToBasePath(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -71,7 +71,7 @@ func Load(ctx context.Context, loader Loader, ref *url.URL, basePathForIDs strin
 		return nil, fmt.Errorf("cannot load empty $ref")
 	}
 	schema, err := loader.Load(ctx, ref)
-	if err != nil {
+	if err != nil || schema == nil {
 		return nil, err
 	}
 

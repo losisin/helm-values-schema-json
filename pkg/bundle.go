@@ -1,13 +1,62 @@
 package pkg
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
 )
+
+// Bundle will use default loader settings to bundle all $ref into $defs
+// using [BundleSchema] and optionally remove any IDs using [BundleRemoveIDs].
+//
+// This function will update the schema in-place.
+//
+// The paths, outputDir & bundleRoot, are only used to change absolute paths
+// into relative paths in a solely cosmetic way.
+func Bundle(schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
+	ctx := context.Background()
+
+	absOutputDir, err := filepath.Abs(filepath.Dir(outputDir))
+	if err != nil {
+		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
+	}
+
+	bundleRootAbs, err := filepath.Abs(cmp.Or(bundleRoot, "."))
+	if err != nil {
+		return fmt.Errorf("bundle root %s: get absolute path: %w", bundleRoot, err)
+	}
+
+	root, err := os.OpenRoot(bundleRootAbs)
+	if err != nil {
+		return fmt.Errorf("bundle root %s: %w", bundleRoot, err)
+	}
+	defer closeIgnoreError(root)
+
+	loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
+	return bundleWithLoader(ctx, loader, schema, absOutputDir, withoutIDs)
+}
+
+func bundleWithLoader(ctx context.Context, loader Loader, schema *Schema, absOutputDir string, withoutIDs bool) error {
+	if err := BundleSchema(ctx, loader, schema, absOutputDir); err != nil {
+		return fmt.Errorf("bundle schemas: %w", err)
+	}
+
+	if withoutIDs {
+		if err := BundleRemoveIDs(schema); err != nil {
+			return fmt.Errorf("remove bundled $id: %w", err)
+		}
+
+		// Cleanup unused $defs after all other bundling tasks
+		RemoveUnusedDefs(schema)
+	}
+	return nil
+}
 
 // BundleSchema will use the [Loader] to load any "$ref" references and
 // store them in "$defs".
@@ -62,6 +111,9 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	loaded, err := Load(ctx, loader, ref, basePathForIDs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	}
+	if loaded == nil {
+		return nil
 	}
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
@@ -181,8 +233,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 	}
 
 	for subPath, subSchema := range schema.Subschemas() {
-		ptr := ptr.Add(subPath)
-		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
+		if err := bundleChangeRefsRec(parentDefPtr, ptr.Add(subPath), root, subSchema); err != nil {
 			return err
 		}
 	}
@@ -207,7 +258,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 	}
 
 	if ref.Fragment != "" {
-		schema.Ref = fmt.Sprintf("#%s%s", NewPtr("$defs", name), ref.Fragment)
+		schema.Ref = fmt.Sprintf("#%s/%s", NewPtr("$defs", name), strings.TrimPrefix(ref.Fragment, "/"))
 	} else {
 		schema.Ref = fmt.Sprintf("#%s", NewPtr("$defs", name))
 	}
