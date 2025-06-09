@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 
@@ -43,7 +44,22 @@ func NewCmd() *cobra.Command {
 		},
 		SilenceErrors: true,
 		SilenceUsage:  true,
+
+		Annotations: map[string]string{
+			cobra.CommandDisplayNameAnnotation: "helm schema",
+		},
 	}
+
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "version for helm schema",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			version := cmp.Or(cmd.Root().Version, "(unset)")
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", cmd.Root().DisplayName(), version)
+			return err
+		},
+	}
+	cmd.AddCommand(versionCmd)
 
 	cmd.PersistentFlags().String("config", ".schema.yaml", "Config file for setting defaults.")
 
