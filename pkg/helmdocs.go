@@ -165,8 +165,8 @@ func ParseHelmDocsPath(path string) ([]string, error) {
 
 // SplitHelmDocsComment will split a head comment by line and return:
 //
-// - Lines from last comment block, up until any helm-docs comments
-// - Liens from helm-docs comments
+//   - Lines from last comment block, up until any helm-docs comments
+//   - Liens from helm-docs comments
 func SplitHelmDocsComment(headComment string) (before, helmDocs []string) {
 	if headComment == "" {
 		return nil, nil

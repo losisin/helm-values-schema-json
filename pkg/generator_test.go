@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -238,6 +239,62 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
 		},
+		{
+			name: "bundle/absolute path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     true,
+				BundleRoot: filepath.Clean("/"),
+				Values: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				Output: "../testdata/bundle/simple-abs_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-absolute-root.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values-with-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: false,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: true,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values-without-id.schema.json",
+		},
 
 		{
 			name: "helm-docs",
@@ -256,27 +313,36 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := GenerateJsonSchema(tt.config)
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
+
+			cwd, err := os.Getwd()
 			require.NoError(t, err)
+			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
+
+			err = GenerateJsonSchema(tt.config)
+			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
 
 			generatedBytes, err := os.ReadFile(tt.config.Output)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from os.ReadFile on config.Output")
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from os.ReadFile on templateSchemaFile")
 
 			t.Logf("Generated output:\n%s\n", generatedBytes)
 
 			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
-
-			if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
-				t.Errorf("failed to remove values.schema.json: %v", err)
-			}
 		})
 	}
 }
 
 func TestGenerateJsonSchema_Errors(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		config      *Config
@@ -362,7 +428,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("open bundle root: open \x00: invalid argument"),
+			expectedErr: errors.New("bundle root \x00: open " + cwd + "/\x00: invalid argument"),
 		},
 		{
 			name: "bundle wrong root path",
@@ -379,18 +445,21 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("path escapes from parent"),
 		},
 		{
-			name: "bundle fail to get relative path",
+			name: "bundle invalid root ref file",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
 				Bundle:     true,
-				BundleRoot: filepath.Clean("/"),
+				BundleRoot: "..",
+				SchemaRoot: SchemaRoot{
+					Ref: "::",
+				},
 				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("get relative path from bundle root to file"),
+			expectedErr: errors.New("bundle schemas: /$ref: parse \"::\": missing protocol scheme"),
 		},
 		{
 			name: "invalid k8s ref alias",
@@ -435,6 +504,12 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
+
 			if tt.setupFunc != nil {
 				err := tt.setupFunc()
 				assert.NoError(t, err)
@@ -452,6 +527,46 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{"foo/bar.yaml"},
+		Draft:  2020,
+		Indent: 4,
+	})
+	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output: "foo.json",
+		Draft:  2020,
+		Indent: 4,
+		Bundle: true,
+	})
+	require.ErrorContains(t, err, "output foo.json: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values:     []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output:     "/tmp/foo.json",        // unaffected by failing [os.Getwd] because it is an absolute path
+		Draft:      2020,
+		Indent:     4,
+		Bundle:     true,
+		BundleRoot: "foo",
+	})
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: getwd: no such file or directory")
 }
 
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
@@ -528,4 +643,11 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWriteOutput_JSONError(t *testing.T) {
+	schema := &Schema{Type: func() {}}
+
+	err := WriteOutput(schema, os.DevNull, "  ")
+	require.ErrorContains(t, err, "unsupported type: func()")
 }

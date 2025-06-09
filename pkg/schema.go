@@ -2,13 +2,14 @@ package pkg
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
-	"maps"
-	"slices"
+	"net/url"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -83,6 +84,7 @@ type Schema struct {
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	RefReferrer           Referrer           `json:"-" yaml:"-"`
 	Type                  any                `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
@@ -247,7 +249,7 @@ func (s *Schema) Kind() SchemaKind {
 
 func (s *Schema) SetKind(kind SchemaKind) {
 	if s == nil {
-		panic(fmt.Errorf("Schema.SetKind(%#v): method reciever must not be nil", kind))
+		panic(fmt.Errorf("Schema.SetKind(%#v): method receiver must not be nil", kind))
 	}
 	switch kind {
 	case SchemaKindTrue:
@@ -425,12 +427,134 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 	}
 }
 
-func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for _, k := range slices.Sorted(maps.Keys(m)) {
-			if !yield(k, m[k]) {
-				return
-			}
-		}
+func (s *Schema) ParseRef() (*url.URL, error) {
+	if s == nil || s.Ref == "" {
+		return nil, nil
 	}
+	ref, err := url.Parse(s.Ref)
+	if err != nil {
+		return nil, err
+	}
+	if s.RefReferrer.IsZero() {
+		return ref, nil
+	}
+	if ref.Scheme != "" && ref.Scheme != "file" {
+		// Only have custom logic when $ref is a local file
+		return ref, nil
+	}
+	refFile, err := ParseRefFileURL(ref)
+	if err != nil {
+		return nil, err
+	}
+	return s.RefReferrer.Join(refFile), nil
+}
+
+func (s *Schema) SetReferrer(ref Referrer) {
+	if s == nil {
+		return
+	}
+	for _, sub := range s.Subschemas() {
+		sub.SetReferrer(ref)
+	}
+	if s.Ref != "" {
+		s.RefReferrer = ref
+	}
+}
+
+// Referrer holds information about what is referencing a schema.
+// This is used when resolving $ref to load the appropriate files or URLs.
+// Only one of "File" or "URL" should to be set at a time.
+type Referrer struct {
+	dir string
+	url *url.URL
+}
+
+// ReferrerDir returns a [Referrer] using an path to a directory.
+func ReferrerDir(dir string) Referrer {
+	return Referrer{dir: dir}
+}
+
+// ReferrerURL returns a [Referrer] using a URL.
+func ReferrerURL(url *url.URL) Referrer {
+	// Clone it just to make sure we don't get any weird memory reuse bugs
+	clone := *url
+	return Referrer{url: &clone}
+}
+
+// IsZero returns true when neither File nor URL has been set.
+func (r Referrer) IsZero() bool {
+	return r == (Referrer{})
+}
+
+func (r Referrer) Join(refFile RefFile) *url.URL {
+	if r.url != nil {
+		urlClone := *r.url
+		urlClone.Path = path.Join(urlClone.Path, refFile.Path)
+		urlClone.Fragment = refFile.Frag
+		return &urlClone
+	}
+
+	return &url.URL{
+		Path:     path.Join(filepath.ToSlash(r.dir), refFile.Path),
+		Fragment: refFile.Frag,
+	}
+}
+
+// RefFile is a parsed "$ref: file://" schema property
+type RefFile struct {
+	Path string
+	Frag string
+}
+
+func (r RefFile) String() string {
+	if r.Frag != "" {
+		return fmt.Sprintf("%s#%s", r.Path, r.Frag)
+	}
+	return r.Path
+}
+
+func ParseRefFile(ref string) (RefFile, error) {
+	if ref == "" {
+		return RefFile{}, nil
+	}
+	if after, ok := strings.CutPrefix(ref, "#"); ok {
+		return RefFile{Frag: after}, nil
+	}
+	u, err := url.Parse(ref)
+	if err != nil {
+		return RefFile{}, err
+	}
+	return ParseRefFileURL(u)
+}
+
+func ParseRefFileURL(u *url.URL) (RefFile, error) {
+	switch {
+	case u.Scheme != "" && u.Scheme != "file":
+		return RefFile{}, nil
+
+	case u.RawQuery != "":
+		return RefFile{}, fmt.Errorf("file query parameters not supported")
+
+	case u.User != nil:
+		return RefFile{}, fmt.Errorf("file URL user info not supported")
+
+	case u.Scheme == "file" && u.Host == "" && u.Path == "":
+		return RefFile{}, fmt.Errorf("unexpected empty file://")
+
+	case u.Scheme == "" && strings.HasPrefix(u.Path, "/"),
+		u.Scheme == "file" && u.Host == "" && u.Path != "":
+		// Treat "/foo" & "file:///" as invalid
+		return RefFile{}, fmt.Errorf("absolute paths not supported")
+	}
+	u.Scheme = ""
+
+	if u.Host != "" {
+		u.Path = path.Join(u.Host, u.Path)
+		u.Host = ""
+	}
+
+	return RefFile{
+		Path: u.Path,
+		Frag: u.Fragment,
+	}, nil
 }

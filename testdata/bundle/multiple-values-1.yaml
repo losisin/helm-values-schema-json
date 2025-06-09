@@ -1,0 +1,3 @@
+# Tries to replicate issue https://github.com/losisin/helm-values-schema-json/issues/176
+
+image: # @schema $ref: simple-subschema.schema.json

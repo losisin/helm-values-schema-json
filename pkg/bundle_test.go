@@ -11,7 +11,74 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestBundleRefToID(t *testing.T) {
+func TestBundleWithLoader_RemoveIDsError(t *testing.T) {
+	var (
+		loader = DummyLoader{
+			LoadFunc: func(context.Context, *url.URL) (*Schema, error) {
+				// Intentionally not load anything
+				return nil, nil
+			},
+		}
+		schema = &Schema{
+			Ref: "foo.json",
+		}
+		absOutputDir = ""
+		withoutIDs   = true
+	)
+
+	err := bundleWithLoader(t.Context(), loader, schema, absOutputDir, withoutIDs)
+	assert.ErrorContains(t, err, "remove bundled $id: /$ref: no $defs found that matches $ref=\"foo.json\"")
+}
+
+func TestRefRelativeToBasePath(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name           string
+		ref            *url.URL
+		basePathForIDs string
+		want           *url.URL
+	}{
+		{
+			name:           "ignore http",
+			ref:            mustParseURL("http://example.com"),
+			basePathForIDs: "/home/user",
+			want:           mustParseURL("http://example.com"),
+		},
+		{
+			name:           "ignore already relative",
+			ref:            mustParseURL("foo/bar"),
+			basePathForIDs: "/home/user",
+			want:           mustParseURL("foo/bar"),
+		},
+		{
+			name:           "ignore when cant make relative path",
+			ref:            mustParseURL("/foo/bar"),
+			basePathForIDs: "home/user",
+			want:           mustParseURL("/foo/bar"),
+		},
+		{
+			name:           "change to subdir",
+			ref:            mustParseURL("/home/user/foo/bar"),
+			basePathForIDs: "/home/user",
+			want:           mustParseURL("foo/bar"),
+		},
+		{
+			name:           "change to parent dir",
+			ref:            mustParseURL("/home/foo"),
+			basePathForIDs: "/home/user",
+			want:           mustParseURL("../foo"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := refRelativeToBasePath(tt.ref, tt.basePathForIDs)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestTrimFragment(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name string
@@ -47,7 +114,7 @@ func TestBundleRefToID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := bundleRefToID(tt.ref)
+			got := trimFragment(tt.ref)
 			if got != tt.want {
 				t.Fatalf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
 			}
@@ -347,7 +414,7 @@ func TestBundle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema)
+			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.schema)
 
@@ -392,14 +459,14 @@ func TestBundle_Errors(t *testing.T) {
 				},
 			},
 			loader:  DummyLoader{},
-			wantErr: `/properties/foo/$ref: parse $ref as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse "::": missing protocol scheme`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema)
+			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
@@ -521,7 +588,7 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 					},
 				},
 			},
-			wantErr: `/properties/foo: parse $ref="::" as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse $ref="::" as URL: parse "::": missing protocol scheme`,
 		},
 		{
 			name: "invalid ref",
@@ -532,7 +599,7 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 					},
 				},
 			},
-			wantErr: `/properties/foo: no $defs found that matches $ref="./no/$defs/with/this/ref"`,
+			wantErr: `/properties/foo/$ref: no $defs found that matches $ref="./no/$defs/with/this/ref"`,
 		},
 	}
 
@@ -858,59 +925,6 @@ func TestResolvePtr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resolved := resolvePtr(tt.schema, tt.ptr)
 			assert.Equal(t, tt.want(tt.schema), resolved)
-		})
-	}
-}
-
-func TestFixRootSchemaRef(t *testing.T) {
-	tests := []struct {
-		name          string
-		rootSchemaRef string
-		filePath      string
-		want          string
-	}{
-		{
-			name:          "empty ref",
-			rootSchemaRef: "",
-			filePath:      "this value should not be used",
-			want:          "",
-		},
-		{
-			name:          "invalid URL",
-			rootSchemaRef: "::",
-			filePath:      "this value should not be used",
-			want:          "::",
-		},
-		{
-			name:          "fail to get rel path",
-			rootSchemaRef: "./some-file.json",
-			filePath:      "/abs/path/to/file.yaml",
-			want:          "./some-file.json",
-		},
-		{
-			name:          "same directory noop",
-			rootSchemaRef: "./some-file.json",
-			filePath:      "./file.yaml",
-			want:          "./some-file.json",
-		},
-		{
-			name:          "file in subdirectory",
-			rootSchemaRef: "./some-file.json",
-			filePath:      "./sub/file.yaml",
-			want:          "../some-file.json",
-		},
-		{
-			name:          "root ref in subdirectory",
-			rootSchemaRef: "./sub/some-file.json",
-			filePath:      "./file.yaml",
-			want:          "./sub/some-file.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := FixRootSchemaRef(tt.rootSchemaRef, tt.filePath)
-			assert.Equal(t, tt.want, got)
 		})
 	}
 }

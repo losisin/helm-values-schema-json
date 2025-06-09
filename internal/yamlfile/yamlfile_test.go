@@ -1,9 +1,9 @@
 package yamlfile
 
 import (
-	"os"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +31,7 @@ func TestRead_FileNotFound(t *testing.T) {
 
 func TestRead_YAMLError(t *testing.T) {
 	var cfg struct{}
-	p := Provider(cfg, writeTempFile(t, "foo: bar:\n"), "mytag")
+	p := Provider(cfg, testutil.WriteTempFile(t, "file-*.yaml", []byte("foo: bar:\n")).Name(), "mytag")
 	_, err := p.Read()
 	assert.ErrorContains(t, err, "yaml: mapping values are not allowed in this context")
 }
@@ -45,7 +45,7 @@ func TestRead_Success(t *testing.T) {
 		B: "default b",
 	}
 
-	p := Provider(cfg, writeTempFile(t, "yamlA: yaml a\n"), "mytag")
+	p := Provider(cfg, testutil.WriteTempFile(t, "file-*.yaml", []byte("yamlA: yaml a\n")).Name(), "mytag")
 	got, err := p.Read()
 	require.NoError(t, err)
 
@@ -54,16 +54,4 @@ func TestRead_Success(t *testing.T) {
 		"mytagB": "default b",
 	}
 	assert.Equal(t, want, got)
-}
-
-func writeTempFile(t *testing.T, content string) string {
-	tmpFile, err := os.CreateTemp("", "yamlfile-*.yaml")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, tmpFile.Close())
-		assert.NoError(t, os.Remove(tmpFile.Name()))
-	})
-	_, err = tmpFile.WriteString(content)
-	require.NoError(t, err)
-	return tmpFile.Name()
 }

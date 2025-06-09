@@ -1,10 +1,10 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$ref": "./simple-subschema.schema.json",
+    "$ref": "simple-subschema.schema.json",
     "type": "object",
     "properties": {
         "image": {
-            "$ref": "./simple-subschema.schema.json",
+            "$ref": "simple-subschema.schema.json",
             "type": "object",
             "properties": {
                 "pullPolicy": {
@@ -26,7 +26,7 @@
     "$defs": {
         "simple-subschema.schema.json": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "./simple-subschema.schema.json",
+            "$id": "simple-subschema.schema.json",
             "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
             "type": "object",
             "properties": {
