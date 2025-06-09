@@ -21,31 +21,33 @@ func TestLoad_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
 		loader  Loader
-		ref     string
+		ref     *url.URL
 		wantErr string
 	}{
 		{
 			name:    "nil loader",
 			loader:  nil,
+			ref:     mustParseURL(""),
 			wantErr: "nil loader",
+		},
+		{
+			name:    "nil ref",
+			loader:  DummyLoader{},
+			ref:     nil,
+			wantErr: "cannot load empty $ref",
 		},
 		{
 			name:    "empty ref",
 			loader:  DummyLoader{},
+			ref:     mustParseURL(""),
 			wantErr: "cannot load empty $ref",
-		},
-		{
-			name:    "invalid URL",
-			loader:  DummyLoader{},
-			ref:     "::",
-			wantErr: `parse $ref as URL: parse "::": missing protocol scheme`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := Load(t.Context(), tt.loader, tt.ref)
+			_, err := Load(t.Context(), tt.loader, tt.ref, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
@@ -53,9 +55,10 @@ func TestLoad_Errors(t *testing.T) {
 
 func TestFileLoader_Error(t *testing.T) {
 	tests := []struct {
-		name    string
-		url     *url.URL
-		wantErr string
+		name       string
+		url        *url.URL
+		fsRootPath string
+		wantErr    string
 	}{
 		{
 			name:    "invalid scheme",
@@ -80,12 +83,18 @@ func TestFileLoader_Error(t *testing.T) {
 		{
 			name:    "invalid JSON",
 			url:     mustParseURL("./invalid-schema.json"),
-			wantErr: `parse $ref="./invalid-schema.json" JSON file: invalid character 'h' in literal true`,
+			wantErr: `parse JSON file: invalid character 'h' in literal true`,
 		},
 		{
 			name:    "invalid YAML",
 			url:     mustParseURL("./invalid-schema.yaml"),
-			wantErr: `parse $ref="./invalid-schema.yaml" YAML file: yaml: did not find expected key`,
+			wantErr: `parse YAML file: yaml: did not find expected key`,
+		},
+		{
+			name:       "fail to get relative path from fsRootPath",
+			url:        mustParseURL("/foo/bar"),
+			fsRootPath: "some/relative/path",
+			wantErr:    `get relative path from bundle root: Rel: can't make /foo/bar relative to some/relative/path`,
 		},
 	}
 
@@ -97,7 +106,7 @@ func TestFileLoader_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := NewFileLoader((*RootFS)(root), "")
+			loader := NewFileLoader((*RootFS)(root), tt.fsRootPath)
 			_, err := loader.Load(t.Context(), tt.url)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
@@ -152,7 +161,7 @@ func TestFileLoader_TestFSError(t *testing.T) {
 
 	loader := NewFileLoader(root, "")
 	_, err := loader.Load(t.Context(), mustParseURL("./some-fake-file.txt"))
-	assert.ErrorContains(t, err, "read $ref=\"./some-fake-file.txt\" file: dummy error")
+	assert.ErrorContains(t, err, "dummy error")
 }
 
 func TestURLSchemeLoader_Error(t *testing.T) {
@@ -225,6 +234,7 @@ func TestHTTPLoader(t *testing.T) {
 		response     string
 		responseType string
 		want         *Schema
+		wantFunc     func(serverURL string) *Schema
 	}{
 		{
 			name:     "empty object",
@@ -255,59 +265,108 @@ func TestHTTPLoader(t *testing.T) {
 			responseType: "application/yaml",
 			want:         &Schema{Comment: "hello"},
 		},
+		{
+			name:     "with ref",
+			response: `{"$ref": "foo.json"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{
+					Ref:         "foo.json",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
+			},
+		},
+		{
+			name:     "with ref subdir",
+			response: `{"$ref": "subdir/foo.json"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{
+					Ref:         "subdir/foo.json",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
+			},
+		},
+		{
+			name:     "with ref subdir fragment",
+			response: `{"$ref": "subdir/foo.json#/properties/foo"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{
+					Ref:         "subdir/foo.json#/properties/foo",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
+			},
+		},
+		{
+			name:     "invalid ref isnt checked here",
+			response: `{"$ref": "::"}`,
+			wantFunc: func(serverURL string) *Schema {
+				return &Schema{
+					Ref:         "::",
+					RefReferrer: ReferrerURL(mustParseURL(serverURL)),
+				}
+			},
+		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name+"/simple", func(t *testing.T) {
-			t.Parallel()
-
-			var gotUserAgent string
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				gotUserAgent = req.Header.Get("User-Agent")
-				if tt.responseType != "" {
-					w.Header().Add("Content-Type", tt.responseType)
+	responseTypes := []struct {
+		name  string
+		write func(t *testing.T, w http.ResponseWriter, msg, contentType string)
+	}{
+		{
+			name: "uncompressed",
+			write: func(t *testing.T, w http.ResponseWriter, msg, contentType string) {
+				if contentType != "" {
+					w.Header().Add("Content-Type", contentType)
 				}
 				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte(tt.response))
+				_, err := w.Write([]byte(msg))
 				require.NoError(t, err)
-			}))
-			defer server.Close()
-
-			ctx := t.Context()
-
-			loader := NewHTTPLoader(server.Client())
-			loader.UserAgent = "test/" + t.Name()
-			schema, err := loader.Load(ctx, mustParseURL(server.URL))
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, schema, "Schema")
-
-			assert.Equal(t, "test/"+t.Name(), gotUserAgent, "User-Agent")
-		})
-
-		t.Run(tt.name+"/gzip", func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				if tt.responseType != "" {
-					w.Header().Add("Content-Type", tt.responseType)
+			},
+		},
+		{
+			name: "gzip",
+			write: func(t *testing.T, w http.ResponseWriter, msg, contentType string) {
+				if contentType != "" {
+					w.Header().Add("Content-Type", contentType)
 				}
 				w.Header().Add("Content-Encoding", "gzip")
 				w.WriteHeader(http.StatusOK)
 				gzipper := gzip.NewWriter(w)
 				defer func() {
-					require.NoError(t, gzipper.Close())
+					assert.NoError(t, gzipper.Close())
 				}()
-				_, err := gzipper.Write([]byte(tt.response))
+				_, err := gzipper.Write([]byte(msg))
 				require.NoError(t, err)
-			}))
-			defer server.Close()
+			},
+		},
+	}
 
-			ctx := t.Context()
+	for _, tt := range tests {
+		for _, writer := range responseTypes {
+			t.Run(tt.name+"/"+writer.name, func(t *testing.T) {
+				t.Parallel()
+				var gotUserAgent string
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					gotUserAgent = req.Header.Get("User-Agent")
+					writer.write(t, w, tt.response, tt.responseType)
+				}))
+				defer server.Close()
 
-			loader := NewHTTPLoader(server.Client())
-			schema, err := loader.Load(ctx, mustParseURL(server.URL))
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, schema, "Schema")
-		})
+				ctx := t.Context()
+
+				loader := NewHTTPLoader(server.Client())
+				loader.UserAgent = "test/" + t.Name()
+				schema, err := loader.Load(ctx, mustParseURL(server.URL))
+				require.NoError(t, err)
+
+				want := tt.want
+				if tt.wantFunc != nil {
+					want = tt.wantFunc(server.URL)
+				}
+
+				assert.Equal(t, want, schema, "Schema")
+				assert.Equal(t, "test/"+t.Name(), gotUserAgent, "UserAgent")
+			})
+		}
 
 		t.Run(tt.name+"/link", func(t *testing.T) {
 			t.Parallel()
@@ -511,12 +570,4 @@ func TestFormatSizeBytes(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mustParseURL(rawURL string) *url.URL {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }

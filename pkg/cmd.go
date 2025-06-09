@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
@@ -90,12 +91,14 @@ func NewCmd() *cobra.Command {
 
 // Flags are only used in testing to achieve better test coverage
 var (
-	failConfigFlagLoad  bool
-	failConfigUnmarshal bool
+	failConfigFlagLoad             bool
+	failConfigUnmarshal            bool
+	failConfigConfigRefReferrerAbs bool
 )
 
 func LoadConfig(cmd *cobra.Command) (*Config, error) {
 	k := koanf.New(".")
+	var refReferrer Referrer
 
 	configFlag := cmd.Flag("config")
 	configPath := configFlag.Value.String()
@@ -106,16 +109,36 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 
+	if k.String(schemaRootRefKey) != "" {
+		configAbsPath, err := filepath.Abs(configPath)
+		if err != nil || failConfigConfigRefReferrerAbs {
+			// [filepath.Abs] can't fail here because we already loaded the config file,
+			// so resolving its absolute position is guaranteed to also work
+			// (except for a race condition, but that's super tricky to test for)
+			return nil, fmt.Errorf("resolve absolute path of config file: %w", err)
+		}
+		refReferrer = ReferrerDir(filepath.Dir(configAbsPath))
+	}
+
 	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, any) {
 		if !f.Changed && f.Value.Type() == "bool" {
 			// ignore boolean flags that are not explicitly set
 			// this allows "schemaRoot.additionalProperties" to stay as null when unset
 			return "", nil
 		}
+
 		return f.Name, posflag.FlagVal(cmd.Flags(), f)
 	}), nil); err != nil || failConfigFlagLoad {
 		// The [posflag] provider can't fail, so we have to induce a fake failure via [failConfigFlagLoad]
 		return nil, fmt.Errorf("load flags: %w", err)
+	}
+
+	if cmd.Flag(schemaRootRefKey).Changed {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("resolve current working directory: %w", err)
+		}
+		refReferrer = ReferrerDir(cwd)
 	}
 
 	var config Config
@@ -125,6 +148,8 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		// Meaning, this "k.Unmarshal" will never fail, so we have to induce a fake failure via [failConfigUnmarshal]
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
+
+	config.SchemaRoot.RefReferrer = refReferrer
 
 	return &config, nil
 }
@@ -157,11 +182,14 @@ type Config struct {
 	SchemaRoot SchemaRoot `yaml:"schemaRoot" koanf:"schema-root"`
 }
 
+const schemaRootRefKey = "schema-root.ref"
+
 // SchemaRoot struct defines root object of schema
 type SchemaRoot struct {
-	ID                   string `yaml:"id" koanf:"id"`
-	Ref                  string `yaml:"ref" koanf:"ref"`
-	Title                string `yaml:"title" koanf:"title"`
-	Description          string `yaml:"description" koanf:"description"`
-	AdditionalProperties *bool  `yaml:"additionalProperties" koanf:"additional-properties"`
+	ID                   string   `yaml:"id" koanf:"id"`
+	Ref                  string   `yaml:"ref" koanf:"ref"`
+	RefReferrer          Referrer `yaml:"-" koanf:"-"`
+	Title                string   `yaml:"title" koanf:"title"`
+	Description          string   `yaml:"description" koanf:"description"`
+	AdditionalProperties *bool    `yaml:"additionalProperties" koanf:"additional-properties"`
 }
