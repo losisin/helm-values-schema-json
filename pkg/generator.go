@@ -139,7 +139,7 @@ func WriteOutput(mergedSchema *Schema, outputPath, indent string) error {
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
+	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
 		return errors.New("error writing schema to file")
 	}
 
