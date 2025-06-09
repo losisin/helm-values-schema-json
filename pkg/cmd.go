@@ -15,7 +15,7 @@ import (
 
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "helm schema",
+		Use:  "helm",
 		Args: cobra.NoArgs,
 		Example: `  # Reads values.yaml and outputs to values.schema.json
   helm schema
