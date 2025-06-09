@@ -130,7 +130,7 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 	}
 	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
 
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return CachedResponse{}, fmt.Errorf("mkdir: %w", err)
 	}
 
@@ -138,6 +138,7 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 	if err != nil {
 		return CachedResponse{}, fmt.Errorf("create cache file: %w", err)
 	}
+	defer closeIgnoreError(file)
 	gzipWriter := gzip.NewWriter(file)
 	defer closeIgnoreError(gzipWriter)
 	gobEncoder := gob.NewEncoder(gzipWriter)
