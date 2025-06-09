@@ -18,6 +18,7 @@ import (
 
 type HTTPCache struct {
 	cacheDirFunc func() string
+	now          func() time.Time
 }
 
 func NewHTTPCache() *HTTPCache {
@@ -30,6 +31,7 @@ func NewHTTPCache() *HTTPCache {
 			}
 			return filepath.Join(dir, "helm-values-schema-json", "httploader")
 		}),
+		now: time.Now,
 	}
 }
 
@@ -63,7 +65,7 @@ func (h *HTTPCache) SaveCache(req *http.Request, resp *http.Response, body []byt
 
 	cached := CachedResponse{
 		Data:     body,
-		CachedAt: time.Now(),
+		CachedAt: h.now(),
 		MaxAge:   maxAge,
 		ETag:     resp.Header.Get("ETag"),
 	}
@@ -75,15 +77,12 @@ func (h *HTTPCache) SaveCache(req *http.Request, resp *http.Response, body []byt
 
 	file, err := os.Create(path)
 	if err != nil {
-		return CachedResponse{}, err
+		return CachedResponse{}, fmt.Errorf("create cache file: %w", err)
 	}
 	gzipWriter := gzip.NewWriter(file)
 	defer closeIgnoreError(gzipWriter)
 	gobEncoder := gob.NewEncoder(gzipWriter)
-	if err := gobEncoder.Encode(cached); err != nil {
-		return CachedResponse{}, err
-	}
-	return cached, nil
+	return cached, gobEncoder.Encode(cached)
 }
 
 func getCacheControlMaxAge(header string) time.Duration {

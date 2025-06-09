@@ -45,3 +45,11 @@ func WriteTempFile(t *testing.T, pattern string, content []byte) *os.File {
 	require.NoError(t, err)
 	return tmpFile
 }
+
+// CreateTempDir creates a temporary directory removes it at the end of the test.
+func CreateTempDir(t *testing.T, pattern string) string {
+	dir, err := os.MkdirTemp("", pattern)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, os.RemoveAll(dir)) })
+	return dir
+}

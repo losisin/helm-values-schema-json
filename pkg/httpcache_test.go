@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -167,6 +168,133 @@ func TestLoadCache(t *testing.T) {
 			assert.Equal(t, tt.want, cached)
 		})
 	}
+}
+
+func TestSaveCache(t *testing.T) {
+	now := time.Date(2025, 6, 9, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name string
+		url  string
+		resp *http.Response
+		body []byte
+		want CachedResponse
+	}{
+		{
+			name: "no cache control",
+			url:  "http://example.com",
+			resp: &http.Response{
+				Header: http.Header{
+					http.CanonicalHeaderKey("ETag"): []string{"myETag"},
+				},
+			},
+			body: []byte("foo"),
+			want: CachedResponse{},
+		},
+		{
+			name: "no max age in cache control",
+			url:  "http://example.com",
+			resp: &http.Response{
+				Header: http.Header{
+					http.CanonicalHeaderKey("Cache-Control"): []string{"foobar"},
+					http.CanonicalHeaderKey("ETag"):          []string{"myETag"},
+				},
+			},
+			body: []byte("foo"),
+			want: CachedResponse{},
+		},
+		{
+			name: "no etag",
+			url:  "http://example.com",
+			resp: &http.Response{
+				Header: http.Header{
+					http.CanonicalHeaderKey("Cache-Control"): []string{"max-age=100"},
+				},
+			},
+			body: []byte("foo"),
+			want: CachedResponse{
+				CachedAt: now,
+				MaxAge:   100 * time.Second,
+				Data:     []byte("foo"),
+			},
+		},
+		{
+			name: "full save",
+			url:  "http://example.com",
+			resp: &http.Response{
+				Header: http.Header{
+					http.CanonicalHeaderKey("Cache-Control"): []string{"max-age=100"},
+					http.CanonicalHeaderKey("ETag"):          []string{"myETag"},
+				},
+			},
+			body: []byte("foo"),
+			want: CachedResponse{
+				CachedAt: now,
+				MaxAge:   100 * time.Second,
+				Data:     []byte("foo"),
+				ETag:     "myETag",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cache := NewHTTPCache()
+			dir := testutil.CreateTempDir(t, "schema-httpcache-*")
+			cache.cacheDirFunc = func() string { return dir }
+			cache.now = func() time.Time { return now }
+
+			req, err := http.NewRequest(http.MethodGet, tt.url, nil)
+			require.NoError(t, err)
+
+			cached, err := cache.SaveCache(req, tt.resp, tt.body)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cached)
+
+			loaded, err := cache.LoadCache(req)
+			if !os.IsNotExist(err) {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, loaded)
+		})
+	}
+}
+
+func TestSaveCache_Error(t *testing.T) {
+	t.Run("mkdir", func(t *testing.T) {
+		cache := NewHTTPCache()
+		file := testutil.CreateTempFile(t, "schema-httpcache-*")
+		cache.cacheDirFunc = func() string { return file.Name() }
+
+		req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+		require.NoError(t, err)
+
+		_, err = cache.SaveCache(req, &http.Response{
+			Header: http.Header{
+				http.CanonicalHeaderKey("Cache-Control"): []string{"max-age=100"},
+				http.CanonicalHeaderKey("ETag"):          []string{"myETag"},
+			},
+		}, nil)
+		assert.ErrorContains(t, err, "mkdir:")
+	})
+
+	t.Run("create file", func(t *testing.T) {
+		cache := NewHTTPCache()
+		dir := testutil.CreateTempDir(t, "schema-httpcache-*")
+		cache.cacheDirFunc = func() string { return dir }
+
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "schema.json.gob.gz"), 0755))
+
+		req, err := http.NewRequest(http.MethodGet, "http://example.com/schema.json", nil)
+		require.NoError(t, err)
+
+		_, err = cache.SaveCache(req, &http.Response{
+			Header: http.Header{
+				http.CanonicalHeaderKey("Cache-Control"): []string{"max-age=100"},
+				http.CanonicalHeaderKey("ETag"):          []string{"myETag"},
+			},
+		}, nil)
+		assert.ErrorContains(t, err, "create cache file:")
+	})
 }
 
 func TestGetCacheControlMaxAge(t *testing.T) {
