@@ -61,3 +61,14 @@ func TestCreateTempDir(t *testing.T) {
 	})
 	require.NoDirExists(t, dir)
 }
+
+func TestResetEnvAfterTest(t *testing.T) {
+	t.Setenv("foo", "bar")
+	t.Run("sub-test", func(t *testing.T) {
+		require.Equal(t, "bar", os.Getenv("foo"))
+		ResetEnvAfterTest(t)
+		require.NoError(t, os.Setenv("foo", "inner"))
+		require.Equal(t, "inner", os.Getenv("foo"))
+	})
+	require.Equal(t, "bar", os.Getenv("foo"))
+}

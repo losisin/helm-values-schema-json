@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -18,9 +17,9 @@ import (
 )
 
 func TestHTTPCache_CacheDir(t *testing.T) {
-	resetEnvAfterTest(t)
+	testutil.ResetEnvAfterTest(t)
 	os.Clearenv()
-	os.Setenv("HOME", "/foo/bar")
+	require.NoError(t, os.Setenv("HOME", "/foo/bar"))
 
 	cache := NewHTTPCache()
 
@@ -29,23 +28,13 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 }
 
 func TestHTTPCache_CacheDir_Error(t *testing.T) {
-	resetEnvAfterTest(t)
+	testutil.ResetEnvAfterTest(t)
 	// Remove $HOME and $XDG_CONFIG_DIR, which makes [os.UserCacheDir] fail
 	os.Clearenv()
 
 	cache := NewHTTPCache()
 	dir := cache.cacheDirFunc()
 	assert.Equal(t, "/tmp/helm-values-schema-json/httploader", dir)
-}
-
-func resetEnvAfterTest(t *testing.T) {
-	envs := os.Environ()
-	t.Cleanup(func() {
-		for _, env := range envs {
-			k, v, _ := strings.Cut(env, "=")
-			os.Setenv(k, v)
-		}
-	})
 }
 
 func TestLoadCache(t *testing.T) {
