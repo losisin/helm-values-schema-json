@@ -101,31 +101,23 @@ func (loader DummyLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 // FileLoader loads a schema from a "$ref: file:/some/path" reference
 // from the local file-system.
 type FileLoader struct {
-	fs       fs.FS
-	basePath string
+	fs         fs.FS
+	fsRootPath string
 }
 
-func NewFileLoader(fs fs.FS, basePath string) FileLoader {
+// NewFileLoader returns a new file loader.
+//
+// The fsRootPath parameter is used to convert absolute paths into relative
+// paths when loading the files, and should be the absolute path of the
+// file system's root directory. This value mostly matters when using [os.Root].
+//
+// This is only a cosmetic change as it will make error messages have more
+// readable relative paths instead of absolute paths.
+func NewFileLoader(fs fs.FS, fsRootPath string) FileLoader {
 	return FileLoader{
-		fs:       fs,
-		basePath: basePath,
+		fs:         fs,
+		fsRootPath: fsRootPath,
 	}
-}
-
-func GetFileLoaderBasePath(output, bundleRoot string) (string, error) {
-	absOutputDir, err := filepath.Abs(filepath.Dir(output))
-	if err != nil {
-		return "", fmt.Errorf("get absolute path for output dir %s: %w", output, err)
-	}
-	absBundleRoot, err := filepath.Abs(bundleRoot)
-	if err != nil {
-		return "", fmt.Errorf("get absolute path for bundle root: %w", err)
-	}
-	base, err := filepath.Rel(absBundleRoot, absOutputDir)
-	if err != nil {
-		return "", fmt.Errorf("file %s -> bundle root %s: get relative path: %w", output, bundleRoot, err)
-	}
-	return base, nil
 }
 
 var _ Loader = FileLoader{}
@@ -138,17 +130,19 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if ref.Path == "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
-	path := filepath.FromSlash(ref.Path)
+	pathAbs := filepath.FromSlash(ref.Path)
 
-	//if loader.basePath != "" && !filepath.IsAbs(path) {
-	//	path = filepath.Join(loader.basePath, path)
-	//}
-
-	// TODO: idea: just use absolute paths everywhere, always.
-	// And then at the end do a "polishing pass" where we convert absolute path $id's into relative paths
+	path := pathAbs
+	if loader.fsRootPath != "" && filepath.IsAbs(path) {
+		rel, err := filepath.Rel(loader.fsRootPath, path)
+		if err != nil {
+			return nil, fmt.Errorf("get relative path from bundle root: %w", err)
+		}
+		path = rel
+	}
 
 	fmt.Println("Loading file", path)
-	f, err := os.Open(path)
+	f, err := loader.fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +166,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		}
 	}
 
-	schema.SetReferrer(ReferrerDir(filepath.Dir(path)))
+	schema.SetReferrer(ReferrerDir(filepath.Dir(pathAbs)))
 	return &schema, nil
 }
 
