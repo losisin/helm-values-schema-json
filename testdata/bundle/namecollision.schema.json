@@ -3,18 +3,18 @@
     "type": "object",
     "properties": {
         "dir1": {
-            "$ref": "./dir1/namecollision-subschema.schema.json",
+            "$ref": "dir1/namecollision-subschema.schema.json",
             "type": "object"
         },
         "dir2": {
-            "$ref": "./dir2/namecollision-subschema.schema.json",
+            "$ref": "dir2/namecollision-subschema.schema.json",
             "type": "object"
         }
     },
     "$defs": {
         "namecollision-subschema.schema.json": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "./dir1/namecollision-subschema.schema.json",
+            "$id": "dir1/namecollision-subschema.schema.json",
             "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
             "type": "object",
             "properties": {
@@ -42,7 +42,7 @@
         },
         "namecollision-subschema.schema.json_2": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "./dir2/namecollision-subschema.schema.json",
+            "$id": "dir2/namecollision-subschema.schema.json",
             "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
             "type": "object",
             "properties": {

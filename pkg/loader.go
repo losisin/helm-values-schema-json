@@ -23,13 +23,14 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // RootFS is a replacement for [os.Root.FS] that intentionally doesn't call
@@ -58,23 +59,25 @@ func NewDefaultLoader(client *http.Client, bundleFS fs.FS, basePath string) Load
 // Load uses a bundle [Loader] to resolve a schema "$ref".
 // Depending on the loader implementation, it may read from cache,
 // read files from disk, or fetch files from the web using HTTP.
-func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
+//
+// The basePathForIDs is an absolute path used to change the resulting
+// $ref & $id absolute paths of bundled local files to relative paths.
+// It is only used cosmetically and has no impact of how files are loaded.
+func Load(ctx context.Context, loader Loader, ref *url.URL, basePathForIDs string) (*Schema, error) {
 	if loader == nil {
 		return nil, fmt.Errorf("nil loader")
 	}
-	if ref == "" {
+	if ref == nil || *ref == (url.URL{}) {
 		return nil, fmt.Errorf("cannot load empty $ref")
 	}
-	refURL, err := url.Parse(ref)
-	if err != nil {
-		return nil, fmt.Errorf("parse $ref as URL: %w", err)
-	}
-	schema, err := loader.Load(ctx, refURL)
-	if err != nil {
+	schema, err := loader.Load(ctx, ref)
+	if err != nil || schema == nil {
 		return nil, err
 	}
 
-	schema.ID = bundleRefURLToID(refURL)
+	// It's fine to modify the $id here, as it is not used any more times
+	// after this. So changing it is solely a cosmetic change.
+	schema.ID = trimFragmentURL(refRelativeToBasePath(ref, basePathForIDs))
 	return schema, nil
 }
 
@@ -98,14 +101,22 @@ func (loader DummyLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 // FileLoader loads a schema from a "$ref: file:/some/path" reference
 // from the local file-system.
 type FileLoader struct {
-	fs       fs.FS
-	basePath string
+	fs         fs.FS
+	fsRootPath string
 }
 
-func NewFileLoader(fs fs.FS, basePath string) FileLoader {
+// NewFileLoader returns a new file loader.
+//
+// The fsRootPath parameter is used to convert absolute paths into relative
+// paths when loading the files, and should be the absolute path of the
+// file system's root directory. This value mostly matters when using [os.Root].
+//
+// This is only a cosmetic change as it will make error messages have more
+// readable relative paths instead of absolute paths.
+func NewFileLoader(fs fs.FS, fsRootPath string) FileLoader {
 	return FileLoader{
-		fs:       fs,
-		basePath: basePath,
+		fs:         fs,
+		fsRootPath: fsRootPath,
 	}
 }
 
@@ -119,38 +130,44 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 	if ref.Path == "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
 	}
-	path := filepath.FromSlash(ref.Path)
-	if loader.basePath != "" && !filepath.IsAbs(path) {
-		path = filepath.Join(loader.basePath, path)
+	pathAbs := filepath.FromSlash(ref.Path)
+
+	path := pathAbs
+	if loader.fsRootPath != "" && filepath.IsAbs(path) {
+		rel, err := filepath.Rel(loader.fsRootPath, path)
+		if err != nil {
+			return nil, fmt.Errorf("get relative path from bundle root: %w", err)
+		}
+		path = rel
 	}
 
 	fmt.Println("Loading file", path)
 	f, err := loader.fs.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
+		return nil, err
 	}
 	defer closeIgnoreError(f)
 	b, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
+		return nil, err
 	}
 
 	fmt.Printf("=> got %s\n", formatSizeBytes(len(b)))
 
+	var schema Schema
 	switch filepath.Ext(path) {
 	case ".yml", ".yaml":
-		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q YAML file: %w", ref, err)
+			return nil, fmt.Errorf("parse YAML file: %w", err)
 		}
-		return &schema, nil
 	default:
-		var schema Schema
 		if err := json.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q JSON file: %w", ref, err)
+			return nil, fmt.Errorf("parse JSON file: %w", err)
 		}
-		return &schema, nil
 	}
+
+	schema.SetReferrer(ReferrerDir(filepath.Dir(pathAbs)))
+	return &schema, nil
 }
 
 // URLSchemeLoader delegates to other [Loader] implementations
@@ -187,7 +204,7 @@ var _ Loader = CacheLoader{}
 
 // Load implements [Loader].
 func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	urlString := bundleRefURLToID(ref)
+	urlString := trimFragmentURL(ref)
 	if schema := loader.schemas[urlString]; schema != nil {
 		return schema, nil
 	}
@@ -204,6 +221,7 @@ type HTTPLoader struct {
 	cache  *HTTPCache
 
 	SizeLimit int64
+	UserAgent string
 }
 
 func NewHTTPLoader(client *http.Client, cache *HTTPCache) HTTPLoader {
@@ -211,10 +229,13 @@ func NewHTTPLoader(client *http.Client, cache *HTTPCache) HTTPLoader {
 		client:    client,
 		cache:     cache,
 		SizeLimit: 200 * 1000 * 1000, // arbitrary limit, but prevents CLI from eating all RAM
+		UserAgent: HTTPLoaderDefaultUserAgent,
 	}
 }
 
 var _ Loader = HTTPLoader{}
+
+var HTTPLoaderDefaultUserAgent = ""
 
 var yamlMediaTypeRegexp = regexp.MustCompile(`^application/(.*\+)?yaml$`)
 
@@ -241,16 +262,16 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 
 	fmt.Println("Loading", req.URL.Redacted())
 
-	cached, schema, err := loader.LoadCache(req)
+	cached, cachedSchema, err := loader.LoadCache(req)
 	if err != nil {
 		fmt.Println("Error loading from cache:", err)
-	} else if schema != nil {
+	} else if cachedSchema != nil {
 		duration := time.Since(start)
 		fmt.Printf("=> got %s from cache in %s (expires in %s)\n",
 			formatSizeBytes(len(cached.Data)),
 			duration.Truncate(time.Millisecond),
 			time.Until(cached.Expiry()).Truncate(time.Second))
-		return schema, nil
+		return cachedSchema, nil
 	}
 
 	// YAML now has a proper media type since Feb 2024 :D
@@ -262,8 +283,8 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			req.Header.Add("Link", fmt.Sprintf(`<%s>; rel="describedby"`, referrer))
 		}
 	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "helm-values-schema-json/1")
+	if loader.UserAgent != "" {
+		req.Header.Set("User-Agent", loader.UserAgent)
 	}
 
 	if cached.ETag != "" {
@@ -325,7 +346,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	}
 
 	var isYAML bool
-	if mediatype, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil {
+	if mediaType, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil {
 		switch strings.ToLower(params["charset"]) {
 		case "", "utf-8", "utf8":
 			// OK
@@ -333,7 +354,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported response charset: %q", ref.Redacted(), errors.ErrUnsupported, params["charset"])
 		}
 
-		if yamlMediaTypeRegexp.MatchString(mediatype) {
+		if yamlMediaTypeRegexp.MatchString(mediaType) {
 			isYAML = true
 		}
 	}
@@ -360,19 +381,24 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			duration.Truncate(time.Millisecond))
 	}
 
+	var schema Schema
 	if isYAML {
-		var schema Schema
 		if err := yaml.Unmarshal(b, &schema); err != nil {
 			return nil, fmt.Errorf("parse $ref=%q YAML: %w", ref.Redacted(), err)
 		}
-		return &schema, nil
 	} else {
-		var schema Schema
 		if err := json.Unmarshal(b, &schema); err != nil {
 			return nil, fmt.Errorf("parse $ref=%q JSON: %w", ref.Redacted(), err)
 		}
-		return &schema, nil
 	}
+
+	refClone.Path = path.Dir(refClone.Path)
+	if ref.Path == "" {
+		// path.Dir turns empty path into "." and we don't want that
+		refClone.Path = ""
+	}
+	schema.SetReferrer(ReferrerURL(&refClone))
+	return &schema, nil
 }
 
 func (loader HTTPLoader) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {

@@ -25,7 +25,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-        -X main.Version={{ .Tag }}
+        -X main.Version=v{{ .Version }}
         -X main.GitCommit={{ .Commit }}
         -X main.BuildDate={{ .Date }}
     binary: schema

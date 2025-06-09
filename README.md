@@ -67,7 +67,7 @@ repos:
     rev: v1.7.2
     hooks:
       - id: helm-schema
-        args: ["-input", "values.yaml"]
+        args: ["--values", "values.yaml"]
 ```
 
 Then run:
@@ -86,7 +86,7 @@ This is a great tool for adding git hooks to your project. You can find it's doc
 ```json
 "husky": {
   "hooks": {
-    "pre-commit": "helm schema -input values.yaml"
+    "pre-commit": "helm schema --values values.yaml"
   }
 },
 ```
@@ -113,37 +113,28 @@ schema-check:
 
 ```bash
 $ helm schema -help
-Usage: helm schema [options...] <arguments>
-  -draft int
-    	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
-  -indent int
-    	Indentation spaces (even number) (default 4)
-  -input value
-    	Multiple yaml files as inputs (comma-separated)
-  -output string
-    	Output file path (default "values.schema.json")
-  -noAdditionalProperties value
-    	Default additionalProperties to false for all objects in the schema (true/false)
-  -schemaRoot.additionalProperties value
-    	JSON schema additional properties (true/false)
-  -schemaRoot.description string
-    	JSON schema description
-  -schemaRoot.id string
-    	JSON schema ID
-  -schemaRoot.ref string
-    	JSON schema URI reference
-  -schemaRoot.title string
-    	JSON schema title
-  -bundle value
-    	Bundle referenced ($ref) subschemas into a single file inside $defs
-  -bundleRoot string
-    	Root directory to allow local referenced files to be loaded from (default current working directory)
-  -bundleWithoutID value
-    	Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
-  -k8sSchemaURL string
-    	URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
-  -k8sSchemaVersion string
-    	Version used in the --k8sSchemaURL template for $ref: $k8s/... alias
+Usage:
+  helm schema [flags]
+
+Flags:
+      --bundle                              Bundle referenced ($ref) subschemas into a single file inside $defs
+      --bundle-root string                  Root directory to allow local referenced files to be loaded from (default current working directory)
+      --bundle-without-id                   Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
+      --config string                       Config file for setting defaults. (default ".schema.yaml")
+      --draft int                           Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+  -h, --help                                help for helm
+      --indent int                          Indentation spaces (even number) (default 4)
+      --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
+      --k8s-schema-version string           Version used in the --k8s-schema-url template for $ref: $k8s/... alias
+      --no-additional-properties            Default additionalProperties to false for all objects in the schema
+  -o, --output string                       Output file path (default "values.schema.json")
+      --schema-root.additional-properties   Allow additional properties
+      --schema-root.description string      JSON schema description
+      --schema-root.id string               JSON schema ID
+      --schema-root.ref string              JSON schema URI reference. Relative to current working directory when using "-bundle true".
+      --schema-root.title string            JSON schema title
+      --use-helm-docs                       Read description from https://github.com/norwoodj/helm-docs comments
+  -f, --values strings                      One or more YAML files as inputs. Use comma-separated list or supply flag multiple times (default [values.yaml])
 ```
 
 ### Configuration file
@@ -152,7 +143,7 @@ This plugin will look for it's configuration file called `.schema.yaml` in the c
 
 ```yaml
 # Required
-input:
+values:
   - values.yaml
 
 draft: 2020
@@ -179,7 +170,7 @@ $ helm schema
 In most cases you will want to run the plugin with default options:
 
 ```bash
-$ helm schema -input values.yaml
+$ helm schema --values values.yaml
 ```
 
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
@@ -220,7 +211,7 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```bash
-$ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 7 -output my.schema.json
+$ helm schema --values values_1.yaml,custom/path/values_2.yaml --draft 7 --output my.schema.json
 ```
 
 Output will be something like this:
@@ -300,7 +291,7 @@ image:
 ```
 
 ```bash
-$ helm schema -input values.yaml -schemaRoot.id "https://example.com/schema" -schemaRoot.ref "schema/product.json" -schemaRoot.title "My schema" -schemaRoot.description "This is my schema"
+$ helm schema --values values.yaml --schema-root.id "https://example.com/schema" --schema-root.ref "schema/product.json" -schema-root.title "My schema" --schema-root.description "This is my schema"
 ```
 
 Generated schema will be:

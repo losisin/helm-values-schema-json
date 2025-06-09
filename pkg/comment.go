@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func getComments(keyNode, valNode *yaml.Node, useHelmDocs bool) (comments, helmDocs []string) {
