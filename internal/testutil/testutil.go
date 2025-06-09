@@ -3,6 +3,7 @@ package testutil
 import (
 	"io"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,10 @@ import (
 )
 
 func MakeGetwdFail(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		t.Skip("Skipping because don't know how to make os.Getwd fail on MacOS")
+	}
+
 	// Setting up to make [os.Getwd] to fail, which on Linux can be done
 	// by deleting the directory you're currently in.
 	tempDir, err := os.MkdirTemp("", "schema-cwd-*")

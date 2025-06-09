@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -403,17 +402,7 @@ func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
 	_, err := LoadConfig(cmd)
-	// Check error based on OS
-	switch runtime.GOOS {
-	case "windows":
-		require.Error(t, err)
-		require.ErrorContains(t, err, "The process cannot access the file")
-	case "darwin":
-		require.NoError(t, err)
-	default:
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "resolve current working directory: getwd: no such file or directory")
-	}
+	assert.ErrorContains(t, err, "resolve current working directory: ")
 }
 
 func TestMergeConfig(t *testing.T) {

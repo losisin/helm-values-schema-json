@@ -15,16 +15,13 @@ func TestMakeGetwdFail(t *testing.T) {
 
 	MakeGetwdFail(t)
 
-	_, err = os.Getwd()
+	cwd, err := os.Getwd()
+	t.Logf("getwd: %q", cwd)
 	// Check error based on OS
 	switch runtime.GOOS {
 	case "windows":
-		require.Error(t, err)
 		require.ErrorContains(t, err, "The process cannot access the file")
-	case "darwin":
-		require.NoError(t, err)
 	default:
-		require.Error(t, err)
 		require.ErrorContains(t, err, "getwd: no such file or directory")
 	}
 }
