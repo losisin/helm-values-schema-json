@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
@@ -538,12 +537,7 @@ func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 		Draft:  2020,
 		Indent: 4,
 	})
-	switch runtime.GOOS {
-	case "linux":
-		require.ErrorContains(t, err, "foo/bar.yaml: get absolute path: getwd: no such file or directory")
-	case "default":
-		require.ErrorContains(t, err, "error reading YAML file(s)")
-	}
+	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path")
 }
 
 func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
@@ -557,12 +551,7 @@ func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
 		Indent: 4,
 		Bundle: true,
 	})
-	switch runtime.GOOS {
-	case "linux":
-		require.ErrorContains(t, err, "output foo.json: get absolute path: getwd: no such file or directory")
-	case "default":
-		require.ErrorContains(t, err, "error reading YAML file(s)")
-	}
+	require.ErrorContains(t, err, "output foo.json: get absolute path: ")
 }
 
 func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
@@ -577,12 +566,7 @@ func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
 		Bundle:     true,
 		BundleRoot: "foo",
 	})
-	switch runtime.GOOS {
-	case "linux":
-		require.ErrorContains(t, err, "bundle root foo: get absolute path: getwd: no such file or directory")
-	case "default":
-		require.ErrorContains(t, err, "error reading YAML file(s)")
-	}
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: ")
 }
 
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
