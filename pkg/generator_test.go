@@ -340,6 +340,9 @@ func TestGenerateJsonSchema(t *testing.T) {
 }
 
 func TestGenerateJsonSchema_Errors(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		config      *Config
@@ -425,7 +428,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("bundle root \x00: open /home/kalle/code/helm-values-schema-json/pkg/\x00: invalid argument"),
+			expectedErr: errors.New("bundle root \x00: open " + cwd + "/\x00: invalid argument"),
 		},
 		{
 			name: "bundle wrong root path",
