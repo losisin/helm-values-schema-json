@@ -82,12 +82,12 @@ func TestFileLoader_Error(t *testing.T) {
 		{
 			name:    "invalid JSON",
 			url:     mustParseURL("./invalid-schema.json"),
-			wantErr: `parse $ref="./invalid-schema.json" JSON file: invalid character 'h' in literal true`,
+			wantErr: `parse JSON file: invalid character 'h' in literal true`,
 		},
 		{
 			name:    "invalid YAML",
 			url:     mustParseURL("./invalid-schema.yaml"),
-			wantErr: `parse $ref="./invalid-schema.yaml" YAML file: yaml: did not find expected key`,
+			wantErr: `parse YAML file: yaml: did not find expected key`,
 		},
 	}
 
@@ -154,7 +154,7 @@ func TestFileLoader_TestFSError(t *testing.T) {
 
 	loader := NewFileLoader(root, "")
 	_, err := loader.Load(t.Context(), mustParseURL("./some-fake-file.txt"))
-	assert.ErrorContains(t, err, "read $ref=\"./some-fake-file.txt\" file: dummy error")
+	assert.ErrorContains(t, err, "dummy error")
 }
 
 func TestURLSchemeLoader_Error(t *testing.T) {

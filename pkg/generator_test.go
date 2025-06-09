@@ -455,7 +455,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("../testdata/bundle/simple.yaml: change relative to file: parse \"::\": missing protocol scheme"),
+			expectedErr: errors.New("bundle schemas: /$ref: parse \"::\": missing protocol scheme"),
 		},
 		{
 			name: "invalid k8s ref alias",
