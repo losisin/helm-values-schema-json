@@ -159,20 +159,22 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
+	return WriteOutput(mergedSchema, config.Output, indentString)
+}
+
+func WriteOutput(mergedSchema *Schema, outputPath, indent string) error {
 	// If validation is successful, marshal the schema and save to the file
-	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indentString)
+	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indent)
 	if err != nil {
 		return err
 	}
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	outputPath := config.Output
-	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
+	if err := os.WriteFile(outputPath, jsonBytes, 0644); err != nil {
 		return errors.New("error writing schema to file")
 	}
 
 	fmt.Println("JSON schema successfully generated")
-
 	return nil
 }

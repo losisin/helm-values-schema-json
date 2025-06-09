@@ -569,7 +569,7 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 					},
 				},
 			},
-			wantErr: `/properties/foo: parse $ref="::" as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse $ref="::" as URL: parse "::": missing protocol scheme`,
 		},
 		{
 			name: "invalid ref",
@@ -580,7 +580,7 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 					},
 				},
 			},
-			wantErr: `/properties/foo: no $defs found that matches $ref="./no/$defs/with/this/ref"`,
+			wantErr: `/properties/foo/$ref: no $defs found that matches $ref="./no/$defs/with/this/ref"`,
 		},
 	}
 

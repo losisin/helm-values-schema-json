@@ -8,18 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func uint64Ptr(i uint64) *uint64 {
-	return &i
-}
-
-func float64Ptr(f float64) *float64 {
-	return &f
-}
-
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 // schemasEqual is a helper function to compare two Schema objects.
 func schemasEqual(a, b *Schema) bool {
 	if a == nil || b == nil {
@@ -51,17 +39,6 @@ func schemasEqual(a, b *Schema) bool {
 	}
 	// Compare map fields (Properties)
 	return reflect.DeepEqual(a.Properties, b.Properties)
-}
-
-// comparePointer is a helper function for comparing pointer fields
-func comparePointer[T comparable](a, b *T) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a != nil && b != nil {
-		return *a == *b
-	}
-	return false
 }
 
 func TestMergeSchemas(t *testing.T) {

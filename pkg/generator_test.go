@@ -641,3 +641,10 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteOutput_JSONError(t *testing.T) {
+	schema := &Schema{Type: func() {}}
+
+	err := WriteOutput(schema, os.DevNull, "  ")
+	require.ErrorContains(t, err, "unsupported type: func()")
+}

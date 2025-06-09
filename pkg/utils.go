@@ -71,3 +71,26 @@ func mustParseURL(rawURL string) *url.URL {
 	}
 	return u
 }
+
+func uint64Ptr(i uint64) *uint64 {
+	return &i
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+// comparePointer is a helper function for comparing pointer fields
+func comparePointer[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a != nil && b != nil {
+		return *a == *b
+	}
+	return false
+}
