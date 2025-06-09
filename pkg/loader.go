@@ -59,7 +59,11 @@ func NewDefaultLoader(client *http.Client, fs fs.FS, basePath string) Loader {
 // Load uses a bundle [Loader] to resolve a schema "$ref".
 // Depending on the loader implementation, it may read from cache,
 // read files from disk, or fetch files from the web using HTTP.
-func Load(ctx context.Context, loader Loader, ref *url.URL, basePath string) (*Schema, error) {
+//
+// The basePathForIDs is an absolute path used to change the resulting
+// $ref & $id absolute paths of bundled local files to relative paths.
+// It is only used cosmetically and has no impact of how files are loaded.
+func Load(ctx context.Context, loader Loader, ref *url.URL, basePathForIDs string) (*Schema, error) {
 	if loader == nil {
 		return nil, fmt.Errorf("nil loader")
 	}
@@ -71,18 +75,9 @@ func Load(ctx context.Context, loader Loader, ref *url.URL, basePath string) (*S
 		return nil, err
 	}
 
-	// TODO: use same code as in bundle.go to make sure we have the same logic
-	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
-		// It's fine to modify the $id here, as it is not used any more times
-		// after this. So changing it is solely a cosmetic change.
-		rel, err := filepath.Rel(basePath, ref.Path)
-		if err != nil {
-			return nil, err
-		}
-		schema.ID = filepath.ToSlash(filepath.Clean(rel))
-	} else {
-		schema.ID = trimFragmentURL(ref)
-	}
+	// It's fine to modify the $id here, as it is not used any more times
+	// after this. So changing it is solely a cosmetic change.
+	schema.ID = trimFragmentURL(refRelativeToBasePath(ref, basePathForIDs))
 	return schema, nil
 }
 

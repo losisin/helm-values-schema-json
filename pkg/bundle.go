@@ -13,20 +13,24 @@ import (
 // store them in "$defs".
 //
 // This function will update the schema in-place.
-func BundleSchema(ctx context.Context, loader Loader, schema *Schema, basePath string) error {
+//
+// The basePathForIDs is an absolute path used to change the resulting
+// $ref & $id absolute paths of bundled local files to relative paths.
+// It is only used cosmetically and has no impact of how files are loaded.
+func BundleSchema(ctx context.Context, loader Loader, schema *Schema, basePathForIDs string) error {
 	if loader == nil {
 		return fmt.Errorf("nil loader")
 	}
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, nil, loader, schema, schema, basePath)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema, basePathForIDs)
 }
 
-func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema, basePath string) error {
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema, basePathForIDs string) error {
 	for path, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(path)
-		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema, basePath); err != nil {
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema, basePathForIDs); err != nil {
 			return err
 		}
 	}
@@ -50,20 +54,12 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	}
 
 	// Make sure schema $ref corresponds with the corrected path
-	// TODO: extract into function and reuse in loader.go
-	if ref.Scheme == "" && ref.Path != "" && path.IsAbs(ref.Path) {
-		// It's fine to modify the $ref here, as it is not used any more times
-		// after this. So changing it is solely a cosmetic change.
-		rel, err := filepath.Rel(basePath, ref.Path)
-		if err != nil {
-			return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
-		}
-		schema.Ref = RefFile{Path: filepath.ToSlash(filepath.Clean(rel)), Fragment: ref.Fragment}.String()
-	} else {
-		schema.Ref = ref.String()
-	}
+	//
+	// It's fine to modify the $ref here, as it is not used any more times
+	// after this. So changing it is solely a cosmetic change.
+	schema.Ref = refRelativeToBasePath(ref, basePathForIDs).String()
 
-	loaded, err := Load(ctx, loader, ref, basePath)
+	loaded, err := Load(ctx, loader, ref, basePathForIDs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
 	}
@@ -78,7 +74,21 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, ptr, loader, root, loaded, basePath)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded, basePathForIDs)
+}
+
+func refRelativeToBasePath(ref *url.URL, basePathForIDs string) *url.URL {
+	if ref.Scheme != "" || ref.Path == "" || !path.IsAbs(ref.Path) {
+		return ref
+	}
+	rel, err := filepath.Rel(basePathForIDs, ref.Path)
+	if err != nil {
+		return ref
+	}
+	return &url.URL{
+		Path:     filepath.ToSlash(filepath.Clean(rel)),
+		Fragment: ref.Fragment,
+	}
 }
 
 func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
