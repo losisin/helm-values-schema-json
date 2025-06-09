@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -424,7 +425,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("open bundle root: open \x00: invalid argument"),
+			expectedErr: errors.New("bundle root \x00: open /home/kalle/code/helm-values-schema-json/pkg/\x00: invalid argument"),
 		},
 		{
 			name: "bundle wrong root path",
@@ -523,6 +524,46 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{"foo/bar.yaml"},
+		Draft:  2020,
+		Indent: 4,
+	})
+	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output: "foo.json",
+		Draft:  2020,
+		Indent: 4,
+		Bundle: true,
+	})
+	require.ErrorContains(t, err, "output foo.json: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values:     []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output:     "/tmp/foo.json",        // unaffected by failing [os.Getwd] because it is an absolute path
+		Draft:      2020,
+		Indent:     4,
+		Bundle:     true,
+		BundleRoot: "foo",
+	})
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: getwd: no such file or directory")
 }
 
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {

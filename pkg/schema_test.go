@@ -1031,9 +1031,14 @@ func TestParseRefFile(t *testing.T) {
 			want: RefFile{"../foo", ""},
 		},
 		{
-			name: "fragment",
+			name: "path and fragment",
 			ref:  "foo#heyo",
 			want: RefFile{"foo", "heyo"},
+		},
+		{
+			name: "only fragment",
+			ref:  "#heyo",
+			want: RefFile{"", "heyo"},
 		},
 	}
 
@@ -1109,6 +1114,28 @@ func TestParseRefFile_Error(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseRefFile(tt.ref)
 			assert.ErrorContains(t, err, tt.wantErr, "ParseRefFile")
+		})
+	}
+}
+
+func TestRefFileString(t *testing.T) {
+	tests := []struct {
+		name    string
+		refFile RefFile
+		want    string
+	}{
+		{name: "zero", refFile: RefFile{}, want: ""},
+		{name: "only path", refFile: RefFile{"/foo", ""}, want: "/foo"},
+		{name: "only frag", refFile: RefFile{"", "/bar"}, want: "#/bar"},
+		{name: "both", refFile: RefFile{"/foo", "/bar"}, want: "/foo#/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.refFile.String()
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
+			}
 		})
 	}
 }

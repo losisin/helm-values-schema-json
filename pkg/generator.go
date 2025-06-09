@@ -41,6 +41,11 @@ func GenerateJsonSchema(config *Config) error {
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
+		filePathAbs, err := filepath.Abs(filePath)
+		if err != nil {
+			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
+		}
+
 		content, err := os.ReadFile(filepath.Clean(filePath))
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
@@ -89,11 +94,6 @@ func GenerateJsonSchema(config *Config) error {
 			ID:          config.SchemaRoot.ID,
 		}
 
-		filePathAbs, err := filepath.Abs(filePath)
-		if err != nil {
-			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
-		}
-
 		tempSchema.SetReferrer(ReferrerDir(filepath.Dir(filePathAbs)))
 		// Set root $ref after updating the referrer on all other $refs
 		if config.SchemaRoot.Ref != "" {
@@ -116,20 +116,21 @@ func GenerateJsonSchema(config *Config) error {
 
 		absOutputDir, err := filepath.Abs(filepath.Dir(config.Output))
 		if err != nil {
-			return fmt.Errorf("get absolute path for output %q: %w", config.Output, err)
+			return fmt.Errorf("output %s: get absolute path: %w", config.Output, err)
 		}
 
 		bundleRoot := cmp.Or(config.BundleRoot, ".")
-		root, err := os.OpenRoot(bundleRoot)
+		bundleRootAbs, err := filepath.Abs(bundleRoot)
 		if err != nil {
-			return fmt.Errorf("open bundle root: %w", err)
+			return fmt.Errorf("bundle root %s: get absolute path: %w", config.BundleRoot, err)
+		}
+
+		root, err := os.OpenRoot(bundleRootAbs)
+		if err != nil {
+			return fmt.Errorf("bundle root %s: %w", config.BundleRoot, err)
 		}
 		defer closeIgnoreError(root)
 
-		bundleRootAbs, err := filepath.Abs(bundleRoot)
-		if err != nil {
-			return fmt.Errorf("get absolute path for bundle root %q: %w", config.BundleRoot, err)
-		}
 		loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
 		if err := BundleSchema(ctx, loader, mergedSchema, absOutputDir); err != nil {
 			return fmt.Errorf("bundle schemas: %w", err)

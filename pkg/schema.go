@@ -490,25 +490,25 @@ func (r Referrer) Join(refFile RefFile) *url.URL {
 	if r.url != nil {
 		urlClone := *r.url
 		urlClone.Path = path.Join(urlClone.Path, refFile.Path)
-		urlClone.Fragment = refFile.Fragment
+		urlClone.Fragment = refFile.Frag
 		return &urlClone
 	}
 
 	return &url.URL{
 		Path:     path.Join(filepath.ToSlash(r.dir), refFile.Path),
-		Fragment: refFile.Fragment,
+		Fragment: refFile.Frag,
 	}
 }
 
 // RefFile is a parsed "$ref: file://" schema property
 type RefFile struct {
-	Path     string
-	Fragment string
+	Path string
+	Frag string
 }
 
 func (r RefFile) String() string {
-	if r.Fragment != "" {
-		return fmt.Sprintf("%s#%s", r.Path, r.Fragment)
+	if r.Frag != "" {
+		return fmt.Sprintf("%s#%s", r.Path, r.Frag)
 	}
 	return r.Path
 }
@@ -517,8 +517,8 @@ func ParseRefFile(ref string) (RefFile, error) {
 	if ref == "" {
 		return RefFile{}, nil
 	}
-	if strings.HasPrefix(ref, "#") {
-		return RefFile{Fragment: ref}, nil
+	if after, ok := strings.CutPrefix(ref, "#"); ok {
+		return RefFile{Frag: after}, nil
 	}
 	u, err := url.Parse(ref)
 	if err != nil {
@@ -554,7 +554,7 @@ func ParseRefFileURL(u *url.URL) (RefFile, error) {
 	}
 
 	return RefFile{
-		Path:     u.Path,
-		Fragment: u.Fragment,
+		Path: u.Path,
+		Frag: u.Fragment,
 	}, nil
 }

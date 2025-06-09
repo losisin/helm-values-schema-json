@@ -5,6 +5,7 @@ import (
 	"io"
 	"iter"
 	"maps"
+	"net/url"
 	"slices"
 )
 
@@ -61,4 +62,12 @@ func (r LimitedReaderWithError) Read(b []byte) (int, error) {
 		return n, r.Err
 	}
 	return n, err
+}
+
+func mustParseURL(rawURL string) *url.URL {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return u
 }

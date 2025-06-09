@@ -183,7 +183,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 	for subPath, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(subPath)
 		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", ptr, err)
+			return err
 		}
 	}
 
@@ -198,12 +198,12 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 	ref, err := url.Parse(schema.Ref)
 	if err != nil {
-		return fmt.Errorf("parse $ref=%q as URL: %w", schema.Ref, err)
+		return fmt.Errorf("%s: parse $ref=%q as URL: %w", ptr.Prop("$ref"), schema.Ref, err)
 	}
 
 	name, ok := findDefNameByRef(root.Defs, ref)
 	if !ok {
-		return fmt.Errorf("no $defs found that matches $ref=%q", schema.Ref)
+		return fmt.Errorf("%s: no $defs found that matches $ref=%q", ptr.Prop("$ref"), schema.Ref)
 	}
 
 	if ref.Fragment != "" {

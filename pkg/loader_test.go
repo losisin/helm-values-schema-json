@@ -55,9 +55,10 @@ func TestLoad_Errors(t *testing.T) {
 
 func TestFileLoader_Error(t *testing.T) {
 	tests := []struct {
-		name    string
-		url     *url.URL
-		wantErr string
+		name       string
+		url        *url.URL
+		fsRootPath string
+		wantErr    string
 	}{
 		{
 			name:    "invalid scheme",
@@ -89,6 +90,12 @@ func TestFileLoader_Error(t *testing.T) {
 			url:     mustParseURL("./invalid-schema.yaml"),
 			wantErr: `parse YAML file: yaml: did not find expected key`,
 		},
+		{
+			name:       "fail to get relative path from fsRootPath",
+			url:        mustParseURL("/foo/bar"),
+			fsRootPath: "some/relative/path",
+			wantErr:    `get relative path from bundle root: Rel: can't make /foo/bar relative to some/relative/path`,
+		},
 	}
 
 	root, err := os.OpenRoot("../testdata/bundle")
@@ -99,7 +106,7 @@ func TestFileLoader_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := NewFileLoader((*RootFS)(root), "")
+			loader := NewFileLoader((*RootFS)(root), tt.fsRootPath)
 			_, err := loader.Load(t.Context(), tt.url)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
@@ -559,12 +566,4 @@ func TestFormatSizeBytes(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mustParseURL(rawURL string) *url.URL {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		panic(err)
-	}
-	return u
 }

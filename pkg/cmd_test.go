@@ -1,12 +1,12 @@
 package pkg
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,7 +233,7 @@ func TestParseFlagsFail(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
-	tmpFile := createTempFile(t, "config-*.yaml")
+	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
 
 	tests := []struct {
 		name   string
@@ -296,7 +296,7 @@ schemaRoot:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// reuse the same file so we can have a predictable name as ref referrer
-			resetFile(t, tmpFile, tt.config)
+			testutil.ResetFile(t, tmpFile, []byte(tt.config))
 
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + tmpFile.Name()}))
@@ -339,7 +339,7 @@ values:
 		t.Run(tt.name, func(t *testing.T) {
 			var configFilePath string
 			if tt.config != "" {
-				configFilePath = writeTempFile(t, tt.config)
+				configFilePath = testutil.WriteTempFile(t, "config-*.yaml", []byte(tt.config)).Name()
 			} else {
 				configFilePath = "nonexistent.yaml"
 			}
@@ -375,36 +375,28 @@ func TestLoadConfig_SchemaRootRefReferrerConfigError(t *testing.T) {
 	failConfigConfigRefReferrerAbs = true
 	defer func() { failConfigConfigRefReferrerAbs = false }()
 
-	configFile := writeTempFile(t, `
+	configFile := testutil.WriteTempFile(t, "config-*.yaml", []byte(`
 schemaRoot:
   ref: foo/bar
-`)
+`))
 
 	cmd := NewCmd()
-	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile}))
+	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile.Name()}))
 	_, err := LoadConfig(cmd)
 	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
 }
 
 func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
-	// Setting up to make [os.Getwd] to fail, which on Linux can be done
-	// by deleting the directory you're currently in.
-	tempDir, err := os.MkdirTemp("", "schema-cwd-*")
-	require.NoError(t, err)
-	previousWorkingDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tempDir))
-	t.Cleanup(func() { assert.NoError(t, os.Chdir(previousWorkingDir)) })
-	require.NoError(t, os.Remove(tempDir))
+	testutil.MakeGetwdFail(t)
 
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
-	_, err = LoadConfig(cmd)
+	_, err := LoadConfig(cmd)
 	assert.ErrorContains(t, err, "resolve current working directory: getwd: no such file or directory")
 }
 
 func TestMergeConfig(t *testing.T) {
-	tmpFile := createTempFile(t, "config-*.yaml")
+	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -584,7 +576,7 @@ schemaRoot:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resetFile(t, tmpFile, tt.file)
+			testutil.ResetFile(t, tmpFile, []byte(tt.file))
 
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+tmpFile.Name())))
@@ -595,29 +587,4 @@ schemaRoot:
 			assert.Equal(t, tt.want, conf)
 		})
 	}
-}
-
-func resetFile(t *testing.T, file *os.File, content string) {
-	_, err := file.Seek(0, io.SeekStart)
-	require.NoError(t, err)
-	require.NoError(t, file.Truncate(0))
-	_, err = file.WriteString(content)
-	require.NoError(t, file.Sync())
-}
-
-func createTempFile(t *testing.T, pattern string) *os.File {
-	tmpFile, err := os.CreateTemp("", pattern)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, tmpFile.Close())
-		assert.NoError(t, os.Remove(tmpFile.Name()))
-	})
-	return tmpFile
-}
-
-func writeTempFile(t *testing.T, content string) string {
-	tmpFile := createTempFile(t, "config-*.yaml")
-	_, err := tmpFile.WriteString(content)
-	require.NoError(t, err)
-	return tmpFile.Name()
 }

@@ -1,8 +1,11 @@
 package pkg
 
 import (
+	"net/url"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUniqueStringAppend(t *testing.T) {
@@ -75,4 +78,13 @@ func TestUniqueStringAppend(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMustParseURL(t *testing.T) {
+	want := &url.URL{
+		Scheme: "http",
+		Host:   "example.com",
+	}
+	assert.Equal(t, want, mustParseURL("http://example.com"))
+	assert.Panics(t, func() { mustParseURL("::") })
 }
