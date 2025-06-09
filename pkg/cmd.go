@@ -16,6 +16,25 @@ func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "helm schema",
 		Args: cobra.NoArgs,
+		Example: `  # Reads values.yaml and outputs to values.schema.json
+  helm schema
+
+  # Reads from other-values.yaml (only) and outputs to values.schema.json
+  helm schema -f other-values.yaml
+
+  # Reads from multiple files, either comma-separated or use flag multiple times
+  helm schema -f values_1.yaml,values_2.yaml
+  helm schema -f values_1.yaml -f values_2.yaml
+
+  # Bundle schemas mentioned by one of these comment formats:
+  #   myField: {} # @schema $ref: file://some/file/relative/to/values/file
+  #   myField: {} # @schema $ref: some/file/relative/to/values/file
+  #   myField: {} # @schema $ref: https://example.com/schema.json
+  helm schema --bundle
+
+  # Use descriptions from helm-docs
+  # https://github.com/norwoodj/helm-docs
+  helm schema --use-helm-docs`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, err := LoadConfig(cmd)
 			if err != nil {
