@@ -2,7 +2,6 @@ package pkg
 
 import (
 	"compress/gzip"
-	"encoding/gob"
 	"io"
 	"net/http"
 	"net/url"
@@ -11,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,9 +61,9 @@ func TestLoadCache(t *testing.T) {
 			name: "dir",
 			url:  "http://example.com/file.txt",
 			setup: func(t *testing.T, dir string) {
-				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.gob.gz"), 0755))
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.cbor.gz"), 0755))
 			},
-			wantErr: "file.txt.gob.gz: is a directory",
+			wantErr: "file.txt.cbor.gz: is a directory",
 		},
 		{
 			name: "invalid gzip",
@@ -71,28 +71,28 @@ func TestLoadCache(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				subdir := filepath.Join(dir, "http", "example.com")
 				require.NoError(t, os.MkdirAll(subdir, 0755))
-				require.NoError(t, os.WriteFile(filepath.Join(subdir, "file.txt.gob.gz"), []byte("this is invalid gzip"), 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(subdir, "file.txt.cbor.gz"), []byte("this is invalid gzip"), 0644))
 			},
 			wantErr: "gzip: invalid header",
 		},
 		{
-			name: "invalid gob",
+			name: "invalid cbor",
 			url:  "http://example.com/file.txt",
 			setup: func(t *testing.T, dir string) {
 				subdir := filepath.Join(dir, "http", "example.com")
 
 				require.NoError(t, os.MkdirAll(subdir, 0755))
-				file, err := os.Create(filepath.Join(subdir, "file.txt.gob.gz"))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.cbor.gz"))
 				require.NoError(t, err)
 				defer func() { assert.NoError(t, file.Close()) }()
 
 				w := gzip.NewWriter(file)
 				defer func() { assert.NoError(t, w.Close()) }()
 
-				_, err = io.WriteString(w, "this is invalid gob")
+				_, err = io.WriteString(w, "this is invalid cbor")
 				require.NoError(t, err)
 			},
-			wantErr: "decode cached response: unexpected EOF",
+			wantErr: "decode cached response: ",
 		},
 		{
 			name: "valid",
@@ -101,7 +101,7 @@ func TestLoadCache(t *testing.T) {
 				subdir := filepath.Join(dir, "http", "example.com")
 
 				require.NoError(t, os.MkdirAll(subdir, 0755))
-				file, err := os.Create(filepath.Join(subdir, "file.txt.gob.gz"))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.cbor.gz"))
 				require.NoError(t, err)
 				defer func() { assert.NoError(t, file.Close()) }()
 
@@ -116,7 +116,7 @@ func TestLoadCache(t *testing.T) {
 					Data     []byte
 				}
 
-				enc := gob.NewEncoder(w)
+				enc := cbor.NewEncoder(w)
 				require.NoError(t, enc.Encode(CachedResponse{
 					CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
 					MaxAge:   time.Hour,
@@ -271,7 +271,7 @@ func TestSaveCache_Error(t *testing.T) {
 		dir := testutil.CreateTempDir(t, "schema-httpcache-*")
 		cache.cacheDirFunc = func() string { return dir }
 
-		require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "schema.json.gob.gz"), 0755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "schema.json.cbor.gz"), 0755))
 
 		req, err := http.NewRequest(http.MethodGet, "http://example.com/schema.json", nil)
 		require.NoError(t, err)

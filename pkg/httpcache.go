@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"compress/gzip"
 	"encoding/base32"
-	"encoding/gob"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,7 +13,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
 )
+
+//go:generate go tool msgp
+//msgp:ignore DummyHTTPCache HTTPFileCache HTTPMemoryCache
 
 type HTTPCache interface {
 	LoadCache(req *http.Request) (CachedResponse, error)
@@ -95,7 +99,7 @@ func NewHTTPCache() *HTTPFileCache {
 var _ HTTPCache = &HTTPFileCache{}
 
 func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
-	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
+	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".cbor.gz")
 
 	file, err := os.Open(path) // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
 	if err != nil {
@@ -107,11 +111,12 @@ func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
 		return CachedResponse{}, err
 	}
 	defer closeIgnoreError(gzipReader)
-	gobDecoder := gob.NewDecoder(gzipReader)
+	cborDecoder := cbor.NewDecoder(gzipReader)
 	var cached CachedResponse
-	if err := gobDecoder.Decode(&cached); err != nil {
+	if err := cborDecoder.Decode(&cached); err != nil {
 		return CachedResponse{}, fmt.Errorf("decode cached response: %w", err)
 	}
+	cached.CachedAt = cached.CachedAt.UTC()
 	return cached, nil
 }
 
@@ -124,11 +129,11 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 
 	cached := CachedResponse{
 		Data:     body,
-		CachedAt: h.now(),
+		CachedAt: h.now().UTC(),
 		MaxAge:   maxAge,
 		ETag:     resp.Header.Get("ETag"),
 	}
-	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
+	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".cbor.gz")
 
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return CachedResponse{}, fmt.Errorf("mkdir: %w", err)
@@ -141,8 +146,8 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 	defer closeIgnoreError(file)
 	gzipWriter := gzip.NewWriter(file)
 	defer closeIgnoreError(gzipWriter)
-	gobEncoder := gob.NewEncoder(gzipWriter)
-	return cached, gobEncoder.Encode(cached)
+	cborEncoder := cbor.NewEncoder(gzipWriter)
+	return cached, cborEncoder.Encode(cached)
 }
 
 func getCacheControlMaxAge(header string) time.Duration {
@@ -205,10 +210,10 @@ func urlToCachePath(u *url.URL) string {
 }
 
 type CachedResponse struct {
-	CachedAt time.Time
-	MaxAge   time.Duration
-	ETag     string
-	Data     []byte
+	CachedAt time.Time     `cbor:"cachedAt"`
+	MaxAge   time.Duration `cbor:"maxAge"`
+	ETag     string        `cbor:"etag"`
+	Data     []byte        `cbor:"data"`
 }
 
 func (c CachedResponse) Expiry() time.Time {
