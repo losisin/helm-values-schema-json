@@ -219,16 +219,20 @@ func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 type HTTPLoader struct {
 	client    *http.Client
 	SizeLimit int64
+	UserAgent string
 }
 
 func NewHTTPLoader(client *http.Client) HTTPLoader {
 	return HTTPLoader{
 		client:    client,
 		SizeLimit: 200 * 1000 * 1000, // arbitrary limit, but prevents CLI from eating all RAM
+		UserAgent: HTTPLoaderDefaultUserAgent,
 	}
 }
 
 var _ Loader = HTTPLoader{}
+
+var HTTPLoaderDefaultUserAgent = ""
 
 var yamlMediaTypeRegexp = regexp.MustCompile(`^application/(.*\+)?yaml$`)
 
@@ -259,8 +263,8 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 			req.Header.Add("Link", fmt.Sprintf(`<%s>; rel="describedby"`, referrer))
 		}
 	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "helm-values-schema-json/1")
+	if loader.UserAgent != "" {
+		req.Header.Set("User-Agent", loader.UserAgent)
 	}
 
 	start := time.Now()

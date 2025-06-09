@@ -344,7 +344,9 @@ func TestHTTPLoader(t *testing.T) {
 		for _, writer := range responseTypes {
 			t.Run(tt.name+"/"+writer.name, func(t *testing.T) {
 				t.Parallel()
+				var gotUserAgent string
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+					gotUserAgent = req.Header.Get("User-Agent")
 					writer.write(t, w, tt.response, tt.responseType)
 				}))
 				defer server.Close()
@@ -352,6 +354,7 @@ func TestHTTPLoader(t *testing.T) {
 				ctx := t.Context()
 
 				loader := NewHTTPLoader(server.Client())
+				loader.UserAgent = "test/" + t.Name()
 				schema, err := loader.Load(ctx, mustParseURL(server.URL))
 				require.NoError(t, err)
 
@@ -361,6 +364,7 @@ func TestHTTPLoader(t *testing.T) {
 				}
 
 				assert.Equal(t, want, schema, "Schema")
+				assert.Equal(t, "test/"+t.Name(), gotUserAgent, "UserAgent")
 			})
 		}
 

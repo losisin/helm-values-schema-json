@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,40 +17,49 @@ func TestExecute(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		wantOut string
 	}{
 		{
 			name: "success",
-			args: []string{
-				"--values=../testdata/basic.yaml",
-				"--output=/dev/null",
-			},
+			args: []string{"--values=../testdata/basic.yaml", "--output=/dev/null"},
 		},
 		{
-			name: "fail reading config",
-			args: []string{
-				"--config=nonexisting.yaml",
-			},
+			name:    "fail reading config",
+			args:    []string{"--config=nonexisting.yaml"},
 			wantErr: "open nonexisting.yaml: no such file or directory",
 		},
 		{
-			name: "fail execution",
-			args: []string{
-				"--values=/non/existing/file.yaml",
-			},
+			name:    "fail execution",
+			args:    []string{"--values=/non/existing/file.yaml"},
 			wantErr: "error reading YAML file(s)",
+		},
+		{
+			name:    "version flag",
+			args:    []string{"--version"},
+			wantOut: "helm schema version test\n",
+		},
+		{
+			name:    "version subcommand",
+			args:    []string{"version"},
+			wantOut: "helm schema version test\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := NewCmd()
-			require.NoError(t, cmd.ParseFlags(tt.args))
+			cmd.Version = "test"
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
 			err := cmd.Execute()
 			if tt.wantErr != "" {
 				assert.ErrorContains(t, err, tt.wantErr)
 			} else {
 				assert.NoError(t, err)
 			}
+			assert.Equal(t, tt.wantOut, buf.String())
 		})
 	}
 }
