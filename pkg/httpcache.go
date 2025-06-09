@@ -16,13 +16,70 @@ import (
 	"time"
 )
 
-type HTTPCache struct {
+type HTTPCache interface {
+	LoadCache(req *http.Request) (CachedResponse, error)
+	SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error)
+}
+
+type DummyHTTPCache struct {
+	LoadCacheFunc func(req *http.Request) (CachedResponse, error)
+	SaveCacheFunc func(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error)
+}
+
+var _ HTTPCache = DummyHTTPCache{}
+
+func (d DummyHTTPCache) LoadCache(req *http.Request) (CachedResponse, error) {
+	return d.LoadCacheFunc(req)
+}
+
+func (d DummyHTTPCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+	return d.SaveCacheFunc(req, resp, body)
+}
+
+func NewHTTPMemoryCache() *HTTPMemoryCache {
+	return &HTTPMemoryCache{
+		Map: map[string]CachedResponse{},
+		Now: time.Now,
+	}
+}
+
+type HTTPMemoryCache struct {
+	Map map[string]CachedResponse
+	Now func() time.Time
+}
+
+var _ HTTPCache = &HTTPMemoryCache{}
+
+func (h *HTTPMemoryCache) LoadCache(req *http.Request) (CachedResponse, error) {
+	if cached, ok := h.Map[req.URL.String()]; ok {
+		return cached, nil
+	}
+	return CachedResponse{}, os.ErrNotExist
+}
+
+func (h *HTTPMemoryCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+	maxAge := getCacheControlMaxAge(resp.Header.Get("Cache-Control"))
+	if maxAge <= 0 {
+		// Response doesn't want to be cached.
+		return CachedResponse{}, nil
+	}
+	cached := CachedResponse{
+		Data:     body,
+		CachedAt: h.Now(),
+		MaxAge:   maxAge,
+		ETag:     resp.Header.Get("ETag"),
+	}
+	h.Map[req.URL.String()] = cached
+	return cached, nil
+}
+
+type HTTPFileCache struct {
 	cacheDirFunc func() string
 	now          func() time.Time
 }
 
-func NewHTTPCache() *HTTPCache {
-	return &HTTPCache{
+func NewHTTPCache() *HTTPFileCache {
+	return &HTTPFileCache{
 		cacheDirFunc: sync.OnceValue(func() string {
 			dir, err := os.UserCacheDir()
 			if err != nil {
@@ -35,7 +92,9 @@ func NewHTTPCache() *HTTPCache {
 	}
 }
 
-func (h *HTTPCache) LoadCache(req *http.Request) (CachedResponse, error) {
+var _ HTTPCache = &HTTPFileCache{}
+
+func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
 	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".gob.gz")
 
 	file, err := os.Open(path)
@@ -56,7 +115,7 @@ func (h *HTTPCache) LoadCache(req *http.Request) (CachedResponse, error) {
 	return cached, nil
 }
 
-func (h *HTTPCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
 	maxAge := getCacheControlMaxAge(resp.Header.Get("Cache-Control"))
 	if maxAge <= 0 {
 		// Response doesn't want to be cached.

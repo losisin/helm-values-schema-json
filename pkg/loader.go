@@ -218,13 +218,13 @@ func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 
 type HTTPLoader struct {
 	client *http.Client
-	cache  *HTTPCache
+	cache  HTTPCache
 
 	SizeLimit int64
 	UserAgent string
 }
 
-func NewHTTPLoader(client *http.Client, cache *HTTPCache) HTTPLoader {
+func NewHTTPLoader(client *http.Client, cache HTTPCache) HTTPLoader {
 	return HTTPLoader{
 		client:    client,
 		cache:     cache,
@@ -293,7 +293,7 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 
 	resp, err := loader.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref.Redacted(), err)
+		return nil, fmt.Errorf("request $ref over HTTP: %w", err)
 	}
 	defer closeIgnoreError(resp.Body)
 
@@ -309,17 +309,11 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		}
 		fmt.Println("Error using etag cache:", err)
 		// Redo the request, but without the etag this time
-		newReq, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
-		if err != nil {
-			return nil, err
-		}
-		newReq.Header = req.Header.Clone()
-		newReq.Header.Del("If-None-Match")
+		req.Header.Del("If-None-Match")
 		newResp, err := loader.client.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref.Redacted(), err)
+			return nil, fmt.Errorf("request $ref over HTTP: %w", err)
 		}
-		req = newReq
 		resp = newResp
 	}
 
