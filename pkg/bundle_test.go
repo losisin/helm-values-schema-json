@@ -26,7 +26,8 @@ func TestBundleWithLoader_RemoveIDsError(t *testing.T) {
 		withoutIDs   = true
 	)
 
-	err := bundleWithLoader(t.Context(), loader, schema, absOutputDir, withoutIDs)
+	ctx := ContextWithLogger(t.Context(), t)
+	err := bundleWithLoader(ctx, loader, schema, absOutputDir, withoutIDs)
 	assert.ErrorContains(t, err, "remove bundled $id: /$ref: no $defs found that matches $ref=\"foo.json\"")
 }
 
@@ -414,7 +415,8 @@ func TestBundle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
+			ctx := ContextWithLogger(t.Context(), t)
+			err := BundleSchema(ctx, tt.loader, tt.schema, "/")
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, tt.schema)
 
@@ -466,7 +468,8 @@ func TestBundle_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := BundleSchema(t.Context(), tt.loader, tt.schema, "/")
+			ctx := ContextWithLogger(t.Context(), t)
+			err := BundleSchema(ctx, tt.loader, tt.schema, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}

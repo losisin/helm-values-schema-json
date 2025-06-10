@@ -48,7 +48,8 @@ func TestLoad_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := Load(t.Context(), tt.loader, tt.ref, "/")
+			ctx := ContextWithLogger(t.Context(), t)
+			_, err := Load(ctx, tt.loader, tt.ref, "/")
 			assert.EqualError(t, err, tt.wantErr)
 		})
 	}
@@ -108,7 +109,8 @@ func TestFileLoader_Error(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			loader := NewFileLoader((*RootFS)(root), tt.fsRootPath)
-			_, err := loader.Load(t.Context(), tt.url)
+			ctx := ContextWithLogger(t.Context(), t)
+			_, err := loader.Load(ctx, tt.url)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
@@ -161,7 +163,8 @@ func TestFileLoader_TestFSError(t *testing.T) {
 	}
 
 	loader := NewFileLoader(root, "")
-	_, err := loader.Load(t.Context(), mustParseURL("./some-fake-file.txt"))
+	ctx := ContextWithLogger(t.Context(), t)
+	_, err := loader.Load(ctx, mustParseURL("./some-fake-file.txt"))
 	assert.ErrorContains(t, err, "dummy error")
 }
 
@@ -196,7 +199,8 @@ func TestURLSchemeLoader_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := tt.loader.Load(t.Context(), tt.url)
+			ctx := ContextWithLogger(t.Context(), t)
+			_, err := tt.loader.Load(ctx, tt.url)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
@@ -213,11 +217,12 @@ func TestCacheLoader(t *testing.T) {
 		},
 	})
 
-	schema1, err := loader.Load(t.Context(), mustParseURL("foo://"))
+	ctx := ContextWithLogger(t.Context(), t)
+	schema1, err := loader.Load(ctx, mustParseURL("foo://"))
 	require.NoError(t, err)
-	schema2, err := loader.Load(t.Context(), mustParseURL("foo://"))
+	schema2, err := loader.Load(ctx, mustParseURL("foo://"))
 	require.NoError(t, err)
-	schema3, err := loader.Load(t.Context(), mustParseURL("foo://"))
+	schema3, err := loader.Load(ctx, mustParseURL("foo://"))
 	require.NoError(t, err)
 
 	assert.Same(t, schema1, schema2)
@@ -352,7 +357,7 @@ func TestHTTPLoader(t *testing.T) {
 				}))
 				defer server.Close()
 
-				ctx := t.Context()
+				ctx := ContextWithLogger(t.Context(), t)
 
 				loader := NewHTTPLoader(server.Client(), nil)
 				loader.UserAgent = "test/" + t.Name()
@@ -383,7 +388,7 @@ func TestHTTPLoader(t *testing.T) {
 			}))
 			defer server.Close()
 
-			ctx := t.Context()
+			ctx := ContextWithLogger(t.Context(), t)
 			ctx = ContextWithLoaderReferrer(ctx, "http://some-referrerer")
 
 			loader := NewHTTPLoader(server.Client(), nil)
@@ -420,7 +425,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			w.Header().Set("Cache-Control", "no-cache")
 			return []byte("{}")
 		})
-		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
 		assert.Empty(t, cache.Map)
@@ -431,7 +437,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			w.Header().Set("Cache-Control", "max-age=100")
 			return []byte("{}")
 		})
-		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
 		require.Len(t, cache.Map, 1)
@@ -456,7 +463,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		}
 		cache.Map[server.URL] = alreadyCached
 
-		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
 		assert.Equal(t, "Already cached", schema.Comment)
@@ -477,7 +485,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		require.False(t, alreadyCached.Expired()) // sanity check
 		cache.Map[server.URL] = alreadyCached
 
-		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 		assert.Equal(t, "from server", schema.Comment)
 	})
@@ -495,7 +504,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			},
 		}
 
-		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		_, err := loader.Load(ctx, mustParseURL(server.URL))
 
 		// No error. Should still just work even though the cache isn't.
 		require.NoError(t, err)
@@ -517,7 +527,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		cache.Map[server.URL] = alreadyCached
 		require.True(t, alreadyCached.Expired()) // sanity check
 
-		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
 		assert.Equal(t, []string{"myETag"}, etagsReceived)
@@ -551,7 +562,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			},
 		}
 
-		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
 		assert.Equal(t, 2, requestsReceived)
@@ -587,7 +599,8 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			},
 		}
 
-		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		ctx := ContextWithLogger(t.Context(), t)
+		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.ErrorContains(t, err, "request $ref over HTTP:")
 		assert.Equal(t, 1, requestsReceived)
 	})
@@ -692,7 +705,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 			}))
 			defer server.Close()
 
-			ctx := t.Context()
+			ctx := ContextWithLogger(t.Context(), t)
 
 			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
@@ -710,7 +723,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 		}))
 		defer server.Close()
 
-		ctx := t.Context()
+		ctx := ContextWithLogger(t.Context(), t)
 
 		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
@@ -726,7 +739,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 		}))
 		defer server.Close()
 
-		ctx := t.Context()
+		ctx := ContextWithLogger(t.Context(), t)
 
 		loader := NewHTTPLoader(server.Client(), nil)
 		loader.SizeLimit = 20
@@ -744,7 +757,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 		}))
 		server.Close() // close now already
 
-		ctx := t.Context()
+		ctx := ContextWithLogger(t.Context(), t)
 
 		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
@@ -761,7 +774,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 		}))
 		defer server.Close()
 
-		ctx := t.Context()
+		ctx := ContextWithLogger(t.Context(), t)
 
 		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
@@ -773,7 +786,8 @@ func TestHTTPLoader_NewRequestError(t *testing.T) {
 	failHTTPLoaderNewRequest = true
 	defer func() { failHTTPLoaderNewRequest = false }()
 	loader := NewHTTPLoader(http.DefaultClient, nil)
-	_, err := loader.Load(t.Context(), mustParseURL("file://localhost"))
+	ctx := ContextWithLogger(t.Context(), t)
+	_, err := loader.Load(ctx, mustParseURL("file://localhost"))
 	assert.ErrorContains(t, err, `create request: `)
 }
 
