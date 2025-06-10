@@ -2,17 +2,16 @@ package pkg
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"iter"
-	"maps"
-	"slices"
-	"strconv"
+	"net/url"
+	"path"
+	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // SchemaKind is an internal enum used to be able to parse
@@ -83,9 +82,10 @@ type Schema struct {
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	Default               interface{}        `json:"default,omitempty" yaml:"default,omitempty"`
+	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Type                  interface{}        `json:"type,omitempty" yaml:"type,omitempty"`
+	RefReferrer           Referrer           `json:"-" yaml:"-"`
+	Type                  any                `json:"type,omitempty" yaml:"type,omitempty"`
 	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
 	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
 	AnyOf                 []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
@@ -228,7 +228,7 @@ func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 }
 
 // MarshalYAML implements [yaml.Marshaler].
-func (s *Schema) MarshalYAML() (interface{}, error) {
+func (s *Schema) MarshalYAML() (any, error) {
 	switch s.Kind() {
 	case SchemaKindTrue:
 		return true, nil
@@ -249,7 +249,7 @@ func (s *Schema) Kind() SchemaKind {
 
 func (s *Schema) SetKind(kind SchemaKind) {
 	if s == nil {
-		panic(fmt.Errorf("Schema.SetKind(%#v): method reciever must not be nil", kind))
+		panic(fmt.Errorf("Schema.SetKind(%#v): method receiver must not be nil", kind))
 	}
 	switch kind {
 	case SchemaKindTrue:
@@ -261,22 +261,6 @@ func (s *Schema) SetKind(kind SchemaKind) {
 	default:
 		panic(fmt.Errorf("Schema.SetKind(%#v): unexpected kind", kind))
 	}
-}
-
-func getYAMLKind(value string) string {
-	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
-		return "integer"
-	}
-	if _, err := strconv.ParseFloat(value, 64); err == nil {
-		return "number"
-	}
-	if _, err := strconv.ParseBool(value); err == nil {
-		return "boolean"
-	}
-	if value != "" {
-		return "string"
-	}
-	return "null"
 }
 
 func getSchemaURL(draft int) (string, error) {
@@ -296,204 +280,7 @@ func getSchemaURL(draft int) (string, error) {
 	}
 }
 
-func getComment(keyNode, valNode *yaml.Node) string {
-	if valNode.LineComment != "" {
-		return valNode.LineComment
-	}
-	if keyNode != nil {
-		return keyNode.LineComment
-	}
-	return ""
-}
-
-func processList(comment string, stringsOnly bool) []interface{} {
-	comment = strings.Trim(comment, "[]")
-	items := strings.Split(comment, ",")
-
-	var list []interface{}
-	for _, item := range items {
-		trimmedItem := strings.TrimSpace(item)
-		if !stringsOnly && trimmedItem == "null" {
-			list = append(list, nil)
-		} else {
-			trimmedItem = strings.Trim(trimmedItem, "\"")
-			list = append(list, trimmedItem)
-		}
-	}
-	return list
-}
-
-func processComment(schema *Schema, comment string) (isRequired, isHidden bool) {
-	isRequired = false
-	isHidden = false
-
-	for key, value := range splitCommentByParts(comment) {
-		switch key {
-		case "enum":
-			schema.Enum = processList(value, false)
-		case "multipleOf":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				if v > 0 {
-					schema.MultipleOf = &v
-				}
-			}
-		case "maximum":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Maximum = &v
-			}
-		case "skipProperties":
-			if v, err := strconv.ParseBool(value); err == nil && v {
-				schema.SkipProperties = true
-			}
-		case "minimum":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Minimum = &v
-			}
-		case "maxLength":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxLength = &v
-			}
-		case "minLength":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinLength = &v
-			}
-		case "pattern":
-			schema.Pattern = value
-		case "maxItems":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxItems = &v
-			}
-		case "minItems":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinItems = &v
-			}
-		case "uniqueItems":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.UniqueItems = v
-			}
-		case "maxProperties":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxProperties = &v
-			}
-		case "minProperties":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinProperties = &v
-			}
-		case "patternProperties":
-			var jsonObject map[string]*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.PatternProperties = jsonObject
-			}
-		case "required":
-			if strings.TrimSpace(value) == "true" {
-				isRequired = true
-			}
-		case "type":
-			schema.Type = processList(value, true)
-		case "title":
-			schema.Title = value
-		case "description":
-			schema.Description = value
-		case "readOnly":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.ReadOnly = v
-			}
-		case "default":
-			var jsonObject interface{}
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.Default = jsonObject
-			}
-		case "item":
-			schema.Items = &Schema{
-				Type: value,
-			}
-		case "itemProperties":
-			if schema.Items.Type == "object" {
-				var itemProps map[string]*Schema
-				if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
-					schema.Items.Properties = itemProps
-				}
-			}
-		case "itemEnum":
-			if schema.Items == nil {
-				schema.Items = &Schema{}
-			}
-			schema.Items.Enum = processList(value, false)
-		case "additionalProperties":
-			if v, err := strconv.ParseBool(value); err == nil {
-				if v {
-					schema.AdditionalProperties = &SchemaTrue
-				} else {
-					schema.AdditionalProperties = &SchemaFalse
-				}
-			}
-		case "unevaluatedProperties":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.UnevaluatedProperties = &v
-			}
-		case "$id":
-			schema.ID = value
-		case "$ref":
-			schema.Ref = value
-		case "hidden":
-			if v, err := strconv.ParseBool(value); err == nil && v {
-				isHidden = true
-			}
-		case "allOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.AllOf = jsonObject
-			}
-		case "anyOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.AnyOf = jsonObject
-			}
-		case "oneOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.OneOf = jsonObject
-			}
-		case "not":
-			var jsonObject *Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.Not = jsonObject
-			}
-		}
-	}
-
-	return isRequired, isHidden
-}
-
-func splitCommentByParts(comment string) iter.Seq2[string, string] {
-	return func(yield func(string, string) bool) {
-		withoutPound := strings.TrimSpace(strings.TrimPrefix(comment, "#"))
-		withoutSchema, ok := strings.CutPrefix(withoutPound, "@schema")
-		if !ok {
-			return
-		}
-		trimmed := strings.TrimSpace(withoutSchema)
-		if len(trimmed) == len(withoutSchema) {
-			// this checks if we had "# @schemafoo" instead of "# @schema foo"
-			// which works as we trimmed space before.
-			// So the check is if len("foo") == len(" foo")
-			return
-		}
-
-		parts := strings.Split(trimmed, ";")
-		for _, part := range parts {
-			key, value, _ := strings.Cut(part, ":")
-			key = strings.TrimSpace(key)
-			value = strings.TrimSpace(value)
-
-			if !yield(key, value) {
-				return
-			}
-		}
-	}
-}
-
-func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
+func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, bool, error) {
 	schema := &Schema{}
 
 	switch valNode.Kind {
@@ -503,7 +290,10 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		for i := 0; i < len(valNode.Content); i += 2 {
 			childKeyNode := valNode.Content[i]
 			childValNode := valNode.Content[i+1]
-			childSchema, childRequired := parseNode(childKeyNode, childValNode)
+			childSchema, childRequired, err := parseNode(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs)
+			if err != nil {
+				return nil, false, err
+			}
 
 			// Exclude hidden child schemas
 			if childSchema != nil && !childSchema.Hidden {
@@ -530,8 +320,11 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		mergedItemSchema := &Schema{}
 		hasItems := false
 
-		for _, itemNode := range valNode.Content {
-			itemSchema, _ := parseNode(nil, itemNode)
+		for i, itemNode := range valNode.Content {
+			itemSchema, _, err := parseNode(ptr.Item(i), nil, itemNode, useHelmDocs)
+			if err != nil {
+				return nil, false, err
+			}
 			if itemSchema != nil && !itemSchema.Hidden {
 				mergedItemSchema = mergeSchemas(mergedItemSchema, itemSchema)
 				hasItems = true
@@ -550,16 +343,28 @@ func parseNode(keyNode, valNode *yaml.Node) (*Schema, bool) {
 		}
 	}
 
-	propIsRequired, isHidden := processComment(schema, getComment(keyNode, valNode))
+	schemaComments, helmDocsComments := getComments(keyNode, valNode, useHelmDocs)
+
+	if useHelmDocs {
+		helmDocs, err := ParseHelmDocsComment(helmDocsComments)
+		if err != nil {
+			return nil, false, fmt.Errorf("%s: parse helm-docs comment: %w", ptr, err)
+		}
+		if len(helmDocs.Path) == 0 || ptr.Equals(NewPtr(helmDocs.Path...)) {
+			schema.Description = helmDocs.Description
+		}
+	}
+
+	propIsRequired, isHidden := processComment(schema, schemaComments)
 	if isHidden {
-		return nil, false
+		return nil, false, nil
 	}
 
 	if schema.SkipProperties && schema.Type == "object" {
 		schema.Properties = nil
 	}
 
-	return schema, propIsRequired
+	return schema, propIsRequired, nil
 }
 
 func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
@@ -622,12 +427,134 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 	}
 }
 
-func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for _, k := range slices.Sorted(maps.Keys(m)) {
-			if !yield(k, m[k]) {
-				return
-			}
-		}
+func (s *Schema) ParseRef() (*url.URL, error) {
+	if s == nil || s.Ref == "" {
+		return nil, nil
 	}
+	ref, err := url.Parse(s.Ref)
+	if err != nil {
+		return nil, err
+	}
+	if s.RefReferrer.IsZero() {
+		return ref, nil
+	}
+	if ref.Scheme != "" && ref.Scheme != "file" {
+		// Only have custom logic when $ref is a local file
+		return ref, nil
+	}
+	refFile, err := ParseRefFileURL(ref)
+	if err != nil {
+		return nil, err
+	}
+	return s.RefReferrer.Join(refFile), nil
+}
+
+func (s *Schema) SetReferrer(ref Referrer) {
+	if s == nil {
+		return
+	}
+	for _, sub := range s.Subschemas() {
+		sub.SetReferrer(ref)
+	}
+	if s.Ref != "" {
+		s.RefReferrer = ref
+	}
+}
+
+// Referrer holds information about what is referencing a schema.
+// This is used when resolving $ref to load the appropriate files or URLs.
+// Only one of "File" or "URL" should to be set at a time.
+type Referrer struct {
+	dir string
+	url *url.URL
+}
+
+// ReferrerDir returns a [Referrer] using an path to a directory.
+func ReferrerDir(dir string) Referrer {
+	return Referrer{dir: dir}
+}
+
+// ReferrerURL returns a [Referrer] using a URL.
+func ReferrerURL(url *url.URL) Referrer {
+	// Clone it just to make sure we don't get any weird memory reuse bugs
+	clone := *url
+	return Referrer{url: &clone}
+}
+
+// IsZero returns true when neither File nor URL has been set.
+func (r Referrer) IsZero() bool {
+	return r == (Referrer{})
+}
+
+func (r Referrer) Join(refFile RefFile) *url.URL {
+	if r.url != nil {
+		urlClone := *r.url
+		urlClone.Path = path.Join(urlClone.Path, refFile.Path)
+		urlClone.Fragment = refFile.Frag
+		return &urlClone
+	}
+
+	return &url.URL{
+		Path:     path.Join(filepath.ToSlash(r.dir), refFile.Path),
+		Fragment: refFile.Frag,
+	}
+}
+
+// RefFile is a parsed "$ref: file://" schema property
+type RefFile struct {
+	Path string
+	Frag string
+}
+
+func (r RefFile) String() string {
+	if r.Frag != "" {
+		return fmt.Sprintf("%s#%s", r.Path, r.Frag)
+	}
+	return r.Path
+}
+
+func ParseRefFile(ref string) (RefFile, error) {
+	if ref == "" {
+		return RefFile{}, nil
+	}
+	if after, ok := strings.CutPrefix(ref, "#"); ok {
+		return RefFile{Frag: after}, nil
+	}
+	u, err := url.Parse(ref)
+	if err != nil {
+		return RefFile{}, err
+	}
+	return ParseRefFileURL(u)
+}
+
+func ParseRefFileURL(u *url.URL) (RefFile, error) {
+	switch {
+	case u.Scheme != "" && u.Scheme != "file":
+		return RefFile{}, nil
+
+	case u.RawQuery != "":
+		return RefFile{}, fmt.Errorf("file query parameters not supported")
+
+	case u.User != nil:
+		return RefFile{}, fmt.Errorf("file URL user info not supported")
+
+	case u.Scheme == "file" && u.Host == "" && u.Path == "":
+		return RefFile{}, fmt.Errorf("unexpected empty file://")
+
+	case u.Scheme == "" && strings.HasPrefix(u.Path, "/"),
+		u.Scheme == "file" && u.Host == "" && u.Path != "":
+		// Treat "/foo" & "file:///" as invalid
+		return RefFile{}, fmt.Errorf("absolute paths not supported")
+	}
+	u.Scheme = ""
+
+	if u.Host != "" {
+		u.Path = path.Join(u.Host, u.Path)
+		u.Host = ""
+	}
+
+	return RefFile{
+		Path: u.Path,
+		Frag: u.Fragment,
+	}, nil
 }

@@ -1,103 +1,13 @@
 package pkg
 
 import (
-	"errors"
-	"fmt"
+	"cmp"
 	"io"
-	"strings"
+	"iter"
+	"maps"
+	"net/url"
+	"slices"
 )
-
-// SchemaRoot struct defines root object of schema
-type SchemaRoot struct {
-	ID                   string   `yaml:"id"`
-	Ref                  string   `yaml:"ref"`
-	Title                string   `yaml:"title"`
-	Description          string   `yaml:"description"`
-	AdditionalProperties BoolFlag `yaml:"additionalProperties"`
-}
-
-// Save values of parsed flags in Config
-type Config struct {
-	Input                  multiStringFlag `yaml:"input"`
-	OutputPath             string          `yaml:"output"`
-	Draft                  int             `yaml:"draft"`
-	Indent                 int             `yaml:"indent"`
-	NoAdditionalProperties BoolFlag        `yaml:"noAdditionalProperties"`
-	Bundle                 BoolFlag        `yaml:"bundle"`
-	BundleRoot             string          `yaml:"bundleRoot"`
-	BundleWithoutID        BoolFlag        `yaml:"bundleWithoutID"`
-
-	K8sSchemaURL     string `yaml:"k8sSchemaURL"`
-	K8sSchemaVersion string `yaml:"k8sSchemaVersion"`
-
-	SchemaRoot SchemaRoot `yaml:"schemaRoot"`
-
-	Args []string `yaml:"-"`
-
-	OutputPathSet   bool `yaml:"-"`
-	DraftSet        bool `yaml:"-"`
-	IndentSet       bool `yaml:"-"`
-	K8sSchemaURLSet bool `yaml:"-"`
-}
-
-// Define a custom flag type to accept multiple yaml files
-type multiStringFlag []string
-
-func (m *multiStringFlag) String() string {
-	return strings.Join(*m, ", ")
-}
-
-func (m *multiStringFlag) Set(value string) error {
-	values := strings.SplitSeq(value, ",")
-	for v := range values {
-		*m = append(*m, v)
-	}
-	return nil
-}
-
-// Custom BoolFlag type that tracks if it was explicitly set
-type BoolFlag struct {
-	set   bool
-	value bool
-}
-
-func (b *BoolFlag) String() string {
-	if b.set {
-		return fmt.Sprintf("%t", b.value)
-	}
-	return "not set"
-}
-
-func (b *BoolFlag) Set(value string) error {
-	switch value {
-	case "true":
-		b.value = true
-	case "false":
-		b.value = false
-	default:
-		return errors.New("invalid boolean value")
-	}
-	b.set = true
-	return nil
-}
-
-func (b *BoolFlag) IsSet() bool {
-	return b.set
-}
-
-func (b *BoolFlag) Value() bool {
-	return b.value
-}
-
-func (b *BoolFlag) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var boolValue bool
-	if err := unmarshal(&boolValue); err != nil {
-		return err
-	}
-	b.value = boolValue
-	b.set = true
-	return nil
-}
 
 func uniqueStringAppend(dest []string, src ...string) []string {
 	existingItems := make(map[string]bool)
@@ -117,4 +27,70 @@ func uniqueStringAppend(dest []string, src ...string) []string {
 
 func closeIgnoreError(closer io.Closer) {
 	_ = closer.Close()
+}
+
+func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for _, k := range slices.Sorted(maps.Keys(m)) {
+			if !yield(k, m[k]) {
+				return
+			}
+		}
+	}
+}
+
+// LimitReaderWithError returns a wrapper around [io.LimitedReader] that
+// returns a custom error when the limit is reached instead of [io.EOF].
+func LimitReaderWithError(r io.Reader, n int64, err error) LimitedReaderWithError {
+	return LimitedReaderWithError{
+		Reader: &io.LimitedReader{R: r, N: n},
+		Err:    err,
+	}
+}
+
+// LimitedReaderWithError is a wrapper around [io.LimitedReader] that
+// returns a custom error when the limit is reached instead of [io.EOF].
+type LimitedReaderWithError struct {
+	Reader *io.LimitedReader
+	Err    error
+}
+
+// Read implements [io.Reader].
+func (r LimitedReaderWithError) Read(b []byte) (int, error) {
+	n, err := r.Reader.Read(b)
+	if err == io.EOF && r.Reader.N <= 0 {
+		return n, r.Err
+	}
+	return n, err
+}
+
+func mustParseURL(rawURL string) *url.URL {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return u
+}
+
+func uint64Ptr(i uint64) *uint64 {
+	return &i
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+// comparePointer is a helper function for comparing pointer fields
+func comparePointer[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a != nil && b != nil {
+		return *a == *b
+	}
+	return false
 }

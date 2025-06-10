@@ -1,19 +1,61 @@
 # Annotations from comments
 
-JSON schema is partially implemented in this tool. It uses line comments to add annotations for the schema because head comments are frequently used by humans and tools like helm-docs. Multiple annotations can be added to a single line separated by semicolon. For example:
+JSON schema is partially implemented in this tool.
+
+It supports both comments directly above, directly below,
+and on the same line to add annotations for the schema.
+The comment must start with `# @schema`, which is used to avoid interference
+with tools like [helm-docs](https://github.com/norwoodj/helm-docs).
+
+Multiple annotations can be added to a single line separated by semicolon.
+
+Example:
 
 ```yaml
-nameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
+# On the same line
+fullnameOverride: "myapp" # @schema maxLength:10;pattern:^[a-z]+$
+
+# On the line above
+# @schema maxLength:10;pattern:^[a-z]+$
+nameOverride: "myapp"
+
+# On the line below (double-check that indentation matches)
+resources:
+  limits: {}
+  requests: {}
+# @schema additionalProperties:false
 ```
 
 This will generate following schema:
 
 ```json
+"fullnameOverride": {
+    "type": "string",
+    "pattern": "^[a-z]+$",
+    "maxLength": 10
+},
 "nameOverride": {
-    "maxLength": 10,
-    "type": "string"
+    "type": "string",
+    "pattern": "^[a-z]+$",
+    "maxLength": 10
+},
+"resources": {
+    "type": "object",
+    "properties": {
+        "limits": {
+            "type": "object"
+        },
+        "requests": {
+            "type": "object"
+        }
+    },
+    "additionalProperties": false
 }
 ```
+
+> aside: Support for comments above and below the property was introduced
+> in v2.0.0. If you're using a version before v2.0.0 then only comments at the
+> end of the same line is supported.
 
 The following annotations are supported:
 
@@ -50,6 +92,7 @@ The following annotations are supported:
     * [bundling](#bundling)
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
+    * [helm-docs](#helm-docs)
     * [default](#default)
     * [readOnly](#readonly)
 * [Schema Composition](#schema-composition)
@@ -609,11 +652,11 @@ subchart: # @schema $ref: https://example.com/schema.json
 You can use `$ref: $k8s/...` as a shorthand for
 `https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/...`
 
-To use that you must provide the `--k8sSchemaVersion` flag or `k8sSchemaVersion`
+To use that you must provide the `--k8s-schema-version` flag or `k8s-schema-version`
 config. For example:
 
 ```bash
-helm schema --input values.yaml --k8sSchemaVersion v1.33.1
+helm schema --values values.yaml --k8s-schema-version v1.33.1
 ```
 
 ```yaml
@@ -642,12 +685,12 @@ memory: # @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.apimachinery.
 You can bundle referenced schemas, which will resolve the `$ref` and embeds the
 result in `$defs`. To enable bundling, use the command-line flags:
 
-- `--bundle true` enables bundling (default: `false`)
+- `--bundle` enables bundling (default: `false`)
 
-- `--bundleRoot /some/path` sets the root directory from which file `$ref` are
+- `--bundle-root /some/path` sets the root directory from which file `$ref` are
   allowed to read files from (default: current working directory)
 
-- `--bundleWithoutID true` works as a compatibility mode by disabling usage of
+- `--bundle-without-id` works as a compatibility mode by disabling usage of
   `$id` and overriding `$ref` with syntax like `"$ref": "#/$defs/schema.json"`
   instead of retaining the original `$ref`. This is helpful for VSCode and
   other editors using Microsoft's JSON language server as that implementation
@@ -697,6 +740,70 @@ fullnameOverride: bar # @schema title: My title ; description: My description
     "type": "string"
 },
 ```
+
+### helm-docs
+
+(since v2.0.0)
+
+Use description from <https://github.com/norwoodj/helm-docs> comments.
+Must be enabled to be used via the `--use-helm-docs` flag.
+
+```bash
+helm schema --use-helm-docs
+```
+
+```yaml
+# -- My description
+fullnameOverride: bar
+```
+
+```json
+"fullnameOverride": {
+    "description": "My description",
+    "type": "string"
+},
+```
+
+The following helm-docs features are not supported:
+
+- Helm-docs specific properties:
+
+  - `# @default --`
+  - `# @section --`
+  - *etc.*
+
+- Detached comments. Meaning, comments that are not directly above the property.
+  For example:
+
+  ```yaml
+  # fullnameOverride -- This works
+  fullnameOverride: bar
+  ```
+
+  ```yaml
+  fullnameOverride: bar
+
+  # fullnameOverride -- This does not work. Helm-docs will see the comment,
+  # but this schema plugin will not.
+  ```
+
+While this plugin supports helm-docs, helm-docs does not support this plugin.
+So on comments above the field must have the `# @schema` comments
+above the helm-docs description comment to avoid having the schema annotations
+getting included in the description:
+
+```yaml
+# ✅ good:
+# @schema maxLength:10
+# -- My awesome nameOverride description
+nameOverride: "myapp"
+
+# ❌ bad:
+# -- My awesome nameOverride description
+# @schema maxLength:10
+nameOverride: "myapp"
+```
+
 
 ### default
 

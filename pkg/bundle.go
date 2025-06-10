@@ -1,67 +1,85 @@
-/*
-	This file contains some modified versions of the
-	santhosh-tekuri/jsonschema loader code, licensed
-	under the Apache License, Version 2.0
-
-	Based on code from:
-	- https://github.com/santhosh-tekuri/jsonschema/blob/87df339550a7b2440ff7da286bd34ece7d74039b/loader.go
-	- https://github.com/santhosh-tekuri/jsonschema/blob/87df339550a7b2440ff7da286bd34ece7d74039b/cmd/jv/loader.go
-*/
-
 package pkg
 
 import (
-	"compress/gzip"
+	"cmp"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
-	"maps"
-	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"runtime"
-	"slices"
 	"strings"
-	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
-func NewDefaultLoader(client *http.Client, root *os.Root, basePath string) Loader {
-	fileLoader := NewFileLoader(root, basePath)
-	httpLoader := NewHTTPLoader(client)
-	return NewCacheLoader(URLSchemeLoader{
-		"http":  httpLoader,
-		"https": httpLoader,
-		"file":  fileLoader, // Used for "file:///some/abs/path"
-		"":      fileLoader, // Used for "./foobar.json" or "/some/abs/path"
-	})
+// Bundle will use default loader settings to bundle all $ref into $defs
+// using [BundleSchema] and optionally remove any IDs using [BundleRemoveIDs].
+//
+// This function will update the schema in-place.
+//
+// The paths, outputDir & bundleRoot, are only used to change absolute paths
+// into relative paths in a solely cosmetic way.
+func Bundle(schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
+	ctx := context.Background()
+
+	absOutputDir, err := filepath.Abs(filepath.Dir(outputDir))
+	if err != nil {
+		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
+	}
+
+	bundleRootAbs, err := filepath.Abs(cmp.Or(bundleRoot, "."))
+	if err != nil {
+		return fmt.Errorf("bundle root %s: get absolute path: %w", bundleRoot, err)
+	}
+
+	root, err := os.OpenRoot(bundleRootAbs)
+	if err != nil {
+		return fmt.Errorf("bundle root %s: %w", bundleRoot, err)
+	}
+	defer closeIgnoreError(root)
+
+	loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
+	return bundleWithLoader(ctx, loader, schema, absOutputDir, withoutIDs)
+}
+
+func bundleWithLoader(ctx context.Context, loader Loader, schema *Schema, absOutputDir string, withoutIDs bool) error {
+	if err := BundleSchema(ctx, loader, schema, absOutputDir); err != nil {
+		return fmt.Errorf("bundle schemas: %w", err)
+	}
+
+	if withoutIDs {
+		if err := BundleRemoveIDs(schema); err != nil {
+			return fmt.Errorf("remove bundled $id: %w", err)
+		}
+
+		// Cleanup unused $defs after all other bundling tasks
+		RemoveUnusedDefs(schema)
+	}
+	return nil
 }
 
 // BundleSchema will use the [Loader] to load any "$ref" references and
 // store them in "$defs".
 //
 // This function will update the schema in-place.
-func BundleSchema(ctx context.Context, loader Loader, schema *Schema) error {
+//
+// The basePathForIDs is an absolute path used to change the resulting
+// $ref & $id absolute paths of bundled local files to relative paths.
+// It is only used cosmetically and has no impact of how files are loaded.
+func BundleSchema(ctx context.Context, loader Loader, schema *Schema, basePathForIDs string) error {
 	if loader == nil {
 		return fmt.Errorf("nil loader")
 	}
 	if schema == nil {
 		return fmt.Errorf("nil schema")
 	}
-	return bundleSchemaRec(ctx, nil, loader, schema, schema)
+	return bundleSchemaRec(ctx, nil, loader, schema, schema, basePathForIDs)
 }
 
-func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema) error {
+func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *Schema, basePathForIDs string) error {
 	for path, subSchema := range schema.Subschemas() {
 		ptr := ptr.Add(path)
-		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema); err != nil {
+		if err := bundleSchemaRec(ctx, ptr, loader, root, subSchema, basePathForIDs); err != nil {
 			return err
 		}
 	}
@@ -71,7 +89,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 		return nil
 	}
 	for _, def := range root.Defs {
-		if def.ID == bundleRefToID(schema.Ref) {
+		if def.ID == trimFragment(schema.Ref) {
 			// Already bundled
 			return nil
 		}
@@ -79,9 +97,23 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	if schema.ID != "" {
 		ctx = ContextWithLoaderReferrer(ctx, schema.ID)
 	}
-	loaded, err := Load(ctx, loader, schema.Ref)
+	ref, err := schema.ParseRef()
 	if err != nil {
 		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	}
+
+	// Make sure schema $ref corresponds with the corrected path
+	//
+	// It's fine to modify the $ref here, as it is not used any more times
+	// after this. So changing it is solely a cosmetic change.
+	schema.Ref = refRelativeToBasePath(ref, basePathForIDs).String()
+
+	loaded, err := Load(ctx, loader, ref, basePathForIDs)
+	if err != nil {
+		return fmt.Errorf("%s: %w", ptr.Prop("$ref"), err)
+	}
+	if loaded == nil {
+		return nil
 	}
 	if root.Defs == nil {
 		root.Defs = map[string]*Schema{}
@@ -94,7 +126,21 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	// Add the value itself
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
-	return bundleSchemaRec(ctx, ptr, loader, root, loaded)
+	return bundleSchemaRec(ctx, ptr, loader, root, loaded, basePathForIDs)
+}
+
+func refRelativeToBasePath(ref *url.URL, basePathForIDs string) *url.URL {
+	if ref.Scheme != "" || ref.Path == "" || !path.IsAbs(ref.Path) {
+		return ref
+	}
+	rel, err := filepath.Rel(basePathForIDs, ref.Path)
+	if err != nil {
+		return ref
+	}
+	return &url.URL{
+		Path:     filepath.ToSlash(filepath.Clean(rel)),
+		Fragment: ref.Fragment,
+	}
 }
 
 func moveDefToRoot(root *Schema, defs *map[string]*Schema) {
@@ -187,9 +233,8 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 	}
 
 	for subPath, subSchema := range schema.Subschemas() {
-		ptr := ptr.Add(subPath)
-		if err := bundleChangeRefsRec(parentDefPtr, ptr, root, subSchema); err != nil {
-			return fmt.Errorf("%s: %w", ptr, err)
+		if err := bundleChangeRefsRec(parentDefPtr, ptr.Add(subPath), root, subSchema); err != nil {
+			return err
 		}
 	}
 
@@ -204,16 +249,16 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 	ref, err := url.Parse(schema.Ref)
 	if err != nil {
-		return fmt.Errorf("parse $ref=%q as URL: %w", schema.Ref, err)
+		return fmt.Errorf("%s: parse $ref as URL: %w", ptr.Prop("$ref"), err)
 	}
 
 	name, ok := findDefNameByRef(root.Defs, ref)
 	if !ok {
-		return fmt.Errorf("no $defs found that matches $ref=%q", schema.Ref)
+		return fmt.Errorf("%s: no $defs found that matches $ref=%q", ptr.Prop("$ref"), ref.Redacted())
 	}
 
 	if ref.Fragment != "" {
-		schema.Ref = fmt.Sprintf("#%s%s", NewPtr("$defs", name), ref.Fragment)
+		schema.Ref = fmt.Sprintf("#%s/%s", NewPtr("$defs", name), strings.TrimPrefix(ref.Fragment, "/"))
 	} else {
 		schema.Ref = fmt.Sprintf("#%s", NewPtr("$defs", name))
 	}
@@ -223,7 +268,7 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 func findDefNameByRef(defs map[string]*Schema, ref *url.URL) (string, bool) {
 	for name, def := range defs {
-		if def.ID == bundleRefURLToID(ref) {
+		if def.ID == trimFragmentURL(ref) {
 			return name, true
 		}
 	}
@@ -325,295 +370,16 @@ func resolvePtr(schema *Schema, ptr Ptr) []*Schema {
 	}
 }
 
-func Load(ctx context.Context, loader Loader, ref string) (*Schema, error) {
-	if loader == nil {
-		return nil, fmt.Errorf("nil loader")
-	}
-	if ref == "" {
-		return nil, fmt.Errorf("cannot load empty $ref")
-	}
-	refURL, err := url.Parse(ref)
-	if err != nil {
-		return nil, fmt.Errorf("parse $ref as URL: %w", err)
-	}
-	schema, err := loader.Load(ctx, refURL)
-	if err != nil {
-		return nil, err
-	}
-
-	schema.ID = bundleRefURLToID(refURL)
-	return schema, nil
-}
-
-func bundleRefToID(ref string) string {
+func trimFragment(ref string) string {
 	refURL, err := url.Parse(ref)
 	if err != nil {
 		return ""
 	}
-	return bundleRefURLToID(refURL)
+	return trimFragmentURL(refURL)
 }
 
-func bundleRefURLToID(ref *url.URL) string {
+func trimFragmentURL(ref *url.URL) string {
 	refClone := *ref
 	refClone.Fragment = ""
 	return refClone.String()
-}
-
-func FixRootSchemaRef(rootSchemaRef, filePath string) string {
-	if rootSchemaRef == "" {
-		return ""
-	}
-	parsed, err := url.Parse(pathWindowsFix(rootSchemaRef))
-	if err != nil || parsed.Scheme != "" {
-		return rootSchemaRef
-	}
-	relPath, err := filepath.Rel(filepath.Dir(filePath), parsed.Path)
-	if err != nil {
-		err := fmt.Errorf("tried to fix root schema $ref path for bundling: get relative path from file %q to schema root ref %q: %w", filePath, rootSchemaRef, err)
-		fmt.Println("Warning:", err)
-		return rootSchemaRef
-	}
-	relPath = filepath.ToSlash(relPath)
-	if !strings.HasPrefix(relPath, "./") && !strings.HasPrefix(relPath, "../") {
-		relPath = "./" + relPath
-	}
-	return relPath
-}
-
-type Loader interface {
-	Load(ctx context.Context, ref *url.URL) (*Schema, error)
-}
-
-// DummyLoader is a dummy implementation of [Loader] meant to be
-// used in tests.
-type DummyLoader struct {
-	LoadFunc func(ctx context.Context, ref *url.URL) (*Schema, error)
-}
-
-var _ Loader = DummyLoader{}
-
-// Load implements [Loader].
-func (loader DummyLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	return loader.LoadFunc(ctx, ref)
-}
-
-// FileLoader loads a schema from a "$ref: file:/some/path" reference
-// from the local file-system.
-type FileLoader struct {
-	root     *os.Root
-	basePath string
-}
-
-func NewFileLoader(root *os.Root, basePath string) FileLoader {
-	return FileLoader{
-		root:     root,
-		basePath: basePath,
-	}
-}
-
-var _ Loader = FileLoader{}
-
-// Load implements [Loader].
-func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) {
-	if ref.Scheme != "file" && ref.Scheme != "" {
-		return nil, fmt.Errorf(`file url in $ref=%q must start with "file://", "./", or "/"`, ref)
-	}
-	if ref.Path == "" {
-		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
-	}
-	path := pathWindowsFix(ref.Path)
-	if loader.basePath != "" && !filepath.IsAbs(path) {
-		path = filepath.Join(loader.basePath, path)
-	}
-
-	fmt.Println("Loading file", path)
-	f, err := loader.root.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open $ref=%q file: %w", ref, err)
-	}
-	defer closeIgnoreError(f)
-	b, err := io.ReadAll(f)
-	if err != nil {
-		return nil, fmt.Errorf("read $ref=%q file: %w", ref, err)
-	}
-
-	fmt.Printf("=> got %dKB\n", len(b)/1000)
-
-	switch filepath.Ext(path) {
-	case ".yml", ".yaml":
-		var schema Schema
-		if err := yaml.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q YAML file: %w", ref, err)
-		}
-		return &schema, nil
-	default:
-		var schema Schema
-		if err := json.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q JSON file: %w", ref, err)
-		}
-		return &schema, nil
-	}
-}
-
-func pathWindowsFix(path string) string {
-	if runtime.GOOS == "windows" {
-		path = strings.TrimPrefix(path, "/")
-		path = filepath.FromSlash(path)
-	}
-	return path
-}
-
-// URLSchemeLoader delegates to other [Loader] implementations
-// based on the [url.URL] scheme.
-type URLSchemeLoader map[string]Loader
-
-var _ Loader = URLSchemeLoader{}
-
-// Load implements [Loader].
-func (loader URLSchemeLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	loaderForScheme, ok := loader[ref.Scheme]
-	if !ok {
-		return nil, fmt.Errorf("%w: cannot load schema from $ref=%q, supported schemes: %v",
-			errors.ErrUnsupported, ref, strings.Join(slices.Collect(maps.Keys(loader)), ","))
-	}
-	return loaderForScheme.Load(ctx, ref)
-}
-
-// CacheLoader stores loaded schemas in memory and reuses (or "memoizes", if you will)
-// calls to the underlying [Loader].
-type CacheLoader struct {
-	schemas   map[string]*Schema
-	subLoader Loader
-}
-
-func NewCacheLoader(loader Loader) *CacheLoader {
-	return &CacheLoader{
-		schemas:   map[string]*Schema{},
-		subLoader: loader,
-	}
-}
-
-var _ Loader = CacheLoader{}
-
-// Load implements [Loader].
-func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	urlString := bundleRefURLToID(ref)
-	if schema := loader.schemas[urlString]; schema != nil {
-		return schema, nil
-	}
-	schema, err := loader.subLoader.Load(ctx, ref)
-	if err != nil {
-		return nil, err
-	}
-	loader.schemas[urlString] = schema
-	return schema, nil
-}
-
-type HTTPLoader struct {
-	client *http.Client
-}
-
-func NewHTTPLoader(client *http.Client) HTTPLoader {
-	return HTTPLoader{client: client}
-}
-
-var _ Loader = HTTPLoader{}
-
-var yamlMediaTypeRegexp = regexp.MustCompile(`^application/(.*\+)?yaml$`)
-
-// Load implements [Loader].
-func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
-	// Hardcoding a higher limit so CI/CD pipelines don't get stuck
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	refClone := *ref
-	refClone.Fragment = ""
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	// YAML now has a proper media type since Feb 2024 :D
-	// https://datatracker.ietf.org/doc/rfc9512/
-	req.Header.Add("Accept", "application/schema+json,application/json,application/schema+yaml,application/yaml,text/plain; charset=utf-8")
-	req.Header.Add("Accept-Encoding", "gzip")
-	if referrer, ok := ctx.Value(loaderContextReferrer).(string); ok {
-		if strings.HasPrefix(referrer, "http://") || strings.HasPrefix(referrer, "https://") {
-			req.Header.Add("Link", fmt.Sprintf(`<%s>; rel="describedby"`, referrer))
-		}
-	}
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", "helm-values-schema-json/1")
-	}
-
-	start := time.Now()
-	fmt.Println("Loading", req.URL.Redacted())
-
-	resp, err := loader.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: got non-2xx status code: %s", ref, resp.Status)
-	}
-	defer closeIgnoreError(resp.Body)
-
-	reader := resp.Body
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		r, err := gzip.NewReader(reader)
-		if err != nil {
-			return nil, fmt.Errorf("request $ref=%q over HTTP: create gzip reader: %w", ref, err)
-		}
-		reader = r
-	case "":
-		// Do nothing
-	default:
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported content encoding: %q", ref, errors.ErrUnsupported, resp.Header.Get("Content-Encoding"))
-	}
-
-	var isYAML bool
-	if mediatype, params, err := mime.ParseMediaType(resp.Header.Get("Content-Type")); err == nil {
-		switch strings.ToLower(params["charset"]) {
-		case "", "utf-8", "utf8":
-			// OK
-		default:
-			return nil, fmt.Errorf("request $ref=%q over HTTP: %w: unsupported response charset: %q", ref, errors.ErrUnsupported, params["charset"])
-		}
-
-		if yamlMediaTypeRegexp.MatchString(mediatype) {
-			isYAML = true
-		}
-	}
-
-	b, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
-	}
-
-	duration := time.Since(start)
-	fmt.Printf("=> got %dKB in %s\n", len(b)/1000, duration.Truncate(time.Millisecond))
-
-	if isYAML {
-		var schema Schema
-		if err := yaml.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q YAML: %w", ref, err)
-		}
-		return &schema, nil
-	} else {
-		var schema Schema
-		if err := json.Unmarshal(b, &schema); err != nil {
-			return nil, fmt.Errorf("parse $ref=%q JSON: %w", ref, err)
-		}
-		return &schema, nil
-	}
-}
-
-type loaderContextKey int
-
-var loaderContextReferrer = loaderContextKey(1)
-
-func ContextWithLoaderReferrer(parent context.Context, referrer string) context.Context {
-	return context.WithValue(parent, loaderContextReferrer, referrer)
 }

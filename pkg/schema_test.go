@@ -3,12 +3,13 @@ package pkg
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestSchemaKindString(t *testing.T) {
@@ -372,7 +373,7 @@ func TestSchemaSetKind_panics(t *testing.T) {
 			name:    "set nil",
 			kind:    SchemaKindObject,
 			schema:  nil,
-			wantErr: "Schema.SetKind(object): method reciever must not be nil",
+			wantErr: "Schema.SetKind(object): method receiver must not be nil",
 		},
 		{
 			name:    "set invalid kind",
@@ -511,361 +512,6 @@ func TestGetSchemaURL(t *testing.T) {
 	}
 }
 
-func TestGetComment(t *testing.T) {
-	tests := []struct {
-		name            string
-		keyNode         *yaml.Node
-		valNode         *yaml.Node
-		expectedComment string
-	}{
-		{
-			name: "value node with comment",
-			keyNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				LineComment: "",
-			},
-			valNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				Value:       "some value",
-				LineComment: "# Value comment",
-			},
-			expectedComment: "# Value comment",
-		},
-		{
-			name: "value node without comment, key node with comment",
-			keyNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				LineComment: "# Key comment",
-			},
-			valNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				Value:       "some value",
-				LineComment: "",
-			},
-			expectedComment: "# Key comment",
-		},
-		{
-			name: "empty value node, key node with comment",
-			keyNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				LineComment: "# Key comment",
-			},
-			valNode: &yaml.Node{
-				Kind:        yaml.ScalarNode,
-				Value:       "",
-				LineComment: "",
-			},
-			expectedComment: "# Key comment",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			comment := getComment(tt.keyNode, tt.valNode)
-			assert.Equal(t, tt.expectedComment, comment, "getComment returned an unexpected comment")
-		})
-	}
-}
-
-func TestProcessList(t *testing.T) {
-	tests := []struct {
-		name         string
-		comment      string
-		stringsOnly  bool
-		expectedList []interface{}
-	}{
-		{
-			name:         "empty list",
-			comment:      "[]",
-			stringsOnly:  false,
-			expectedList: []interface{}{""},
-		},
-		{
-			name:         "single string",
-			comment:      "[\"value\"]",
-			stringsOnly:  true,
-			expectedList: []interface{}{"value"},
-		},
-		{
-			name:         "single string without quotes",
-			comment:      "[value]",
-			stringsOnly:  true,
-			expectedList: []interface{}{"value"},
-		},
-		{
-			name:         "multiple strings",
-			comment:      "[\"value1\", \"value2\"]",
-			stringsOnly:  true,
-			expectedList: []interface{}{"value1", "value2"},
-		},
-		{
-			name:         "null allowed",
-			comment:      "[null]",
-			stringsOnly:  false,
-			expectedList: []interface{}{nil},
-		},
-		{
-			name:         "null not treated as special",
-			comment:      "[null]",
-			stringsOnly:  true,
-			expectedList: []interface{}{"null"},
-		},
-		{
-			name:         "mixed strings and null",
-			comment:      "[\"value1\", null, \"value2\"]",
-			stringsOnly:  false,
-			expectedList: []interface{}{"value1", nil, "value2"},
-		},
-		{
-			name:         "whitespace trimming",
-			comment:      "[ value1, value2 ]",
-			stringsOnly:  true,
-			expectedList: []interface{}{"value1", "value2"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			list := processList(tt.comment, tt.stringsOnly)
-			assert.Equal(t, tt.expectedList, list)
-		})
-	}
-}
-
-func TestProcessComment(t *testing.T) {
-	tests := []struct {
-		name             string
-		schema           *Schema
-		comment          string
-		expectedSchema   *Schema
-		expectedRequired bool
-	}{
-		{
-			name:             "Empty comment",
-			schema:           &Schema{},
-			comment:          "# @schema ",
-			expectedSchema:   &Schema{},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set type",
-			schema:           &Schema{},
-			comment:          "# @schema type:[string, null]",
-			expectedSchema:   &Schema{Type: []any{"string", "null"}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set enum",
-			schema:           &Schema{},
-			comment:          "# @schema enum:[one, two, null]",
-			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set numeric",
-			schema:           &Schema{},
-			comment:          "# @schema multipleOf:2;minimum:1;maximum:10",
-			expectedSchema:   &Schema{MultipleOf: float64Ptr(2), Minimum: float64Ptr(1), Maximum: float64Ptr(10)},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set string",
-			schema:           &Schema{},
-			comment:          "# @schema pattern:^abv$;minLength:2;maxLength:10",
-			expectedSchema:   &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set array",
-			schema:           &Schema{},
-			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:object;itemProperties:{\"key\": {\"type\": \"string\"}}",
-			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "object", Properties: map[string]*Schema{"key": {Type: "string"}}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set array only item enum",
-			schema:           &Schema{},
-			comment:          "# @schema itemEnum:[1,2]",
-			expectedSchema:   &Schema{Items: &Schema{Enum: []any{"1", "2"}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set array item type and enum",
-			schema:           &Schema{},
-			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:string;itemEnum:[\"one\",\"two\"]",
-			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "string", Enum: []any{"one", "two"}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set object",
-			schema:           &Schema{},
-			comment:          "# @schema minProperties:1;maxProperties:10;additionalProperties:false;$id:https://example.com/schema;$ref:schema/product.json",
-			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: &SchemaFalse, ID: "https://example.com/schema", Ref: "schema/product.json"},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set meta-data",
-			schema:           &Schema{},
-			comment:          "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
-			expectedSchema:   &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set skipProperties",
-			schema:           &Schema{},
-			comment:          "# @schema skipProperties:true;unevaluatedProperties:false",
-			expectedSchema:   &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set hidden",
-			schema:           &Schema{},
-			comment:          "# @schema hidden:true",
-			expectedSchema:   &Schema{},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set allOf",
-			schema:           &Schema{},
-			comment:          "# @schema allOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{AllOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set anyOf",
-			schema:           &Schema{},
-			comment:          "# @schema anyOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{AnyOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set oneOf",
-			schema:           &Schema{},
-			comment:          "# @schema oneOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{OneOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
-		},
-		{
-			name:             "Set not",
-			schema:           &Schema{},
-			comment:          "# @schema not:{\"type\":\"string\"}",
-			expectedSchema:   &Schema{Not: &Schema{Type: "string"}},
-			expectedRequired: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var required bool
-			processComment(tt.schema, tt.comment)
-			assert.Equal(t, tt.expectedSchema, tt.schema)
-			assert.Equal(t, tt.expectedRequired, required)
-		})
-	}
-}
-
-func TestSplitCommentByParts(t *testing.T) {
-	type Pair struct {
-		Key, Value string
-	}
-	tests := []struct {
-		name    string
-		comment string
-		want    []Pair
-	}{
-		{
-			name:    "empty",
-			comment: "",
-			want:    nil,
-		},
-		{
-			name:    "no keys",
-			comment: "# @schema ",
-			want:    nil,
-		},
-		{
-			// https://github.com/losisin/helm-values-schema-json/issues/152
-			name:    "ignore when missing @schema",
-			comment: "# ; type:string",
-			want:    nil,
-		},
-		{
-			name:    "without whitespace",
-			comment: "#@schema type:string",
-			want:    []Pair{{"type", "string"}},
-		},
-		{
-			name:    "with extra whitespace",
-			comment: "#  \t  @schema \t type :  string",
-			want:    []Pair{{"type", "string"}},
-		},
-		{
-			name:    "missing whitespace after after @schema",
-			comment: "# @schematype:string",
-			want:    nil,
-		},
-		{
-			name:    "tab after @schema",
-			comment: "# @schema\ttype:string",
-			want:    []Pair{{"type", "string"}},
-		},
-		{
-			name:    "only key",
-			comment: "# @schema type",
-			want:    []Pair{{"type", ""}},
-		},
-		{
-			name:    "only value",
-			comment: "# @schema : string",
-			want:    []Pair{{"", "string"}},
-		},
-		{
-			name:    "multiple pairs",
-			comment: "# @schema type:string; foo:bar",
-			want:    []Pair{{"type", "string"}, {"foo", "bar"}},
-		},
-		{
-			name:    "same pair multiple times",
-			comment: "# @schema type:string; type:integer",
-			want:    []Pair{{"type", "string"}, {"type", "integer"}},
-		},
-		{
-			name:    "array value",
-			comment: "# @schema type:[string, integer]",
-			want:    []Pair{{"type", "[string, integer]"}},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var pairs []Pair
-			for key, value := range splitCommentByParts(tt.comment) {
-				pairs = append(pairs, Pair{key, value})
-			}
-			assert.Equal(t, tt.want, pairs)
-		})
-	}
-}
-
-func TestSplitCommentByParts_break(t *testing.T) {
-	type Pair struct {
-		Key, Value string
-	}
-
-	const comment = "# @schema foo:bar; moo:doo; baz:boz"
-
-	var pairs []Pair
-	for key, value := range splitCommentByParts(comment) {
-		pairs = append(pairs, Pair{key, value})
-		if len(pairs) == 2 {
-			break
-		}
-	}
-
-	want := []Pair{{"foo", "bar"}, {"moo", "doo"}}
-	assert.Equal(t, want, pairs)
-}
-
 func TestParseNode(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -937,12 +583,70 @@ func TestParseNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema, isRequired := parseNode(tt.keyNode, tt.valNode)
+			schema, isRequired, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, false)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedType, schema.Type)
 			assert.Equal(t, tt.expectedProps, schema.Properties)
 			assert.Equal(t, tt.expectedItems, schema.Items)
 			assert.Equal(t, tt.expectedReq, schema.Required)
 			assert.Equal(t, tt.isRequired, isRequired)
+		})
+	}
+}
+
+func TestParseNode_Error(t *testing.T) {
+	tests := []struct {
+		name        string
+		keyNode     *yaml.Node
+		valNode     *yaml.Node
+		useHelmDocs bool
+		wantErr     string
+	}{
+		{
+			name: "helm-docs map",
+			valNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind: yaml.ScalarNode, Value: "key",
+						HeadComment: "" +
+							"# -- Desc\n" +
+							"# @schema this should not be here",
+					},
+					{Kind: yaml.ScalarNode, Value: "value"},
+				},
+			},
+			useHelmDocs: true,
+			wantErr:     "/key: parse helm-docs comment",
+		},
+		{
+			name: "helm-docs seq",
+			valNode: &yaml.Node{
+				Kind: yaml.SequenceNode,
+				Content: []*yaml.Node{
+					{
+						Kind: yaml.MappingNode,
+						Content: []*yaml.Node{
+							{
+								Kind: yaml.ScalarNode, Value: "key",
+								HeadComment: "" +
+									"# -- Desc\n" +
+									"# @schema this should not be here",
+							},
+							{Kind: yaml.ScalarNode, Value: "value"},
+						},
+					},
+				},
+			},
+			useHelmDocs: true,
+			wantErr:     "/key: parse helm-docs comment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, tt.useHelmDocs)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -1036,6 +740,401 @@ func TestSchemaSubschemas_order(t *testing.T) {
 					}
 				}
 				require.Equal(t, "abc", strings.Join(ids, ""))
+			}
+		})
+	}
+}
+
+func TestSchemaParseRef(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   *url.URL
+	}{
+		{
+			name:   "nil schema",
+			schema: nil,
+			want:   nil,
+		},
+		{
+			name:   "empty schema",
+			schema: &Schema{},
+			want:   nil,
+		},
+
+		{
+			name: "file when no referrer",
+			schema: &Schema{
+				Ref: "file://foo/bar",
+			},
+			want: mustParseURL("file://foo/bar"),
+		},
+		{
+			name: "bare path when no referrer",
+			schema: &Schema{
+				Ref: "foo/bar",
+			},
+			want: mustParseURL("foo/bar"),
+		},
+
+		{
+			name: "file when file referrer",
+			schema: &Schema{
+				Ref:         "file://foo/bar",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("/some/abs/path/foo/bar"),
+		},
+		{
+			name: "bare path when file referrer",
+			schema: &Schema{
+				Ref:         "foo/bar",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("/some/abs/path/foo/bar"),
+		},
+
+		{
+			name: "file when http referrer",
+			schema: &Schema{
+				Ref:         "file://foo/bar",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/")),
+			},
+			want: mustParseURL("http://example.com/foo/bar"),
+		},
+		{
+			name: "bare path when http referrer",
+			schema: &Schema{
+				Ref:         "foo/bar",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/")),
+			},
+			want: mustParseURL("http://example.com/foo/bar"),
+		},
+
+		{
+			name: "file parent when file referrer",
+			schema: &Schema{
+				Ref:         "file://../bar",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("/some/abs/bar"),
+		},
+		{
+			name: "bare path parent when file referrer",
+			schema: &Schema{
+				Ref:         "../bar",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("/some/abs/bar"),
+		},
+		{
+			name: "http parent when file referrer",
+			schema: &Schema{
+				Ref:         "https://example.com/../bar/schema.json",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("https://example.com/../bar/schema.json"),
+		},
+
+		{
+			name: "http when no referrer",
+			schema: &Schema{
+				Ref: "http://example.com/schema.json",
+			},
+			want: mustParseURL("http://example.com/schema.json"),
+		},
+		{
+			name: "http when file referrer",
+			schema: &Schema{
+				Ref:         "https://example.com/schema.json",
+				RefReferrer: ReferrerDir("/some/abs/path/"),
+			},
+			want: mustParseURL("https://example.com/schema.json"),
+		},
+
+		{
+			name: "file parent when http referrer",
+			schema: &Schema{
+				Ref:         "file://../bar",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/a/b/c/")),
+			},
+			want: mustParseURL("http://example.com/a/b/bar"),
+		},
+		{
+			name: "bare parent path when http referrer",
+			schema: &Schema{
+				Ref:         "../bar",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/a/b/c/")),
+			},
+			want: mustParseURL("http://example.com/a/b/bar"),
+		},
+		{
+			name: "http parent when http referrer",
+			schema: &Schema{
+				Ref:         "http://example.com/../schema.json",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/a/b/c/")),
+			},
+			want: mustParseURL("http://example.com/../schema.json"),
+		},
+		{
+			name: "http when http referrer",
+			schema: &Schema{
+				Ref:         "http://example.com/schema.json",
+				RefReferrer: ReferrerURL(mustParseURL("http://example.com/")),
+			},
+			want: mustParseURL("http://example.com/schema.json"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Run("no fragment", func(t *testing.T) {
+				ref, err := tt.schema.ParseRef()
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, ref)
+			})
+
+			if tt.schema != nil && tt.want != nil {
+				t.Run("preserve fragment", func(t *testing.T) {
+					schema := *tt.schema
+					schema.Ref += "#/my/fragment"
+					want := *tt.want
+					want.Fragment = "/my/fragment"
+
+					ref, err := schema.ParseRef()
+					require.NoError(t, err)
+					assert.Equal(t, &want, ref)
+					assert.Equal(t, want.String(), ref.String())
+				})
+			}
+		})
+	}
+}
+
+func TestSchemaParseRef_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		schema  *Schema
+		wantErr string
+	}{
+		{
+			name: "invalid url",
+			schema: &Schema{
+				Ref: "::",
+			},
+			wantErr: "parse \"::\": missing protocol scheme",
+		},
+		{
+			name: "query param",
+			schema: &Schema{
+				Ref:         "file:///foo?bar",
+				RefReferrer: ReferrerDir("/some/abs/path"),
+			},
+			wantErr: "file query parameters not supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.schema.ParseRef()
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestSchemaSetReferrer(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   *Schema
+		referrer Referrer
+		want     *Schema
+	}{
+		{
+			name:   "nil schema",
+			schema: nil,
+			want:   nil,
+		},
+		{
+			name:   "empty schema",
+			schema: &Schema{},
+			want:   &Schema{},
+		},
+		{
+			name: "root ref",
+			schema: &Schema{
+				Ref: "foo",
+			},
+			referrer: ReferrerDir("referrer"),
+			want: &Schema{
+				Ref:         "foo",
+				RefReferrer: ReferrerDir("referrer"),
+			},
+		},
+		{
+			name: "deeply nested ref",
+			schema: &Schema{
+				Items: &Schema{
+					Not: &Schema{
+						Ref: "foo",
+					},
+				},
+			},
+			referrer: ReferrerDir("referrer"),
+			want: &Schema{
+				Items: &Schema{
+					Not: &Schema{
+						Ref:         "foo",
+						RefReferrer: ReferrerDir("referrer"),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.schema.SetReferrer(tt.referrer)
+			assert.Equal(t, tt.want, tt.schema)
+		})
+	}
+}
+
+func TestParseRefFile(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want RefFile
+	}{
+		{
+			name: "empty",
+			ref:  "",
+			want: RefFile{},
+		},
+		{
+			name: "not file scheme",
+			ref:  "http://x",
+			want: RefFile{},
+		},
+		{
+			name: "hostname",
+			ref:  "foo",
+			want: RefFile{"foo", ""},
+		},
+		{
+			name: "dot hostname",
+			ref:  "./foo",
+			want: RefFile{"./foo", ""},
+		},
+		{
+			name: "parent dir hostname",
+			ref:  "../foo",
+			want: RefFile{"../foo", ""},
+		},
+		{
+			name: "path and fragment",
+			ref:  "foo#heyo",
+			want: RefFile{"foo", "heyo"},
+		},
+		{
+			name: "only fragment",
+			ref:  "#heyo",
+			want: RefFile{"", "heyo"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseRefFile(tt.ref)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestParseRefFile_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		ref     string
+		wantErr string
+	}{
+		{
+			name:    "invalid URL",
+			ref:     "::",
+			wantErr: "parse \"::\"",
+		},
+		{
+			name:    "file scheme empty",
+			ref:     "file://",
+			wantErr: "unexpected empty file://",
+		},
+		{
+			name:    "query",
+			ref:     "foo?heyo=mayo",
+			wantErr: "file query parameters not supported",
+		},
+		{
+			name:    "userinfo",
+			ref:     "file://user:pass@foo",
+			wantErr: "file URL user info not supported",
+		},
+
+		{
+			name:    "no-scheme/absolute",
+			ref:     "/foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "no-scheme/dot absolute",
+			ref:     "/./foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "no-scheme/parent dir absolute",
+			ref:     "/../foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/absolute",
+			ref:     "file:///foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/dot absolute",
+			ref:     "file:///./foo",
+			wantErr: "absolute paths not supported",
+		},
+		{
+			name:    "file-scheme/parent dir absolute",
+			ref:     "file:///../foo",
+			wantErr: "absolute paths not supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseRefFile(tt.ref)
+			assert.ErrorContains(t, err, tt.wantErr, "ParseRefFile")
+		})
+	}
+}
+
+func TestRefFileString(t *testing.T) {
+	tests := []struct {
+		name    string
+		refFile RefFile
+		want    string
+	}{
+		{name: "zero", refFile: RefFile{}, want: ""},
+		{name: "only path", refFile: RefFile{"/foo", ""}, want: "/foo"},
+		{name: "only frag", refFile: RefFile{"", "/bar"}, want: "#/bar"},
+		{name: "both", refFile: RefFile{"/foo", "/bar"}, want: "/foo#/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.refFile.String()
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
 			}
 		})
 	}

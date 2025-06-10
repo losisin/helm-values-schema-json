@@ -1,28 +1,42 @@
 # helm values schema json plugin
 
-[![ci](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml/badge.svg)](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml)
+[![ci](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/losisin/helm-values-schema-json/graph/badge.svg?token=0QQVCFJH84)](https://codecov.io/gh/losisin/helm-values-schema-json)
 [![Go Report Card](https://goreportcard.com/badge/github.com/losisin/helm-values-schema-json)](https://goreportcard.com/report/github.com/losisin/helm-values-schema-json)
 [![Static Badge](https://img.shields.io/badge/licence%20-%20MIT-green)](https://github.com/losisin/helm-values-schema-json/blob/main/LICENSE)
 [![GitHub release (with filter)](https://img.shields.io/github/v/release/losisin/helm-values-schema-json)](https://github.com/losisin/helm-values-schema-json/releases)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/losisin/helm-values-schema-json/total)
 
-
 Helm plugin for generating `values.schema.json` from single or multiple values files. Schema can be enriched by reading annotations from comments. Works only with Helm3 charts.
 
 ## Installation
 
 ```bash
-$ helm plugin install https://github.com/losisin/helm-values-schema-json.git
-Installed plugin: schema
+helm plugin install https://github.com/losisin/helm-values-schema-json.git
 ```
+
+## Upgrading
+
+```bash
+helm plugin update schema
+```
+
+See changelogs:
+
+- [Breaking changes](./docs/upgrading.md)
+- [Full release notes in GitHub Releases](https://github.com/losisin/helm-values-schema-json/releases)
 
 ## Features
 
-- Add multiple values files and merge them together - required
-- Save output with custom name and location - default is values.schema.json in current working directory
+- Add multiple values files and merge them together - default is `values.yaml` in the current working directory
+- Save output with custom name and location - default is `values.schema.json` in current working directory
 - Use preferred schema draft version - default is draft 2020
-- Read annotations from comments. See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs) for more info or checkout example yaml files in [testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
+- Read annotations from comments.
+- Read description from [helm-docs](https://github.com/norwoodj/helm-docs)
+- Bundling subschemas referenced in `$ref`
+
+See [docs](./docs/README.md) for more info or checkout example yaml files
+in [testdata](./testdata).
 
 ## Integrations
 
@@ -61,7 +75,7 @@ repos:
     rev: v1.7.2
     hooks:
       - id: helm-schema
-        args: ["-input", "values.yaml"]
+        args: ["--values", "values.yaml"]
 ```
 
 Then run:
@@ -80,7 +94,7 @@ This is a great tool for adding git hooks to your project. You can find it's doc
 ```json
 "husky": {
   "hooks": {
-    "pre-commit": "helm schema -input values.yaml"
+    "pre-commit": "helm schema --values values.yaml"
   }
 },
 ```
@@ -107,46 +121,39 @@ schema-check:
 
 ```bash
 $ helm schema -help
-Usage: helm schema [options...] <arguments>
-  -draft int
-    	Draft version (4, 6, 7, 2019, or 2020) (default 2020)
-  -indent int
-    	Indentation spaces (even number) (default 4)
-  -input value
-    	Multiple yaml files as inputs (comma-separated)
-  -output string
-    	Output file path (default "values.schema.json")
-  -noAdditionalProperties value
-    	Default additionalProperties to false for all objects in the schema (true/false)
-  -schemaRoot.additionalProperties value
-    	JSON schema additional properties (true/false)
-  -schemaRoot.description string
-    	JSON schema description
-  -schemaRoot.id string
-    	JSON schema ID
-  -schemaRoot.ref string
-    	JSON schema URI reference
-  -schemaRoot.title string
-    	JSON schema title
-  -bundle value
-    	Bundle referenced ($ref) subschemas into a single file inside $defs
-  -bundleRoot string
-    	Root directory to allow local referenced files to be loaded from (default current working directory)
-  -bundleWithoutID value
-    	Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
-  -k8sSchemaURL string
-    	URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
-  -k8sSchemaVersion string
-    	Version used in the --k8sSchemaURL template for $ref: $k8s/... alias
+Usage:
+  helm schema [flags]
+
+Flags:
+      --bundle                              Bundle referenced ($ref) subschemas into a single file inside $defs
+      --bundle-root string                  Root directory to allow local referenced files to be loaded from (default current working directory)
+      --bundle-without-id                   Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
+      --config string                       Config file for setting defaults. (default ".schema.yaml")
+      --draft int                           Draft version (4, 6, 7, 2019, or 2020) (default 2020)
+  -h, --help                                help for helm
+      --indent int                          Indentation spaces (even number) (default 4)
+      --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
+      --k8s-schema-version string           Version used in the --k8s-schema-url template for $ref: $k8s/... alias
+      --no-additional-properties            Default additionalProperties to false for all objects in the schema
+  -o, --output string                       Output file path (default "values.schema.json")
+      --schema-root.additional-properties   Allow additional properties
+      --schema-root.description string      JSON schema description
+      --schema-root.id string               JSON schema ID
+      --schema-root.ref string              JSON schema URI reference. Relative to current working directory when using "-bundle true".
+      --schema-root.title string            JSON schema title
+      --use-helm-docs                       Read description from https://github.com/norwoodj/helm-docs comments
+  -f, --values strings                      One or more YAML files as inputs. Use comma-separated list or supply flag multiple times (default [values.yaml])
 ```
 
 ### Configuration file
 
-This plugin will look for it's configuration file called `.schema.yaml` in the current working directory. All options available from CLI can be set in this file. Example:
+Uses `.schema.yaml` in the current working directory.
+Example:
 
 ```yaml
-# Required
-input:
+# .schema.yaml
+
+values:
   - values.yaml
 
 draft: 2020
@@ -160,10 +167,19 @@ schemaRoot:
   additionalProperties: true
 ```
 
+All options available from CLI can be set in this file.
+However, do note that the file uses camelCase, while the flags uses kebab-case.
+
 Then, just run the plugin without any arguments:
 
 ```bash
-$ helm schema
+helm schema
+```
+
+You can override which config file to use with the `--config` flag:
+
+```bash
+helm schema --config ./my-helm-schema-config.yaml
 ```
 
 ### CLI
@@ -173,7 +189,7 @@ $ helm schema
 In most cases you will want to run the plugin with default options:
 
 ```bash
-$ helm schema -input values.yaml
+$ helm schema
 ```
 
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
@@ -214,7 +230,7 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```bash
-$ helm schema -input values_1.yaml,custom/path/values_2.yaml -draft 7 -output my.schema.json
+helm schema --values values_1.yaml,custom/path/values_2.yaml --draft 7 --output my.schema.json
 ```
 
 Output will be something like this:
@@ -294,7 +310,7 @@ image:
 ```
 
 ```bash
-$ helm schema -input values.yaml -schemaRoot.id "https://example.com/schema" -schemaRoot.ref "schema/product.json" -schemaRoot.title "My schema" -schemaRoot.description "This is my schema"
+helm schema --values values.yaml --schema-root.id "https://example.com/schema" --schema-root.ref "schema/product.json" -schema-root.title "My schema" --schema-root.description "This is my schema"
 ```
 
 Generated schema will be:

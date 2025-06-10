@@ -82,6 +82,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	}
 	if src.Ref != "" {
 		dest.Ref = src.Ref
+		dest.RefReferrer = src.RefReferrer
 	}
 	if src.Schema != "" {
 		dest.Schema = src.Schema
@@ -246,7 +247,7 @@ func isValidTypeString(t string) bool {
 func updateRefK8sAlias(schema *Schema, urlTemplate, version string) error {
 	urlFunc := sync.OnceValues(func() (string, error) {
 		if version == "" {
-			return "", fmt.Errorf(`must set k8sSchemaVersion config when using "$ref: $k8s/...". For example pass --k8sSchemaVersion=v1.33.1 flag`)
+			return "", fmt.Errorf(`must set k8sSchemaVersion config when using "$ref: $k8s/...". For example pass --k8s-schema-version=v1.33.1 flag`)
 		}
 		tpl, err := template.New("").Parse(urlTemplate)
 		if err != nil {

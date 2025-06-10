@@ -1,23 +1,21 @@
 package pkg
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // Generate JSON schema
 func GenerateJsonSchema(config *Config) error {
-	// Check if the input flag is set
-	if len(config.Input) == 0 {
-		return errors.New("input flag is required")
+	// Check if the values flag is set
+	if len(config.Values) == 0 {
+		return errors.New("values flag is required")
 	}
 
 	// Determine the schema URL based on the draft version
@@ -38,18 +36,13 @@ func GenerateJsonSchema(config *Config) error {
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
 
-	bundleRoot := config.BundleRoot
-	if bundleRoot == "" {
-		bundleRoot = "."
-	}
-	root, err := os.OpenRoot(bundleRoot)
-	if err != nil {
-		return fmt.Errorf("open bundle root: %w", err)
-	}
-	defer closeIgnoreError(root)
-
 	// Iterate over the input YAML files
-	for _, filePath := range config.Input {
+	for _, filePath := range config.Values {
+		filePathAbs, err := filepath.Abs(filePath)
+		if err != nil {
+			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
+		}
+
 		content, err := os.ReadFile(filepath.Clean(filePath))
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
@@ -71,7 +64,10 @@ func GenerateJsonSchema(config *Config) error {
 		for i := 0; i < len(rootNode.Content); i += 2 {
 			keyNode := rootNode.Content[i]
 			valNode := rootNode.Content[i+1]
-			schema, isRequired := parseNode(keyNode, valNode)
+			schema, isRequired, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
+			if err != nil {
+				return fmt.Errorf("parse schema: %w", err)
+			}
 
 			// Exclude hidden nodes
 			if schema != nil && !schema.Hidden {
@@ -93,28 +89,18 @@ func GenerateJsonSchema(config *Config) error {
 			Title:       config.SchemaRoot.Title,
 			Description: config.SchemaRoot.Description,
 			ID:          config.SchemaRoot.ID,
-			Ref:         config.SchemaRoot.Ref,
+		}
+
+		tempSchema.SetReferrer(ReferrerDir(filepath.Dir(filePathAbs)))
+		// Set root $ref after updating the referrer on all other $refs
+		if config.SchemaRoot.Ref != "" {
+			tempSchema.Ref = config.SchemaRoot.Ref
+			tempSchema.RefReferrer = config.SchemaRoot.RefReferrer
 		}
 
 		// Apply "$ref: $k8s/..." transformation
 		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
-			return err
-		}
-
-		if config.Bundle.Value() {
-			ctx := context.Background()
-
-			// https://github.com/losisin/helm-values-schema-json/issues/159
-			tempSchema.Ref = FixRootSchemaRef(tempSchema.Ref, filePath)
-
-			basePath, err := filepath.Rel(bundleRoot, filepath.Dir(filePath))
-			if err != nil {
-				return fmt.Errorf("get relative path from bundle root to file %q: %w", filePath, err)
-			}
-			loader := NewDefaultLoader(http.DefaultClient, root, basePath)
-			if err := BundleSchema(ctx, loader, tempSchema); err != nil {
-				return fmt.Errorf("bundle schemas on %q: %w", filePath, err)
-			}
+			return fmt.Errorf("%s: %w", filePath, err)
 		}
 
 		// Merge with existing data
@@ -122,42 +108,41 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
 	}
 
-	if config.Bundle.Value() && config.BundleWithoutID.Value() {
-		if err := BundleRemoveIDs(mergedSchema); err != nil {
-			return fmt.Errorf("remove bundled $id: %w", err)
+	if config.Bundle {
+		if err := Bundle(mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
+			return err
 		}
-
-		// Cleanup unused $defs after all other bundling tasks
-		RemoveUnusedDefs(mergedSchema)
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
-	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties.value, config.Draft); err != nil {
+	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.Draft); err != nil {
 		return err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version
 	mergedSchema.Type = "object"
 
-	if config.SchemaRoot.AdditionalProperties.IsSet() {
-		mergedSchema.AdditionalProperties = SchemaBool(config.SchemaRoot.AdditionalProperties.Value())
-	} else if config.NoAdditionalProperties.value {
+	if config.SchemaRoot.AdditionalProperties != nil {
+		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
+	} else if config.NoAdditionalProperties {
 		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
+	return WriteOutput(mergedSchema, config.Output, indentString)
+}
+
+func WriteOutput(mergedSchema *Schema, outputPath, indent string) error {
 	// If validation is successful, marshal the schema and save to the file
-	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indentString)
+	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indent)
 	if err != nil {
 		return err
 	}
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	outputPath := config.OutputPath
 	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
 		return errors.New("error writing schema to file")
 	}
 
 	fmt.Println("JSON schema successfully generated")
-
 	return nil
 }

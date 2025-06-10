@@ -2,156 +2,221 @@ package pkg
 
 import (
 	"bytes"
-	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
+func TestExecute(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+		wantOut string
+	}{
+		{
+			name: "success",
+			args: []string{"--values=../testdata/basic.yaml", "--output=/dev/null"},
+		},
+		{
+			name:    "fail reading config",
+			args:    []string{"--config=nonexisting.yaml"},
+			wantErr: "open nonexisting.yaml: no such file or directory",
+		},
+		{
+			name:    "fail execution",
+			args:    []string{"--values=/non/existing/file.yaml"},
+			wantErr: "error reading YAML file(s)",
+		},
+		{
+			name:    "version flag",
+			args:    []string{"--version"},
+			wantOut: "helm schema version test\n",
+		},
+		{
+			name:    "version subcommand",
+			args:    []string{"version"},
+			wantOut: "helm schema version test\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := NewCmd()
+			cmd.Version = "test"
+			var buf bytes.Buffer
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
+			err := cmd.Execute()
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantOut, buf.String())
+		})
+	}
+}
+
 func TestParseFlagsPass(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		args []string
 		conf Config
 	}{
 		{
-			[]string{"-input", "values.yaml"},
+			[]string{"--values", "values.yaml"},
 			Config{
-				Input:        multiStringFlag{"values.yaml"},
-				OutputPath:   "values.schema.json",
+				Values:       []string{"values.yaml"},
+				Output:       "values.schema.json",
 				Draft:        2020,
 				Indent:       4,
 				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
-				Args:         []string{},
+			},
+		},
+		{
+			[]string{"-f", "values.yaml"},
+			Config{
+				Values:       []string{"values.yaml"},
+				Output:       "values.schema.json",
+				Draft:        2020,
+				Indent:       4,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
-			[]string{"-input", "values1.yaml values2.yaml", "-indent", "2"},
+			[]string{"--values", "values1.yaml values2.yaml", "--indent", "2"},
 			Config{
-				Input:         multiStringFlag{"values1.yaml values2.yaml"},
-				OutputPath:    "values.schema.json",
-				Draft:         2020,
-				Indent:        2,
-				OutputPathSet: false,
-				DraftSet:      false,
-				IndentSet:     true,
-				K8sSchemaURL:  "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
-				Args:          []string{},
+				Values:       []string{"values1.yaml values2.yaml"},
+				Output:       "values.schema.json",
+				Draft:        2020,
+				Indent:       2,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
-			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-indent", "2"},
+			[]string{"--values", "values.yaml", "--output", "my.schema.json", "--draft", "2019", "--indent", "2"},
 			Config{
-				Input:      multiStringFlag{"values.yaml"},
-				OutputPath: "my.schema.json",
-				Draft:      2019, Indent: 2,
-				OutputPathSet: true,
-				DraftSet:      true,
-				IndentSet:     true,
-				K8sSchemaURL:  "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
-				Args:          []string{},
+				Values:       []string{"values.yaml"},
+				Output:       "my.schema.json",
+				Draft:        2019,
+				Indent:       2,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
-			[]string{"-input", "values.yaml", "-output", "my.schema.json", "-draft", "2019", "-k8sSchemaURL", "foobar"},
+			[]string{"--values", "values.yaml", "--output", "my.schema.json", "--draft", "2019", "--k8s-schema-url", "foobar"},
 			Config{
-				Input:           multiStringFlag{"values.yaml"},
-				OutputPath:      "my.schema.json",
-				Draft:           2019,
-				Indent:          4,
-				K8sSchemaURL:    "foobar",
-				OutputPathSet:   true,
-				DraftSet:        true,
-				K8sSchemaURLSet: true,
-				IndentSet:       false,
-				Args:            []string{},
+				Values:       []string{"values.yaml"},
+				Output:       "my.schema.json",
+				Draft:        2019,
+				Indent:       4,
+				K8sSchemaURL: "foobar",
 			},
 		},
 
 		{
-			[]string{"-input", "values.yaml", "-schemaRoot.id", "http://example.com/schema", "-schemaRoot.ref", "schema/product.json", "-schemaRoot.title", "MySchema", "-schemaRoot.description", "My schema description"},
+			[]string{"--values", "values.yaml", "--schema-root.id", "http://example.com/schema", "--schema-root.ref", "schema/product.json", "--schema-root.title", "MySchema", "--schema-root.description", "My schema description"},
 			Config{
-				Input:        multiStringFlag{"values.yaml"},
-				OutputPath:   "values.schema.json",
+				Values:       []string{"values.yaml"},
+				Output:       "values.schema.json",
 				Draft:        2020,
 				Indent:       4,
 				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					ID:          "http://example.com/schema",
 					Ref:         "schema/product.json",
+					RefReferrer: ReferrerDir(cwd),
 					Title:       "MySchema",
 					Description: "My schema description",
 				},
-				Args: []string{},
 			},
 		},
 
 		{
-			[]string{"-bundle=true", "-bundleRoot", "/foo/bar", "-bundleWithoutID=true"},
+			[]string{"--bundle", "--bundle-root", "/foo/bar", "--bundle-without-id"},
 			Config{
+				Values:          []string{"values.yaml"},
 				Indent:          4,
-				OutputPath:      "values.schema.json",
+				Output:          "values.schema.json",
 				Draft:           2020,
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
-				Bundle:          BoolFlag{set: true, value: true},
+				Bundle:          true,
 				BundleRoot:      "/foo/bar",
-				BundleWithoutID: BoolFlag{set: true, value: true},
-				Args:            []string{},
+				BundleWithoutID: true,
 			},
 		},
 		{
-			[]string{"-bundle=false", "-bundleRoot", "", "-bundleWithoutID=false"},
+			[]string{"--bundle=true", "--bundle-root", "/foo/bar", "--bundle-without-id=true"},
 			Config{
+				Values:          []string{"values.yaml"},
 				Indent:          4,
-				OutputPath:      "values.schema.json",
+				Output:          "values.schema.json",
 				Draft:           2020,
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
-				Bundle:          BoolFlag{set: true, value: false},
+				Bundle:          true,
+				BundleRoot:      "/foo/bar",
+				BundleWithoutID: true,
+			},
+		},
+		{
+			[]string{"--bundle=false", "--bundle-root", "", "--bundle-without-id=false"},
+			Config{
+				Values:          []string{"values.yaml"},
+				Indent:          4,
+				Output:          "values.schema.json",
+				Draft:           2020,
+				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				Bundle:          false,
 				BundleRoot:      "",
-				BundleWithoutID: BoolFlag{set: true, value: false},
-				Args:            []string{},
+				BundleWithoutID: false,
+			},
+		},
+
+		{
+			[]string{"--use-helm-docs"},
+			Config{
+				Values:       []string{"values.yaml"},
+				Indent:       4,
+				Output:       "values.schema.json",
+				Draft:        2020,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:  true,
+			},
+		},
+		{
+			[]string{"--use-helm-docs=false"},
+			Config{
+				Values:       []string{"values.yaml"},
+				Indent:       4,
+				Output:       "values.schema.json",
+				Draft:        2020,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:  false,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			conf, output, err := ParseFlags("schema", tt.args)
+			cmd := NewCmd()
+			require.NoError(t, cmd.ParseFlags(tt.args))
+			conf, err := LoadConfig(cmd)
 			assert.NoError(t, err)
-			assert.Empty(t, output, "output")
 			assert.Equal(t, &tt.conf, conf, "conf")
 		})
 	}
-}
-
-func TestParseFlagsUsage(t *testing.T) {
-	usageArgs := []string{"-help", "-h", "--help"}
-
-	for _, arg := range usageArgs {
-		t.Run(arg, func(t *testing.T) {
-			conf, output, err := ParseFlags("schema", []string{arg})
-			if err != flag.ErrHelp {
-				t.Errorf("err got %v, want ErrHelp", err)
-			}
-			if conf != nil {
-				t.Errorf("conf got %v, want nil", conf)
-			}
-			if !strings.Contains(output, "Usage of") {
-				t.Errorf("output can't find \"Usage of\": %q", output)
-			}
-		})
-	}
-}
-
-func TestParseFlagsComplete(t *testing.T) {
-	_, _, err := ParseFlags("schema", []string{"__complete"})
-
-	var completeErr ErrCompletionRequested
-	assert.ErrorAs(t, err, &completeErr)
 }
 
 func TestParseFlagsFail(t *testing.T) {
@@ -159,41 +224,36 @@ func TestParseFlagsFail(t *testing.T) {
 		args   []string
 		errStr string
 	}{
-		{[]string{"-input"}, "flag needs an argument"},
-		{[]string{"-draft", "foo"}, "invalid value"},
-		{[]string{"-foo"}, "flag provided but not defined"},
-		{[]string{"-schemaRoot.additionalProperties", "null"}, "invalid boolean value"},
-		{[]string{"-bundle", "null"}, "invalid boolean value"},
-		{[]string{"-bundleWithoutID", "null"}, "invalid boolean value"},
+		{[]string{"--values"}, "flag needs an argument"},
+		{[]string{"--draft", "foo"}, "invalid syntax"},
+		{[]string{"--foo"}, "unknown flag: --foo"},
+		{[]string{"--schema-root.additional-properties=123"}, "invalid syntax"},
+		{[]string{"--bundle=123"}, "invalid syntax"},
+		{[]string{"--bundle-without-id=123"}, "invalid syntax"},
+		{[]string{"--use-helm-docs=123"}, "invalid syntax"},
 	}
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			conf, output, err := ParseFlags("schema", tt.args)
-			if conf != nil {
-				t.Errorf("conf got %v, want nil", conf)
-			}
-			if !strings.Contains(err.Error(), tt.errStr) {
-				t.Errorf("err got %q, want to find %q", err.Error(), tt.errStr)
-			}
-			if !strings.Contains(output, "Usage of") {
-				t.Errorf("output got %q", output)
-			}
+			cmd := NewCmd()
+			err := cmd.ParseFlags(tt.args)
+			assert.ErrorContains(t, err, tt.errStr)
 		})
 	}
 }
 
 func TestLoadConfig(t *testing.T) {
+	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
+
 	tests := []struct {
-		name          string
-		configContent string
-		expectedConf  Config
-		expectedErr   bool
+		name   string
+		config string
+		want   Config
 	}{
 		{
 			name: "ValidConfig",
-			configContent: `
-input:
+			config: `
+values:
   - testdata/empty.yaml
   - testdata/meta.yaml
 output: values.schema.json
@@ -202,6 +262,7 @@ indent: 2
 bundle: true
 bundleRoot: ./
 bundleWithoutID: true
+useHelmDocs: true
 schemaRoot:
   id: https://example.com/schema
   ref: schema/product.json
@@ -209,369 +270,331 @@ schemaRoot:
   description: Schema for Helm values
   additionalProperties: true
 `,
-			expectedConf: Config{
-				Input:           multiStringFlag{"testdata/empty.yaml", "testdata/meta.yaml"},
-				OutputPath:      "values.schema.json",
+			want: Config{
+				Values:          []string{"testdata/empty.yaml", "testdata/meta.yaml"},
+				Output:          "values.schema.json",
 				Draft:           2020,
 				Indent:          2,
-				Bundle:          BoolFlag{set: true, value: true},
+				Bundle:          true,
 				BundleRoot:      "./",
-				BundleWithoutID: BoolFlag{set: true, value: true},
+				BundleWithoutID: true,
+				UseHelmDocs:     true,
+				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					Title:                "Helm Values Schema",
 					ID:                   "https://example.com/schema",
 					Ref:                  "schema/product.json",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Description:          "Schema for Helm values",
-					AdditionalProperties: BoolFlag{set: true, value: true},
+					AdditionalProperties: boolPtr(true),
 				},
 			},
-			expectedErr: false,
 		},
 		{
-			name: "InvalidConfig",
-			configContent: `
-input: "invalid" "input"
-input:
+			name:   "EmptyConfig",
+			config: `# just a comment`,
+			want: Config{
+				Values:       []string{"values.yaml"},
+				Output:       "values.schema.json",
+				Draft:        2020,
+				Indent:       4,
+				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// reuse the same file so we can have a predictable name as ref referrer
+			testutil.ResetFile(t, tmpFile, []byte(tt.config))
+
+			cmd := NewCmd()
+			require.NoError(t, cmd.ParseFlags([]string{"--config=" + tmpFile.Name()}))
+			conf, err := LoadConfig(cmd)
+
+			require.NoError(t, err)
+			assert.NotNil(t, conf)
+			assert.Equal(t, tt.want, *conf)
+		})
+	}
+}
+
+func TestLoadConfig_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
+		{
+			name: "invalid syntax",
+			config: `
+values: "invalid" "syntax"
+values:
 `,
-			expectedConf: Config{},
-			expectedErr:  true,
+			wantErr: "yaml: line 1: did not find expected key",
 		},
 		{
-			name:          "InvalidYAML",
-			configContent: `draft: "invalid"`,
-			expectedConf:  Config{},
-			expectedErr:   true,
+			name:    "invalid value for type",
+			config:  `draft: "invalid"`,
+			wantErr: "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid` into int",
 		},
 		{
-			name:          "MissingFile",
-			configContent: "",
-			expectedConf:  Config{},
-			expectedErr:   false,
-		},
-		{
-			name:          "EmptyConfig",
-			configContent: `input: []`,
-			expectedConf: Config{
-				Input:      multiStringFlag{},
-				OutputPath: "",
-				Draft:      0,
-				Indent:     0,
-				SchemaRoot: SchemaRoot{
-					ID:                   "",
-					Ref:                  "",
-					Title:                "",
-					Description:          "",
-					AdditionalProperties: BoolFlag{set: false, value: false},
-				},
-			},
-			expectedErr: false,
+			name:    "missing file",
+			config:  "",
+			wantErr: "no such file or directory",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var configFilePath string
-			if tt.configContent != "" {
-				tmpFile, err := os.CreateTemp("", "config-*.yaml")
-				assert.NoError(t, err)
-				defer func() {
-					if err := os.Remove(tmpFile.Name()); err != nil && !os.IsNotExist(err) {
-						t.Errorf("failed to remove temporary file %s: %v", tmpFile.Name(), err)
-					}
-				}()
-				_, err = tmpFile.Write([]byte(tt.configContent))
-				assert.NoError(t, err)
-				configFilePath = tmpFile.Name()
+			if tt.config != "" {
+				configFilePath = testutil.WriteTempFile(t, "config-*.yaml", []byte(tt.config)).Name()
 			} else {
 				configFilePath = "nonexistent.yaml"
 			}
+			cmd := NewCmd()
+			require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFilePath}))
+			conf, err := LoadConfig(cmd)
 
-			conf, err := LoadConfig(configFilePath)
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Nil(t, conf)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, conf)
-				assert.Equal(t, tt.expectedConf, *conf)
-			}
+			require.ErrorContains(t, err, tt.wantErr)
+			assert.Nil(t, conf)
 		})
 	}
 }
 
-func TestLoadConfig_PermissionDenied(t *testing.T) {
-	restrictedDir := "/restricted"
-	configFilePath := restrictedDir + "/restricted.yaml"
+func TestLoadConfig_LoadFlagError(t *testing.T) {
+	failConfigFlagLoad = true
+	defer func() { failConfigFlagLoad = false }()
 
-	readFileFunc = func(filename string) ([]byte, error) {
-		return nil, os.ErrPermission
-	}
-	defer func() { readFileFunc = os.ReadFile }()
+	cmd := NewCmd()
+	_, err := LoadConfig(cmd)
+	assert.ErrorContains(t, err, "load flags: ")
+}
 
-	conf, err := LoadConfig(configFilePath)
-	assert.ErrorIs(t, err, os.ErrPermission, "Expected permission denied error")
-	assert.Nil(t, conf, "Expected config to be nil for permission denied error")
+func TestLoadConfig_UnmarshalError(t *testing.T) {
+	failConfigUnmarshal = true
+	defer func() { failConfigUnmarshal = false }()
+
+	cmd := NewCmd()
+	_, err := LoadConfig(cmd)
+	assert.ErrorContains(t, err, "parsing config: ")
+}
+
+func TestLoadConfig_SchemaRootRefReferrerConfigError(t *testing.T) {
+	failConfigConfigRefReferrerAbs = true
+	defer func() { failConfigConfigRefReferrerAbs = false }()
+
+	configFile := testutil.WriteTempFile(t, "config-*.yaml", []byte(`
+schemaRoot:
+  ref: foo/bar
+`))
+
+	cmd := NewCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile.Name()}))
+	_, err := LoadConfig(cmd)
+	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
+}
+
+func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	cmd := NewCmd()
+	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
+	_, err := LoadConfig(cmd)
+	assert.ErrorContains(t, err, "resolve current working directory: getwd: no such file or directory")
 }
 
 func TestMergeConfig(t *testing.T) {
+	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
-		name           string
-		fileConfig     *Config
-		flagConfig     *Config
-		expectedConfig *Config
+		name  string
+		file  string
+		flags []string
+		want  *Config
 	}{
 		{
-			name: "FlagConfigOverridesFileConfig",
-			fileConfig: &Config{
-				Input:                  multiStringFlag{"fileInput.yaml"},
-				OutputPath:             "fileOutput.json",
+			name: "flag overrides files",
+			file: `
+values: [fileInput.yaml]
+output: fileOutput.json
+draft: 2020
+indent: 4
+noAdditionalProperties: true
+k8sSchemaURL: fileURL
+k8sSchemaVersion: fileVersion
+useHelmDocs: true
+schemaRoot:
+  id: fileID
+  ref: fileRef
+  title: fileTitle
+  description: fileDescription
+  additionalProperties: true
+`,
+			flags: []string{
+				"--values=flagInput.yaml",
+				"--output=flagOutput.json",
+				"--draft=2019",
+				"--indent=2",
+				"--no-additional-properties=false",
+				"--k8s-schema-url=flagURL",
+				"--k8s-schema-version=flagVersion",
+				"--use-helm-docs=false",
+				"--schema-root.id=flagID",
+				"--schema-root.ref=flagRef",
+				"--schema-root.title=flagTitle",
+				"--schema-root.description=flagDescription",
+				"--schema-root.additional-properties=false",
+			},
+			want: &Config{
+				Values:                 []string{"flagInput.yaml"},
+				Output:                 "flagOutput.json",
+				Draft:                  2019,
+				Indent:                 2,
+				NoAdditionalProperties: false,
+				K8sSchemaURL:           "flagURL",
+				K8sSchemaVersion:       "flagVersion",
+				UseHelmDocs:            false,
+				SchemaRoot: SchemaRoot{
+					ID:                   "flagID",
+					Ref:                  "flagRef",
+					RefReferrer:          ReferrerDir(cwd),
+					Title:                "flagTitle",
+					Description:          "flagDescription",
+					AdditionalProperties: boolPtr(false),
+				},
+			},
+		},
+		{
+			name: "file overrides defaults",
+			file: `
+values: [fileInput.yaml]
+output: fileOutput.json
+draft: 2020
+indent: 4
+noAdditionalProperties: true
+k8sSchemaURL: fileURL
+k8sSchemaVersion: fileVersion
+useHelmDocs: true
+schemaRoot:
+  id: fileID
+  ref: fileRef
+  title: fileTitle
+  description: fileDescription
+  additionalProperties: true
+`,
+			flags: []string{},
+			want: &Config{
+				Values:                 []string{"fileInput.yaml"},
+				Output:                 "fileOutput.json",
 				Draft:                  2020,
 				Indent:                 4,
-				NoAdditionalProperties: BoolFlag{set: true, value: true},
 				K8sSchemaURL:           "fileURL",
 				K8sSchemaVersion:       "fileVersion",
+				NoAdditionalProperties: true,
+				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Title:                "fileTitle",
 					Description:          "fileDescription",
-					AdditionalProperties: BoolFlag{set: true, value: false},
-				},
-			},
-			flagConfig: &Config{
-				Input:                  multiStringFlag{"flagInput.yaml"},
-				OutputPath:             "flagOutput.json",
-				Draft:                  2019,
-				Indent:                 2,
-				NoAdditionalProperties: BoolFlag{set: true, value: false},
-				K8sSchemaURL:           "flagURL",
-				K8sSchemaVersion:       "flagVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "flagID",
-					Ref:                  "flagRef",
-					Title:                "flagTitle",
-					Description:          "flagDescription",
-					AdditionalProperties: BoolFlag{set: true, value: true},
-				},
-				OutputPathSet:   true,
-				DraftSet:        true,
-				IndentSet:       true,
-				K8sSchemaURLSet: true,
-			},
-			expectedConfig: &Config{
-				Input:                  multiStringFlag{"flagInput.yaml"},
-				OutputPath:             "flagOutput.json",
-				Draft:                  2019,
-				Indent:                 2,
-				NoAdditionalProperties: BoolFlag{set: true, value: false},
-				K8sSchemaURL:           "flagURL",
-				K8sSchemaVersion:       "flagVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "flagID",
-					Ref:                  "flagRef",
-					Title:                "flagTitle",
-					Description:          "flagDescription",
-					AdditionalProperties: BoolFlag{set: true, value: true},
+					AdditionalProperties: boolPtr(true),
 				},
 			},
 		},
 		{
-			name: "FileConfigDefaultsUsed",
-			fileConfig: &Config{
-				Input:            multiStringFlag{"fileInput.yaml"},
-				OutputPath:       "fileOutput.json",
-				Draft:            2020,
-				Indent:           4,
-				K8sSchemaURL:     "fileURL",
-				K8sSchemaVersion: "fileVersion",
+			name: "flag partial overrides file",
+			file: `
+values: [fileInput.yaml]
+output: fileOutput.json
+draft: 2020
+indent: 4
+noAdditionalProperties: true
+k8sSchemaURL: fileURL
+k8sSchemaVersion: fileVersion
+useHelmDocs: true
+schemaRoot:
+  id: fileID
+  ref: fileRef
+  title: fileTitle
+  description: fileDescription
+  additionalProperties: true
+`,
+			flags: []string{
+				"--output=flagOutput.json",
+			},
+			want: &Config{
+				Values:                 []string{"fileInput.yaml"},
+				Output:                 "flagOutput.json",
+				Draft:                  2020,
+				Indent:                 4,
+				K8sSchemaURL:           "fileURL",
+				K8sSchemaVersion:       "fileVersion",
+				NoAdditionalProperties: true,
+				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
 					Ref:                  "fileRef",
+					RefReferrer:          ReferrerDir(filepath.Dir(tmpFile.Name())),
 					Title:                "fileTitle",
 					Description:          "fileDescription",
-					AdditionalProperties: BoolFlag{set: true, value: false},
-				},
-			},
-			flagConfig: &Config{},
-			expectedConfig: &Config{
-				Input:            multiStringFlag{"fileInput.yaml"},
-				OutputPath:       "fileOutput.json",
-				Draft:            2020,
-				Indent:           4,
-				K8sSchemaURL:     "fileURL",
-				K8sSchemaVersion: "fileVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "fileID",
-					Ref:                  "fileRef",
-					Title:                "fileTitle",
-					Description:          "fileDescription",
-					AdditionalProperties: BoolFlag{set: true, value: false},
-				},
-			},
-		},
-		{
-			name: "FlagConfigPartialOverride",
-			fileConfig: &Config{
-				Input:            multiStringFlag{"fileInput.yaml"},
-				OutputPath:       "fileOutput.json",
-				Draft:            2020,
-				Indent:           4,
-				K8sSchemaURL:     "fileURL",
-				K8sSchemaVersion: "fileVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "fileID",
-					Ref:                  "fileRef",
-					Title:                "fileTitle",
-					Description:          "fileDescription",
-					AdditionalProperties: BoolFlag{set: true, value: false},
-				},
-			},
-			flagConfig: &Config{
-				OutputPath:    "flagOutput.json",
-				OutputPathSet: true,
-			},
-			expectedConfig: &Config{
-				Input:            multiStringFlag{"fileInput.yaml"},
-				OutputPath:       "flagOutput.json",
-				Draft:            2020,
-				Indent:           4,
-				K8sSchemaURL:     "fileURL",
-				K8sSchemaVersion: "fileVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "fileID",
-					Ref:                  "fileRef",
-					Title:                "fileTitle",
-					Description:          "fileDescription",
-					AdditionalProperties: BoolFlag{set: true, value: false},
+					AdditionalProperties: boolPtr(true),
 				},
 			},
 		},
 		{
-			name: "FlagConfigWithEmptyFileConfig",
-			fileConfig: &Config{
-				Input: multiStringFlag{},
+			name: "flag overrides empty file",
+			file: "",
+			flags: []string{
+				"--values=flagInput.yaml",
+				"--output=flagOutput.json",
+				"--draft=2019",
+				"--indent=2",
+				"--no-additional-properties=false",
+				"--k8s-schema-url=flagURL",
+				"--k8s-schema-version=flagVersion",
+				"--use-helm-docs=true",
+				"--schema-root.id=flagID",
+				"--schema-root.ref=flagRef",
+				"--schema-root.title=flagTitle",
+				"--schema-root.description=flagDescription",
+				"--schema-root.additional-properties=false",
 			},
-			flagConfig: &Config{
-				Input:            multiStringFlag{"flagInput.yaml"},
-				OutputPath:       "flagOutput.json",
+			want: &Config{
+				Values:           []string{"flagInput.yaml"},
+				Output:           "flagOutput.json",
 				Draft:            2019,
 				Indent:           2,
 				K8sSchemaURL:     "flagURL",
 				K8sSchemaVersion: "flagVersion",
+				UseHelmDocs:      true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
+					RefReferrer:          ReferrerDir(cwd),
 					Title:                "flagTitle",
 					Description:          "flagDescription",
-					AdditionalProperties: BoolFlag{set: true, value: true},
+					AdditionalProperties: boolPtr(false),
 				},
-				OutputPathSet:   true,
-				DraftSet:        true,
-				IndentSet:       true,
-				K8sSchemaURLSet: true,
-			},
-			expectedConfig: &Config{
-				Input:            multiStringFlag{"flagInput.yaml"},
-				OutputPath:       "flagOutput.json",
-				Draft:            2019,
-				Indent:           2,
-				K8sSchemaURL:     "flagURL",
-				K8sSchemaVersion: "flagVersion",
-				SchemaRoot: SchemaRoot{
-					ID:                   "flagID",
-					Ref:                  "flagRef",
-					Title:                "flagTitle",
-					Description:          "flagDescription",
-					AdditionalProperties: BoolFlag{set: true, value: true},
-				},
-			},
-		},
-		{
-			name: "FlagConfigWithBundleOverride",
-			fileConfig: &Config{
-				Bundle:          BoolFlag{set: true, value: false},
-				BundleRoot:      "root/from/file",
-				BundleWithoutID: BoolFlag{set: true, value: false},
-			},
-			flagConfig: &Config{
-				Bundle:          BoolFlag{set: true, value: true},
-				BundleRoot:      "root/from/flags",
-				BundleWithoutID: BoolFlag{set: true, value: true},
-			},
-			expectedConfig: &Config{
-				Bundle:          BoolFlag{set: true, value: true},
-				BundleRoot:      "root/from/flags",
-				BundleWithoutID: BoolFlag{set: true, value: true},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mergedConfig := MergeConfig(tt.fileConfig, tt.flagConfig)
-			assert.Equal(t, tt.expectedConfig, mergedConfig)
-		})
-	}
-}
+			testutil.ResetFile(t, tmpFile, []byte(tt.file))
 
-func TestErrCompletionRequested(t *testing.T) {
-	tests := []struct {
-		name string
-		err  func() ErrCompletionRequested
-		want string
-	}{
-		{
-			name: "empty",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "",
-		},
-		{
-			name: "single flag",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				flagSet.String("foo", "", "docs string")
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "--foo\tdocs string\n",
-		},
-		{
-			name: "multiple types of args",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				flagSet.Int("int", 0, "my int usage")
-				flagSet.String("str", "", "my str usage")
-				flagSet.Var(&BoolFlag{}, "bool", "my BoolFlag usage")
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "--bool=true\tmy BoolFlag usage\n" +
-				"--int\tmy int usage\n" +
-				"--str\tmy str usage\n",
-		},
-		{
-			name: "skip output when completing flag value",
-			err: func() ErrCompletionRequested {
-				flagSet := flag.NewFlagSet("", flag.ContinueOnError)
-				flagSet.String("foo", "", "docs string")
-				if err := flagSet.Parse([]string{"myCmdName", "__complete", "--", "--foo", ""}); err != nil {
-					panic(err)
-				}
-				return ErrCompletionRequested{flagSet}
-			},
-			want: "",
-		},
-	}
+			cmd := NewCmd()
+			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+tmpFile.Name())))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := tt.err()
-			assert.EqualError(t, err, "completion requested")
-			var buf bytes.Buffer
-			err.Fprint(&buf)
-			assert.Equal(t, tt.want, buf.String())
+			conf, err := LoadConfig(cmd)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want, conf)
 		})
 	}
 }

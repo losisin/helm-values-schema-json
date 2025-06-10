@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,36 +23,36 @@ func TestMain(t *testing.T) {
 		{
 			name:          "HelpFlag",
 			args:          []string{"schema", "-h"},
-			expectedOut:   "Usage of schema",
+			expectedOut:   "Usage:\n  helm schema",
 			expectedError: "",
 		},
 		{
 			name:          "CompleteFlag",
-			args:          []string{"schema", "__complete"},
+			args:          []string{"schema", "__complete", "--d"},
 			expectedOut:   "--draft\tDraft version",
 			expectedError: "",
 		},
 		{
 			name:          "InvalidFlags",
-			args:          []string{"schema", "-fail"},
+			args:          []string{"schema", "--fail"},
 			expectedOut:   "",
-			expectedError: "flag provided but not defined",
+			expectedError: "unknown flag: --fail",
 		},
 		{
 			name:          "SuccessfulRun",
-			args:          []string{"schema", "-input", "testdata/basic.yaml"},
+			args:          []string{"schema", "--values", "testdata/basic.yaml"},
 			expectedOut:   "JSON schema successfully generated",
 			expectedError: "",
 		},
 		{
 			name:          "GenerateError",
-			args:          []string{"schema", "-input", "fail.yaml", "-draft", "2020"},
+			args:          []string{"schema", "--values", "fail.yaml", "--draft", "2020"},
 			expectedOut:   "error reading YAML file(s)",
 			expectedError: "",
 		},
 		{
 			name: "ErrorLoadingConfigFile",
-			args: []string{"schema", "-input", "testdata/basic.yaml"},
+			args: []string{"schema", "--values", "testdata/basic.yaml"},
 			setup: func() {
 				if _, err := os.Stat(".schema.yaml"); err == nil {
 					if err := os.Rename(".schema.yaml", ".schema.yaml.bak"); err != nil {
@@ -84,14 +85,18 @@ func TestMain(t *testing.T) {
 				}
 			},
 			expectedOut:   "",
-			expectedError: "Error loading config file",
+			expectedError: "Error: load config file .schema.yaml:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			originalArgs := os.Args
-			originalStdout := os.Stdout
+			defer func(args []string, stdout, stderr *os.File) {
+				// Reset to original args/stdout/stderr at end of test
+				os.Args = args
+				os.Stdout = stdout
+				os.Stderr = stderr
+			}(os.Args, os.Stdout, os.Stderr)
 
 			if tt.setup != nil {
 				tt.setup()
@@ -102,6 +107,7 @@ func TestMain(t *testing.T) {
 
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			os.Stderr = w
 
 			os.Args = tt.args
 
@@ -125,9 +131,6 @@ func TestMain(t *testing.T) {
 				t.Errorf("Error reading stdout: %v", err)
 			}
 
-			os.Args = originalArgs
-			os.Stdout = originalStdout
-
 			out := buf.String()
 
 			assert.Contains(t, out, tt.expectedError)
@@ -136,6 +139,81 @@ func TestMain(t *testing.T) {
 			}
 			if err := os.Remove("values.schema.json"); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetVersion(t *testing.T) {
+	Version = "v1.2.3"
+	assert.Equal(t, "v1.2.3", getVersion())
+
+	Version = "1.2.3"
+	assert.Equal(t, "v1.2.3", getVersion())
+
+	Version = ""
+	assert.Equal(t, "(devel)", getVersion())
+}
+
+func TestGetVersionFromBuildInfo(t *testing.T) {
+	Version = ""
+	tests := []struct {
+		name    string
+		version string
+		info    *debug.BuildInfo
+		want    string
+	}{
+		{
+			name: "nil",
+			info: nil,
+			want: "(devel)",
+		},
+		{
+			name: "main version",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "v4.5.6"},
+			},
+			want: "v4.5.6",
+		},
+		{
+			name: "vcs revision",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "some-sha-value"},
+				},
+			},
+			want: "some-sha-value",
+		},
+		{
+			name: "vcs dirty revision",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: "some-sha-value"},
+					{Key: "vcs.modified", Value: "true"},
+				},
+			},
+			want: "some-sha-value-dirty",
+		},
+		{
+			name: "no vcs",
+			info: &debug.BuildInfo{
+				Main: debug.Module{Version: "(devel)"},
+				Settings: []debug.BuildSetting{
+					{Key: "vcs.revision", Value: ""},
+					{Key: "vcs.modified", Value: "false"},
+				},
+			},
+			want: "(devel)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getVersionFromBuildInfo(tt.info, tt.info != nil)
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %q\ngot:  %q", tt.want, got)
 			}
 		})
 	}

@@ -1,77 +1,12 @@
 package pkg
 
 import (
-	"errors"
+	"net/url"
 	"reflect"
-	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	"github.com/stretchr/testify/assert"
 )
-
-func TestMultiStringFlagString(t *testing.T) {
-	tests := []struct {
-		input    multiStringFlag
-		expected string
-	}{
-		{
-			input:    multiStringFlag{},
-			expected: "",
-		},
-		{
-			input:    multiStringFlag{"value1"},
-			expected: "value1",
-		},
-		{
-			input:    multiStringFlag{"value1", "value2", "value3"},
-			expected: "value1, value2, value3",
-		},
-	}
-
-	for i, test := range tests {
-		result := test.input.String()
-		if result != test.expected {
-			t.Errorf("Test case %d: Expected %q, but got %q", i+1, test.expected, result)
-		}
-	}
-}
-
-func TestMultiStringFlagSet(t *testing.T) {
-	tests := []struct {
-		input     string
-		initial   multiStringFlag
-		expected  multiStringFlag
-		errorFlag bool
-	}{
-		{
-			input:     "value1,value2,value3",
-			initial:   multiStringFlag{},
-			expected:  multiStringFlag{"value1", "value2", "value3"},
-			errorFlag: false,
-		},
-		{
-			input:     "",
-			initial:   multiStringFlag{"existingValue"},
-			expected:  multiStringFlag{"existingValue"},
-			errorFlag: false,
-		},
-		{
-			input:     "value1, value2, value3",
-			initial:   multiStringFlag{},
-			expected:  multiStringFlag{"value1", "value2", "value3"},
-			errorFlag: false,
-		},
-	}
-
-	for i, test := range tests {
-		err := test.initial.Set(test.input)
-		if err != nil && !test.errorFlag {
-			t.Errorf("Test case %d: Expected no error, but got: %v", i+1, err)
-		} else if err == nil && test.errorFlag {
-			t.Errorf("Test case %d: Expected an error, but got none", i+1)
-		}
-	}
-}
 
 func TestUniqueStringAppend(t *testing.T) {
 	tests := []struct {
@@ -145,158 +80,49 @@ func TestUniqueStringAppend(t *testing.T) {
 	}
 }
 
-func TestBoolFlag_String(t *testing.T) {
-	tests := []struct {
-		name     string
-		set      bool
-		value    bool
-		expected string
-	}{
-		{"Unset flag", false, false, "not set"},
-		{"Set flag to true", true, true, "true"},
-		{"Set flag to false", true, false, "false"},
+func TestMustParseURL(t *testing.T) {
+	want := &url.URL{
+		Scheme: "http",
+		Host:   "example.com",
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &BoolFlag{
-				set:   tt.set,
-				value: tt.value,
-			}
-			if got := b.String(); got != tt.expected {
-				t.Errorf("BoolFlag.String() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
+	assert.Equal(t, want, mustParseURL("http://example.com"))
+	assert.Panics(t, func() { mustParseURL("::") })
 }
 
-func TestBoolFlag_Set(t *testing.T) {
+func TestComparePointer(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectedSet   bool
-		expectedValue bool
-		expectedErr   error
+		name string
+		a, b *bool
+		want bool
 	}{
-		{"Set true", "true", true, true, nil},
-		{"Set false", "false", true, false, nil},
-		{"Set invalid", "invalid", false, false, errors.New("invalid boolean value")},
+		{name: "a false b false", a: boolPtr(false), b: boolPtr(false), want: true},
+		{name: "a false b nil", a: boolPtr(false), b: nil, want: false},
+		{name: "a false b true", a: boolPtr(false), b: boolPtr(true), want: false},
+		{name: "a nil b false", a: nil, b: boolPtr(false), want: false},
+		{name: "a nil b nil", a: nil, b: nil, want: true},
+		{name: "a nil b true", a: nil, b: boolPtr(true), want: false},
+		{name: "a true b false", a: boolPtr(true), b: boolPtr(false), want: false},
+		{name: "a true b nil", a: boolPtr(true), b: nil, want: false},
+		{name: "a true b true", a: boolPtr(true), b: boolPtr(true), want: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &BoolFlag{}
-			err := b.Set(tt.input)
-			if (err != nil) != (tt.expectedErr != nil) {
-				t.Errorf("BoolFlag.Set() error = %v, expectedErr %v", err, tt.expectedErr)
-				return
+			if tt.a != nil {
+				t.Logf("a: (*bool)(%t)", *tt.a)
+			} else {
+				t.Logf("a: (*bool)(nil)")
 			}
-			if err != nil && err.Error() != tt.expectedErr.Error() {
-				t.Errorf("BoolFlag.Set() error = %v, expectedErr %v", err, tt.expectedErr)
+			if tt.b != nil {
+				t.Logf("b: (*bool)(%t)", *tt.b)
+			} else {
+				t.Logf("b: (*bool)(nil)")
 			}
-			if b.set != tt.expectedSet {
-				t.Errorf("BoolFlag.set = %v, expected %v", b.set, tt.expectedSet)
-			}
-			if b.value != tt.expectedValue {
-				t.Errorf("BoolFlag.value = %v, expected %v", b.value, tt.expectedValue)
-			}
-		})
-	}
-}
+			t.Logf("want: %t", tt.want)
 
-func TestBoolFlag_IsSet(t *testing.T) {
-	tests := []struct {
-		name     string
-		set      bool
-		expected bool
-	}{
-		{"Flag is not set", false, false},
-		{"Flag is set", true, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &BoolFlag{
-				set: tt.set,
-			}
-			if got := b.IsSet(); got != tt.expected {
-				t.Errorf("BoolFlag.IsSet() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestBoolFlag_GetValue(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    bool
-		expected bool
-	}{
-		{"Flag value is false", false, false},
-		{"Flag value is true", true, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			b := &BoolFlag{
-				value: tt.value,
-			}
-			if got := b.Value(); got != tt.expected {
-				t.Errorf("BoolFlag.GetValue() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestBoolFlag_UnmarshalYAML(t *testing.T) {
-	tests := []struct {
-		name          string
-		yamlData      string
-		expectedValue bool
-		expectedSet   bool
-		expectedErr   string
-	}{
-		{
-			name:          "Unmarshal true",
-			yamlData:      "true",
-			expectedValue: true,
-			expectedSet:   true,
-			expectedErr:   "",
-		},
-		{
-			name:          "Unmarshal false",
-			yamlData:      "false",
-			expectedValue: false,
-			expectedSet:   true,
-			expectedErr:   "",
-		},
-		{
-			name:          "Unmarshal invalid",
-			yamlData:      "invalid",
-			expectedValue: false,
-			expectedSet:   false,
-			expectedErr:   "cannot unmarshal !!str",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var b BoolFlag
-
-			err := yaml.Unmarshal([]byte(tt.yamlData), &b)
-
-			if tt.expectedErr == "" && err != nil {
-				t.Errorf("BoolFlag.UnmarshalYAML() unexpected error: %v", err)
-				return
-			}
-			if tt.expectedErr != "" && !strings.Contains(err.Error(), tt.expectedErr) {
-				t.Errorf("BoolFlag.UnmarshalYAML() error = %v, expected to contain %q", err, tt.expectedErr)
-			}
-			if b.value != tt.expectedValue {
-				t.Errorf("BoolFlag.UnmarshalYAML() value = %v, expected %v", b.value, tt.expectedValue)
-			}
-			if b.set != tt.expectedSet {
-				t.Errorf("BoolFlag.UnmarshalYAML() set = %v, expected %v", b.set, tt.expectedSet)
+			got := comparePointer(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("got:  %t", got)
 			}
 		})
 	}

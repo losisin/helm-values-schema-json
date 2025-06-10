@@ -25,7 +25,7 @@ builds:
       - arm64
     ldflags:
       - -s -w
-        -X main.Version={{ .Tag }}
+        -X main.Version=v{{ .Version }}
         -X main.GitCommit={{ .Commit }}
         -X main.BuildDate={{ .Date }}
     binary: schema
@@ -40,23 +40,23 @@ archives:
       - plugin.yaml
 
 checksum:
-  name_template: '{{ .ProjectName }}-checksum.sha'
+  name_template: "{{ .ProjectName }}-checksum.sha"
   algorithm: sha256
 
 changelog:
   sort: asc
   groups:
     - title: Added
-      regexp: '^.*?feature(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^(.*(feature|feat)(\([[:word:]]+\))??!?:|add(ed)? ).+$'
       order: 0
-    - title: "Fixed"
-      regexp: '^.*?bug|fix(\([[:word:]]+\))??!?:.+$'
+    - title: Fixed
+      regexp: '(?i)^(.*(bug|fix|bugfix)(\([[:word:]]+\))??!?:|fix(ed)? ).+$'
       order: 1
     - title: Updated
-      regexp: '^.*?Bump|chore(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^(.*(bump|build)(\([[:word:]]+\))??!?:|update(d)? |bump(ed)? ).+$'
       order: 2
     - title: Docs
-      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      regexp: '(?i)^(.*docs(\([[:word:]]+\))??!?:|docs |document(ed)? ).+$'
       order: 3
     - title: Other
       order: 999

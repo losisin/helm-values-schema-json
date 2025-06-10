@@ -3,11 +3,11 @@ package pkg
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,19 +21,19 @@ func TestGenerateJsonSchema(t *testing.T) {
 		{
 			name: "full json schema",
 			config: &Config{
-				Input: []string{
+				Values: []string{
 					"../testdata/full.yaml",
 					"../testdata/empty.yaml",
 				},
-				OutputPath: "../testdata/output.json",
-				Draft:      2020,
-				Indent:     4,
+				Output: "../testdata/output.json",
+				Draft:  2020,
+				Indent: 4,
 				SchemaRoot: SchemaRoot{
 					ID:                   "https://example.com/schema",
 					Ref:                  "schema/product.json",
 					Title:                "Helm Values Schema",
 					Description:          "Schema for Helm values",
-					AdditionalProperties: BoolFlag{set: true, value: true},
+					AdditionalProperties: boolPtr(true),
 				},
 			},
 			templateSchemaFile: "../testdata/full.schema.json",
@@ -43,11 +43,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:                  2020,
 				Indent:                 4,
-				NoAdditionalProperties: BoolFlag{set: true, value: true},
-				Input: []string{
+				NoAdditionalProperties: true,
+				Values: []string{
 					"../testdata/noAdditionalProperties.yaml",
 				},
-				OutputPath: "../testdata/output1.json",
+				Output: "../testdata/output1.json",
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
@@ -59,10 +59,10 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Indent:           4,
 				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				K8sSchemaVersion: "v1.33.1",
-				Input: []string{
+				Values: []string{
 					"../testdata/k8sRef.yaml",
 				},
-				OutputPath: "../testdata/k8sRef_output.json",
+				Output: "../testdata/k8sRef_output.json",
 			},
 			templateSchemaFile: "../testdata/k8sRef.schema.json",
 		},
@@ -72,10 +72,10 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:  7,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/ref.yaml",
 				},
-				OutputPath: "../testdata/ref-draft7_output.json",
+				Output: "../testdata/ref-draft7_output.json",
 			},
 			templateSchemaFile: "../testdata/ref-draft7.schema.json",
 		},
@@ -84,10 +84,10 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/ref.yaml",
 				},
-				OutputPath: "../testdata/ref-draft2020_output.json",
+				Output: "../testdata/ref-draft2020_output.json",
 			},
 			templateSchemaFile: "../testdata/ref-draft2020.schema.json",
 		},
@@ -97,12 +97,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "../",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle/simple_output.json",
+				Output: "../testdata/bundle/simple_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/simple.schema.json",
 		},
@@ -111,11 +111,11 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
-				Bundle: BoolFlag{set: true, value: false},
-				Input: []string{
+				Bundle: false,
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle/simple-disabled_output.json",
+				Output: "../testdata/bundle/simple-disabled_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/simple-disabled.schema.json",
 		},
@@ -124,13 +124,13 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
-				Bundle:          BoolFlag{set: true, value: true},
-				BundleWithoutID: BoolFlag{set: true, value: true},
+				Bundle:          true,
+				BundleWithoutID: true,
 				BundleRoot:      "../",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle_output.json",
+				Output: "../testdata/bundle_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/simple-without-id.schema.json",
 		},
@@ -139,12 +139,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/nested.yaml",
 				},
-				OutputPath: "../testdata/bundle/nested_output.json",
+				Output: "../testdata/bundle/nested_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/nested.schema.json",
 		},
@@ -153,13 +153,13 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
-				Bundle:          BoolFlag{set: true, value: true},
-				BundleWithoutID: BoolFlag{set: true, value: true},
+				Bundle:          true,
+				BundleWithoutID: true,
 				BundleRoot:      "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/nested.yaml",
 				},
-				OutputPath: "../testdata/bundle/nested-without-id_output.json",
+				Output: "../testdata/bundle/nested-without-id_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/nested-without-id.schema.json",
 		},
@@ -168,12 +168,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/fragment.yaml",
 				},
-				OutputPath: "../testdata/bundle/fragment_output.json",
+				Output: "../testdata/bundle/fragment_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/fragment.schema.json",
 		},
@@ -182,13 +182,13 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:           2020,
 				Indent:          4,
-				Bundle:          BoolFlag{set: true, value: true},
-				BundleWithoutID: BoolFlag{set: true, value: true},
+				Bundle:          true,
+				BundleWithoutID: true,
 				BundleRoot:      "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/fragment.yaml",
 				},
-				OutputPath: "../testdata/bundle/fragment-without-id_output.json",
+				Output: "../testdata/bundle/fragment-without-id_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/fragment-without-id.schema.json",
 		},
@@ -197,12 +197,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/namecollision.yaml",
 				},
-				OutputPath: "../testdata/bundle/namecollision_output.json",
+				Output: "../testdata/bundle/namecollision_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/namecollision.schema.json",
 		},
@@ -211,12 +211,12 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "..",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/yaml.yaml",
 				},
-				OutputPath: "../testdata/bundle/yaml_output.json",
+				Output: "../testdata/bundle/yaml_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/yaml.schema.json",
 		},
@@ -226,44 +226,123 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "..",
 				SchemaRoot: SchemaRoot{
 					// Should be relative to CWD, which is this ./pkg dir
 					Ref: "../testdata/bundle/simple-subschema.schema.json",
 				},
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle/simple-root-ref_output.json",
+				Output: "../testdata/bundle/simple-root-ref_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
+		},
+		{
+			name: "bundle/absolute path",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     true,
+				BundleRoot: filepath.Clean("/"),
+				Values: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				Output: "../testdata/bundle/simple-abs_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-absolute-root.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values-with-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: false,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/176
+			name: "bundle/multiple-values-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: true,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/multiple-values-1.yaml",
+					"../testdata/bundle/multiple-values-2.yaml",
+				},
+				Output: "../testdata/bundle/multiple-values-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/multiple-values-without-id.schema.json",
+		},
+
+		{
+			name: "helm-docs",
+			config: &Config{
+				Draft:       2020,
+				Indent:      4,
+				UseHelmDocs: true,
+				Values: []string{
+					"../testdata/helm-docs/values.yaml",
+				},
+				Output: "../testdata/helm-docs/values_output.json",
+			},
+			templateSchemaFile: "../testdata/helm-docs/values.schema.json",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := GenerateJsonSchema(tt.config)
-			require.NoError(t, err)
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
 
-			generatedBytes, err := os.ReadFile(tt.config.OutputPath)
+			cwd, err := os.Getwd()
 			require.NoError(t, err)
+			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
+
+			err = GenerateJsonSchema(tt.config)
+			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
+
+			generatedBytes, err := os.ReadFile(tt.config.Output)
+			require.NoError(t, err, "Error from os.ReadFile on config.Output")
 
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
-			require.NoError(t, err)
+			require.NoError(t, err, "Error from os.ReadFile on templateSchemaFile")
 
 			t.Logf("Generated output:\n%s\n", generatedBytes)
 
 			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
-
-			if err := os.Remove(tt.config.OutputPath); err != nil && !os.IsNotExist(err) {
-				t.Errorf("failed to remove values.schema.json: %v", err)
-			}
 		})
 	}
 }
 
 func TestGenerateJsonSchema_Errors(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		config      *Config
@@ -272,46 +351,46 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "Missing input flag",
+			name: "Missing values flag",
 			config: &Config{
-				Input:  nil,
+				Values: nil,
 				Draft:  2020,
 				Indent: 0,
 			},
-			expectedErr: errors.New("input flag is required"),
+			expectedErr: errors.New("values flag is required"),
 		},
 		{
 			name: "Invalid draft version",
 			config: &Config{
-				Input: []string{"../testdata/basic.yaml"},
-				Draft: 5,
+				Values: []string{"../testdata/basic.yaml"},
+				Draft:  5,
 			},
 			expectedErr: errors.New("invalid draft version"),
 		},
 		{
 			name: "Negative indentation number",
 			config: &Config{
-				Input:      []string{"../testdata/basic.yaml"},
-				Draft:      2020,
-				OutputPath: "testdata/failure/output_readonly_schema.json",
-				Indent:     0,
+				Values: []string{"../testdata/basic.yaml"},
+				Draft:  2020,
+				Output: "testdata/failure/output_readonly_schema.json",
+				Indent: 0,
 			},
 			expectedErr: errors.New("indentation must be a positive number"),
 		},
 		{
 			name: "Odd indentation number",
 			config: &Config{
-				Input:      []string{"../testdata/basic.yaml"},
-				Draft:      2020,
-				OutputPath: "testdata/failure/output_readonly_schema.json",
-				Indent:     1,
+				Values: []string{"../testdata/basic.yaml"},
+				Draft:  2020,
+				Output: "testdata/failure/output_readonly_schema.json",
+				Indent: 1,
 			},
 			expectedErr: errors.New("indentation must be an even number"),
 		},
 		{
 			name: "Missing file",
 			config: &Config{
-				Input:  []string{"missing.yaml"},
+				Values: []string{"missing.yaml"},
 				Draft:  2020,
 				Indent: 4,
 			},
@@ -320,20 +399,20 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 		{
 			name: "Fail Unmarshal",
 			config: &Config{
-				Input:      []string{"../testdata/fail"},
-				OutputPath: "testdata/failure/output_readonly_schema.json",
-				Draft:      2020,
-				Indent:     4,
+				Values: []string{"../testdata/fail"},
+				Output: "testdata/failure/output_readonly_schema.json",
+				Draft:  2020,
+				Indent: 4,
 			},
 			expectedErr: errors.New("error unmarshaling YAML"),
 		},
 		{
 			name: "Read-only filesystem",
 			config: &Config{
-				Input:      []string{"../testdata/basic.yaml"},
-				OutputPath: "testdata/failure/output_readonly_schema.json",
-				Draft:      2020,
-				Indent:     4,
+				Values: []string{"../testdata/basic.yaml"},
+				Output: "testdata/failure/output_readonly_schema.json",
+				Draft:  2020,
+				Indent: 4,
 			},
 			expectedErr: errors.New("error writing schema to file"),
 		},
@@ -342,42 +421,45 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: "\000", // null byte is invalid in both linux & windows
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle_output.json",
+				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("open bundle root: open \x00: invalid argument"),
+			expectedErr: errors.New("bundle root \x00: open " + cwd + "/\x00: invalid argument"),
 		},
 		{
 			name: "bundle wrong root path",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
+				Bundle:     true,
 				BundleRoot: ".",
-				Input: []string{
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle_output.json",
+				Output: "../testdata/bundle_output.json",
 			},
 			expectedErr: errors.New("path escapes from parent"),
 		},
 		{
-			name: "bundle fail to get relative path",
+			name: "bundle invalid root ref file",
 			config: &Config{
 				Draft:      2020,
 				Indent:     4,
-				Bundle:     BoolFlag{set: true, value: true},
-				BundleRoot: filepath.Clean("/"),
-				Input: []string{
+				Bundle:     true,
+				BundleRoot: "..",
+				SchemaRoot: SchemaRoot{
+					Ref: "::",
+				},
+				Values: []string{
 					"../testdata/bundle/simple.yaml",
 				},
-				OutputPath: "../testdata/bundle_output.json",
+				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("get relative path from bundle root to file"),
+			expectedErr: errors.New("bundle schemas: /$ref: parse \"::\": missing protocol scheme"),
 		},
 		{
 			name: "invalid k8s ref alias",
@@ -386,10 +468,10 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Indent:           4,
 				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
 				K8sSchemaVersion: "",
-				Input: []string{
+				Values: []string{
 					"../testdata/k8sRef.yaml",
 				},
-				OutputPath: "../testdata/k8sRef_output.json",
+				Output: "../testdata/k8sRef_output.json",
 			},
 			expectedErr: errors.New("/properties/memory: must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
 		},
@@ -398,17 +480,36 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			config: &Config{
 				Draft:  2020,
 				Indent: 4,
-				Input: []string{
+				Values: []string{
 					"../testdata/fail-type.yaml",
 				},
-				OutputPath: "../testdata/fail-type_output.json",
+				Output: "../testdata/fail-type_output.json",
 			},
 			expectedErr: errors.New("/properties/nameOverride/type/0: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
+		},
+		{
+			name: "invalid helm-docs comment",
+			config: &Config{
+				Draft:       2020,
+				Indent:      4,
+				UseHelmDocs: true,
+				Values: []string{
+					"../testdata/helm-docs/values-fail.yaml",
+				},
+				Output: "../testdata/helm-docs/values-fail_output.json",
+			},
+			expectedErr: errors.New("parse schema: /foo: parse helm-docs comment: '# @schema' comments are not supported in helm-docs comments."),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				if err := os.Remove(tt.config.Output); err != nil && !os.IsNotExist(err) {
+					t.Errorf("failed to remove values.schema.json: %v", err)
+				}
+			})
+
 			if tt.setupFunc != nil {
 				err := tt.setupFunc()
 				assert.NoError(t, err)
@@ -428,82 +529,105 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 	}
 }
 
+func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{"foo/bar.yaml"},
+		Draft:  2020,
+		Indent: 4,
+	})
+	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values: []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output: "foo.json",
+		Draft:  2020,
+		Indent: 4,
+		Bundle: true,
+	})
+	require.ErrorContains(t, err, "output foo.json: get absolute path: getwd: no such file or directory")
+}
+
+func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
+	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
+	testutil.MakeGetwdFail(t)
+
+	err := GenerateJsonSchema(&Config{
+		Values:     []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
+		Output:     "/tmp/foo.json",        // unaffected by failing [os.Getwd] because it is an absolute path
+		Draft:      2020,
+		Indent:     4,
+		Bundle:     true,
+		BundleRoot: "foo",
+	})
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: getwd: no such file or directory")
+}
+
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 	tests := []struct {
-		name                    string
-		additionalPropertiesSet bool
-		additionalProperties    bool
-		noAdditionalProperties  bool
-		expected                interface{}
+		name                   string
+		noAdditionalProperties bool
+		additionalProperties   *bool
+		expected               any
 	}{
 		{
-			name:                    "AdditionalProperties set to true",
-			additionalPropertiesSet: true,
-			additionalProperties:    true,
-			expected:                true,
+			name:                 "AdditionalProperties set to true",
+			additionalProperties: boolPtr(true),
+			expected:             true,
 		},
 		{
-			name:                    "AdditionalProperties set to false",
-			additionalPropertiesSet: true,
-			additionalProperties:    false,
-			expected:                false,
+			name:                 "AdditionalProperties set to false",
+			additionalProperties: boolPtr(false),
+			expected:             false,
 		},
 		{
-			name:                    "AdditionalProperties not set",
-			additionalPropertiesSet: false,
-			expected:                nil,
+			name:                 "AdditionalProperties not set",
+			additionalProperties: nil,
+			expected:             nil,
 		},
 		{
-			name:                    "AdditionalProperties not set, but NoAdditionalProperties set",
-			additionalPropertiesSet: false,
-			noAdditionalProperties:  true,
-			expected:                false,
+			name:                   "AdditionalProperties not set, but NoAdditionalProperties set",
+			additionalProperties:   nil,
+			noAdditionalProperties: true,
+			expected:               false,
 		},
 		{
-			name:                    "NoAdditionalProperties set, but AdditionalProperties set to true",
-			additionalPropertiesSet: true,
-			additionalProperties:    true,
-			noAdditionalProperties:  true,
-			expected:                true,
+			name:                   "NoAdditionalProperties set, but AdditionalProperties set to true",
+			additionalProperties:   boolPtr(true),
+			noAdditionalProperties: true,
+			expected:               true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			additionalPropertiesFlag := &BoolFlag{}
-			noAdditionalPropertiesFlag := &BoolFlag{}
-			if tt.additionalPropertiesSet {
-				if err := additionalPropertiesFlag.Set(fmt.Sprintf("%t", tt.additionalProperties)); err != nil {
-					t.Fatalf("Failed to set additionalPropertiesFlag: %v", err)
-				}
-			}
-			if tt.noAdditionalProperties {
-				if err := noAdditionalPropertiesFlag.Set(fmt.Sprintf("%t", tt.noAdditionalProperties)); err != nil {
-					t.Fatalf("Failed to set noAdditionalPropertiesFlag: %v", err)
-				}
-			}
-
 			config := &Config{
-				Input:                  []string{"../testdata/empty.yaml"},
-				OutputPath:             "../testdata/empty.schema.json",
+				Values:                 []string{"../testdata/empty.yaml"},
+				Output:                 "../testdata/empty.schema.json",
 				Draft:                  2020,
 				Indent:                 4,
-				NoAdditionalProperties: *noAdditionalPropertiesFlag,
+				NoAdditionalProperties: tt.noAdditionalProperties,
 				SchemaRoot: SchemaRoot{
 					ID:                   "",
 					Title:                "",
 					Description:          "",
-					AdditionalProperties: *additionalPropertiesFlag,
+					AdditionalProperties: tt.additionalProperties,
 				},
 			}
 
 			err := GenerateJsonSchema(config)
 			assert.NoError(t, err)
 
-			generatedBytes, err := os.ReadFile(config.OutputPath)
+			generatedBytes, err := os.ReadFile(config.Output)
 			assert.NoError(t, err)
 
-			var generatedSchema map[string]interface{}
+			var generatedSchema map[string]any
 			err = json.Unmarshal(generatedBytes, &generatedSchema)
 			assert.NoError(t, err)
 
@@ -514,9 +638,16 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 				assert.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
 			}
 
-			if err := os.Remove(config.OutputPath); err != nil && !os.IsNotExist(err) {
+			if err := os.Remove(config.Output); err != nil && !os.IsNotExist(err) {
 				t.Errorf("failed to remove values.schema.json: %v", err)
 			}
 		})
 	}
+}
+
+func TestWriteOutput_JSONError(t *testing.T) {
+	schema := &Schema{Type: func() {}}
+
+	err := WriteOutput(schema, os.DevNull, "  ")
+	require.ErrorContains(t, err, "unsupported type: func()")
 }
