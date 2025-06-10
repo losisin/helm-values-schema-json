@@ -7,15 +7,24 @@
 [![GitHub release (with filter)](https://img.shields.io/github/v/release/losisin/helm-values-schema-json)](https://github.com/losisin/helm-values-schema-json/releases)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/losisin/helm-values-schema-json/total)
 
-
 Helm plugin for generating `values.schema.json` from single or multiple values files. Schema can be enriched by reading annotations from comments. Works only with Helm3 charts.
 
 ## Installation
 
 ```bash
-$ helm plugin install https://github.com/losisin/helm-values-schema-json.git
-Installed plugin: schema
+helm plugin install https://github.com/losisin/helm-values-schema-json.git
 ```
+
+## Upgrading
+
+```bash
+helm plugin update schema
+```
+
+See changelogs:
+
+- [Breaking changes](./docs/upgrading.md)
+- [Full release notes in GitHub Releases](https://github.com/losisin/helm-values-schema-json/releases)
 
 ## Features
 
@@ -26,9 +35,8 @@ Installed plugin: schema
 - Read description from [helm-docs](https://github.com/norwoodj/helm-docs)
 - Bundling subschemas referenced in `$ref`
 
-See [docs](https://github.com/losisin/helm-values-schema-json/tree/main/docs)
-for more info or checkout example yaml files in
-[testdata](https://github.com/losisin/helm-values-schema-json/tree/main/testdata).
+See [docs](./docs/README.md) for more info or checkout example yaml files
+in [testdata](./testdata).
 
 ## Integrations
 
@@ -139,10 +147,12 @@ Flags:
 
 ### Configuration file
 
-This plugin will look for it's configuration file called `.schema.yaml` in the current working directory. All options available from CLI can be set in this file. Example:
+Uses `.schema.yaml` in the current working directory.
+Example:
 
 ```yaml
-# Required
+# .schema.yaml
+
 values:
   - values.yaml
 
@@ -157,10 +167,19 @@ schemaRoot:
   additionalProperties: true
 ```
 
+All options available from CLI can be set in this file.
+However, do note that the file uses camelCase, while the flags uses kebab-case.
+
 Then, just run the plugin without any arguments:
 
 ```bash
-$ helm schema
+helm schema
+```
+
+You can override which config file to use with the `--config` flag:
+
+```bash
+helm schema --config ./my-helm-schema-config.yaml
 ```
 
 ### CLI
@@ -170,7 +189,7 @@ $ helm schema
 In most cases you will want to run the plugin with default options:
 
 ```bash
-$ helm schema --values values.yaml
+$ helm schema
 ```
 
 This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
@@ -211,7 +230,7 @@ deep:
 Run the following command to merge the yaml files and output json schema:
 
 ```bash
-$ helm schema --values values_1.yaml,custom/path/values_2.yaml --draft 7 --output my.schema.json
+helm schema --values values_1.yaml,custom/path/values_2.yaml --draft 7 --output my.schema.json
 ```
 
 Output will be something like this:
@@ -291,7 +310,7 @@ image:
 ```
 
 ```bash
-$ helm schema --values values.yaml --schema-root.id "https://example.com/schema" --schema-root.ref "schema/product.json" -schema-root.title "My schema" --schema-root.description "This is my schema"
+helm schema --values values.yaml --schema-root.id "https://example.com/schema" --schema-root.ref "schema/product.json" -schema-root.title "My schema" --schema-root.description "This is my schema"
 ```
 
 Generated schema will be:
