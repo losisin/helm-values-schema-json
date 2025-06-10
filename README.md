@@ -1,6 +1,6 @@
 # helm values schema json plugin
 
-[![ci](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml/badge.svg)](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml)
+[![ci](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/losisin/helm-values-schema-json/graph/badge.svg?token=0QQVCFJH84)](https://codecov.io/gh/losisin/helm-values-schema-json)
 [![Go Report Card](https://goreportcard.com/badge/github.com/losisin/helm-values-schema-json)](https://goreportcard.com/report/github.com/losisin/helm-values-schema-json)
 [![Static Badge](https://img.shields.io/badge/licence%20-%20MIT-green)](https://github.com/losisin/helm-values-schema-json/blob/main/LICENSE)
