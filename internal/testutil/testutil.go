@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,4 +50,26 @@ func WriteTempFile(t *testing.T, pattern string, content []byte) *os.File {
 	_, err := tmpFile.Write(content)
 	require.NoError(t, err)
 	return tmpFile
+}
+
+// CreateTempDir creates a temporary directory removes it at the end of the test.
+func CreateTempDir(t *testing.T, pattern string) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", pattern)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, os.RemoveAll(dir)) })
+	return dir
+}
+
+func ResetEnvAfterTest(t *testing.T) {
+	t.Helper()
+	envs := os.Environ()
+	t.Setenv("_foobar", "") // calling this to indirectly call [testing.T.checkParallel]
+	t.Cleanup(func() {
+		os.Clearenv()
+		for _, env := range envs {
+			k, v, _ := strings.Cut(env, "=")
+			assert.NoError(t, os.Setenv(k, v))
+		}
+	})
 }
