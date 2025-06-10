@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -353,7 +354,7 @@ func TestHTTPLoader(t *testing.T) {
 
 				ctx := t.Context()
 
-				loader := NewHTTPLoader(server.Client())
+				loader := NewHTTPLoader(server.Client(), nil)
 				loader.UserAgent = "test/" + t.Name()
 				schema, err := loader.Load(ctx, mustParseURL(server.URL))
 				require.NoError(t, err)
@@ -385,12 +386,244 @@ func TestHTTPLoader(t *testing.T) {
 			ctx := t.Context()
 			ctx = ContextWithLoaderReferrer(ctx, "http://some-referrerer")
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
 			assert.Equal(t, `<http://some-referrerer>; rel="describedby"`, linkHeader, "Link header")
 		})
 	}
+}
+
+func TestHTTPLoader_Cache(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2025, 6, 9, 12, 0, 0, 0, time.UTC)
+
+	setup := func(t *testing.T, handle func(w http.ResponseWriter, req *http.Request) []byte) (*httptest.Server, *HTTPMemoryCache, HTTPLoader) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if data := handle(w, req); data != nil {
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write(data)
+				require.NoError(t, err)
+			}
+		}))
+		t.Cleanup(server.Close)
+
+		cache := NewHTTPMemoryCache()
+		cache.Now = func() time.Time { return now }
+		loader := NewHTTPLoader(server.Client(), cache)
+
+		return server, cache, loader
+	}
+
+	t.Run("no cache", func(t *testing.T) {
+		server, cache, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			w.Header().Set("Cache-Control", "no-cache")
+			return []byte("{}")
+		})
+		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+
+		assert.Empty(t, cache.Map)
+	})
+
+	t.Run("save cache", func(t *testing.T) {
+		server, cache, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			w.Header().Set("Cache-Control", "max-age=100")
+			return []byte("{}")
+		})
+		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+
+		require.Len(t, cache.Map, 1)
+		cached := cache.Map[server.URL]
+		want := CachedResponse{
+			MaxAge:   100 * time.Second,
+			CachedAt: now,
+			Data:     []byte("{}"),
+		}
+		assert.Equal(t, want, cached)
+	})
+
+	t.Run("load cache", func(t *testing.T) {
+		server, cache, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			w.Header().Set("Cache-Control", "max-age=100")
+			return []byte("{}")
+		})
+		alreadyCached := CachedResponse{
+			MaxAge:   200 * time.Second,
+			CachedAt: time.Now(),
+			Data:     []byte(`{"$comment": "Already cached"}`),
+		}
+		cache.Map[server.URL] = alreadyCached
+
+		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+
+		assert.Equal(t, "Already cached", schema.Comment)
+		require.Len(t, cache.Map, 1)
+		cached := cache.Map[server.URL]
+		assert.Equal(t, alreadyCached, cached)
+	})
+
+	t.Run("load invalid cache", func(t *testing.T) {
+		server, cache, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			return []byte(`{"$comment":"from server"}`)
+		})
+		alreadyCached := CachedResponse{
+			MaxAge:   200 * time.Second,
+			CachedAt: time.Now(),
+			Data:     []byte(`{`), // invalid JSON
+		}
+		require.False(t, alreadyCached.Expired()) // sanity check
+		cache.Map[server.URL] = alreadyCached
+
+		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+		assert.Equal(t, "from server", schema.Comment)
+	})
+
+	t.Run("cache errors", func(t *testing.T) {
+		server, _, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			return []byte("{}")
+		})
+		loader.cache = DummyHTTPCache{
+			LoadCacheFunc: func(req *http.Request) (CachedResponse, error) {
+				return CachedResponse{}, fmt.Errorf("dummy load error")
+			},
+			SaveCacheFunc: func(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+				return CachedResponse{}, fmt.Errorf("dummy save error")
+			},
+		}
+
+		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+
+		// No error. Should still just work even though the cache isn't.
+		require.NoError(t, err)
+	})
+
+	t.Run("renew with etag", func(t *testing.T) {
+		var etagsReceived []string
+		server, cache, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			etagsReceived = append(etagsReceived, req.Header.Get("If-None-Match"))
+			w.WriteHeader(http.StatusNotModified)
+			return nil
+		})
+		alreadyCached := CachedResponse{
+			MaxAge:   10 * time.Second,
+			CachedAt: time.Now().Add(-1 * time.Hour), // expired
+			Data:     []byte(`{"$comment": "Already cached"}`),
+			ETag:     "myETag",
+		}
+		cache.Map[server.URL] = alreadyCached
+		require.True(t, alreadyCached.Expired()) // sanity check
+
+		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"myETag"}, etagsReceived)
+		assert.NotEqual(t, "Already cached", schema.Comment)
+	})
+
+	t.Run("sends new request if etag save fails", func(t *testing.T) {
+		var requestsReceived int
+		server, _, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			requestsReceived++
+			if req.Header.Get("If-None-Match") == "myETag" {
+				w.WriteHeader(http.StatusNotModified)
+				return nil
+			}
+			return []byte("{}")
+		})
+		alreadyCached := CachedResponse{
+			MaxAge:   10 * time.Second,
+			CachedAt: time.Now().Add(-1 * time.Hour), // expired
+			Data:     []byte(`{"$comment": "Already cached"}`),
+			ETag:     "myETag",
+		}
+		require.True(t, alreadyCached.Expired()) // sanity check
+
+		loader.cache = DummyHTTPCache{
+			LoadCacheFunc: func(req *http.Request) (CachedResponse, error) {
+				return alreadyCached, nil
+			},
+			SaveCacheFunc: func(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+				return CachedResponse{}, fmt.Errorf("dummy error")
+			},
+		}
+
+		schema, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.NoError(t, err)
+
+		assert.Equal(t, 2, requestsReceived)
+		assert.NotEqual(t, "Already cached", schema.Comment)
+	})
+
+	t.Run("second request after etag fails", func(t *testing.T) {
+		var requestsReceived int
+		server, _, loader := setup(t, func(w http.ResponseWriter, req *http.Request) []byte {
+			requestsReceived++
+			if req.Header.Get("If-None-Match") == "myETag" {
+				w.WriteHeader(http.StatusNotModified)
+				return nil
+			}
+			return []byte("{}") // shouldn't be reached
+		})
+		alreadyCached := CachedResponse{
+			MaxAge:   10 * time.Second,
+			CachedAt: time.Now().Add(-1 * time.Hour), // expired
+			Data:     []byte(`{"$comment": "Already cached"}`),
+			ETag:     "myETag",
+		}
+		require.True(t, alreadyCached.Expired()) // sanity check
+
+		loader.cache = DummyHTTPCache{
+			LoadCacheFunc: func(req *http.Request) (CachedResponse, error) {
+				return alreadyCached, nil
+			},
+			SaveCacheFunc: func(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+				// Close it while the HTTPLoader is busy saving
+				server.Close()
+				return CachedResponse{}, fmt.Errorf("dummy error")
+			},
+		}
+
+		_, err := loader.Load(t.Context(), mustParseURL(server.URL))
+		require.ErrorContains(t, err, "request $ref over HTTP:")
+		assert.Equal(t, 1, requestsReceived)
+	})
+}
+
+func TestHTTPLoader_SaveCacheETag(t *testing.T) {
+	t.Run("nil cache", func(t *testing.T) {
+		loader := NewHTTPLoader(nil, nil)
+
+		req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+		require.NoError(t, err)
+
+		cached, schema, err := loader.SaveCacheETag(req, &http.Response{}, CachedResponse{Data: []byte("{}")})
+		require.NoError(t, err)
+
+		assert.Nil(t, schema)
+		assert.Equal(t, CachedResponse{}, cached)
+	})
+
+	t.Run("invalid json", func(t *testing.T) {
+		cache := NewHTTPMemoryCache()
+		loader := NewHTTPLoader(nil, cache)
+
+		req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+		require.NoError(t, err)
+
+		cached, schema, err := loader.SaveCacheETag(req,
+			&http.Response{
+				Header: http.Header{http.CanonicalHeaderKey("Cache-Control"): []string{"max-age=100"}},
+			},
+			CachedResponse{Data: []byte("{")})
+		require.ErrorContains(t, err, "parse cached YAML:")
+
+		assert.Nil(t, schema)
+		assert.Equal(t, CachedResponse{}, cached)
+	})
 }
 
 func TestHTTPLoader_Error(t *testing.T) {
@@ -461,7 +694,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 			ctx := t.Context()
 
-			loader := NewHTTPLoader(server.Client())
+			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
@@ -479,7 +712,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `unsupported content encoding: "foobar"`)
 	})
@@ -495,7 +728,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		loader.SizeLimit = 20
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `aborted request after reading more than 20B`)
@@ -513,7 +746,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `connect: connection refused`)
 	})
@@ -530,7 +763,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		ctx := t.Context()
 
-		loader := NewHTTPLoader(server.Client())
+		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		assert.ErrorContains(t, err, `create gzip reader: unexpected EOF`)
 	})
@@ -539,7 +772,7 @@ func TestHTTPLoader_Error(t *testing.T) {
 func TestHTTPLoader_NewRequestError(t *testing.T) {
 	failHTTPLoaderNewRequest = true
 	defer func() { failHTTPLoaderNewRequest = false }()
-	loader := NewHTTPLoader(http.DefaultClient)
+	loader := NewHTTPLoader(http.DefaultClient, nil)
 	_, err := loader.Load(t.Context(), mustParseURL("file://localhost"))
 	assert.ErrorContains(t, err, `create request: `)
 }

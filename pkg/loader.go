@@ -45,9 +45,9 @@ func (r *RootFS) Open(name string) (fs.File, error) {
 	return ((*os.Root)(r)).Open(name)
 }
 
-func NewDefaultLoader(client *http.Client, fs fs.FS, basePath string) Loader {
-	fileLoader := NewFileLoader(fs, basePath)
-	httpLoader := NewHTTPLoader(client)
+func NewDefaultLoader(client *http.Client, bundleFS fs.FS, basePath string) Loader {
+	fileLoader := NewFileLoader(bundleFS, basePath)
+	httpLoader := NewHTTPLoader(client, NewHTTPCache())
 	return NewCacheLoader(URLSchemeLoader{
 		"http":  httpLoader,
 		"https": httpLoader,
@@ -181,7 +181,7 @@ func (loader URLSchemeLoader) Load(ctx context.Context, ref *url.URL) (*Schema, 
 	loaderForScheme, ok := loader[ref.Scheme]
 	if !ok {
 		return nil, fmt.Errorf("%w: cannot load schema from $ref=%q, supported schemes: %v",
-			errors.ErrUnsupported, ref, strings.Join(slices.Collect(maps.Keys(loader)), ","))
+			errors.ErrUnsupported, ref.Redacted(), strings.Join(slices.Collect(maps.Keys(loader)), ","))
 	}
 	return loaderForScheme.Load(ctx, ref)
 }
@@ -217,14 +217,17 @@ func (loader CacheLoader) Load(ctx context.Context, ref *url.URL) (*Schema, erro
 }
 
 type HTTPLoader struct {
-	client    *http.Client
+	client *http.Client
+	cache  HTTPCache
+
 	SizeLimit int64
 	UserAgent string
 }
 
-func NewHTTPLoader(client *http.Client) HTTPLoader {
+func NewHTTPLoader(client *http.Client, cache HTTPCache) HTTPLoader {
 	return HTTPLoader{
 		client:    client,
+		cache:     cache,
 		SizeLimit: 200 * 1000 * 1000, // arbitrary limit, but prevents CLI from eating all RAM
 		UserAgent: HTTPLoaderDefaultUserAgent,
 	}
@@ -248,12 +251,29 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	refClone := *ref
 	refClone.Fragment = ""
 
+	start := time.Now()
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, refClone.String(), nil)
 	if err != nil || failHTTPLoaderNewRequest {
 		// The [http.NewRequestWithContext] will never fail,
 		// so we have to induce a fake failure via [failHTTPLoaderNewRequest]
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+
+	fmt.Println("Loading", req.URL.Redacted())
+
+	cached, cachedSchema, err := loader.LoadCache(req)
+	if err != nil {
+		fmt.Println("Error loading from cache:", err)
+	} else if cachedSchema != nil {
+		duration := time.Since(start)
+		fmt.Printf("=> got %s from cache in %s (expires in %s)\n",
+			formatSizeBytes(len(cached.Data)),
+			duration.Truncate(time.Millisecond),
+			time.Until(cached.Expiry()).Truncate(time.Second))
+		return cachedSchema, nil
+	}
+
 	// YAML now has a proper media type since Feb 2024 :D
 	// https://datatracker.ietf.org/doc/rfc9512/
 	req.Header.Add("Accept", "application/schema+json,application/json,application/schema+yaml,application/yaml,text/plain; charset=utf-8")
@@ -267,17 +287,39 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		req.Header.Set("User-Agent", loader.UserAgent)
 	}
 
-	start := time.Now()
-	fmt.Println("Loading", req.URL.Redacted())
+	if cached.ETag != "" {
+		req.Header.Add("If-None-Match", cached.ETag)
+	}
 
 	resp, err := loader.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref, err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("request $ref=%q over HTTP: got non-2xx status code: %s", ref, resp.Status)
+		return nil, fmt.Errorf("request $ref over HTTP: %w", err)
 	}
 	defer closeIgnoreError(resp.Body)
+
+	if cached.ETag != "" && resp.StatusCode == http.StatusNotModified {
+		cached, schema, err := loader.SaveCacheETag(req, resp, cached)
+		if err == nil {
+			duration := time.Since(start)
+			fmt.Printf("=> renewed cache of %s in %s (expires in %s)\n",
+				formatSizeBytes(len(cached.Data)),
+				duration.Truncate(time.Millisecond),
+				cached.MaxAge.Truncate(time.Second))
+			return schema, nil
+		}
+		fmt.Println("Error using etag cache:", err)
+		// Redo the request, but without the etag this time
+		req.Header.Del("If-None-Match")
+		newResp, err := loader.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("request $ref over HTTP: %w", err)
+		}
+		resp = newResp
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("request $ref=%q over HTTP: got non-2xx status code: %s", ref.Redacted(), resp.Status)
+	}
 
 	var reader io.Reader = resp.Body
 	if loader.SizeLimit > 0 {
@@ -316,8 +358,22 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		return nil, fmt.Errorf("request $ref=%q over HTTP: %w", ref.Redacted(), err)
 	}
 
+	cached, err = loader.SaveCache(req, resp, b)
+	if err != nil {
+		fmt.Println("Error saving response cache:", err)
+	}
+
 	duration := time.Since(start)
-	fmt.Printf("=> got %s in %s\n", formatSizeBytes(len(b)), duration.Truncate(time.Millisecond))
+	if cached.MaxAge > 0 {
+		fmt.Printf("=> cached %s in %s (expires in %s)\n",
+			formatSizeBytes(len(b)),
+			duration.Truncate(time.Millisecond),
+			cached.MaxAge.Truncate(time.Second))
+	} else {
+		fmt.Printf("=> got %s in %s\n",
+			formatSizeBytes(len(b)),
+			duration.Truncate(time.Millisecond))
+	}
 
 	var schema Schema
 	if isYAML {
@@ -337,6 +393,53 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	}
 	schema.SetReferrer(ReferrerURL(&refClone))
 	return &schema, nil
+}
+
+func (loader HTTPLoader) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
+	if loader.cache == nil {
+		return CachedResponse{}, nil
+	}
+	cached, err := loader.cache.SaveCache(req, resp, body)
+	if err != nil {
+		return CachedResponse{}, err
+	}
+	return cached, nil
+}
+
+func (loader HTTPLoader) SaveCacheETag(req *http.Request, resp *http.Response, cached CachedResponse) (CachedResponse, *Schema, error) {
+	if loader.cache == nil {
+		return CachedResponse{}, nil, nil
+	}
+	renewedCache, err := loader.cache.SaveCache(req, resp, cached.Data)
+	if err != nil {
+		return CachedResponse{}, nil, err
+	}
+	var schema Schema
+	if err := yaml.Unmarshal(renewedCache.Data, &schema); err != nil {
+		return CachedResponse{}, nil, fmt.Errorf("parse cached YAML: %w", err)
+	}
+	return renewedCache, &schema, nil
+}
+
+func (loader HTTPLoader) LoadCache(req *http.Request) (CachedResponse, *Schema, error) {
+	if loader.cache == nil {
+		return CachedResponse{}, nil, nil
+	}
+	cached, err := loader.cache.LoadCache(req)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return CachedResponse{}, nil, nil
+		}
+		return CachedResponse{}, nil, err
+	}
+	if cached.Expired() {
+		return cached, nil, nil
+	}
+	var schema Schema
+	if err := yaml.Unmarshal(cached.Data, &schema); err != nil {
+		return CachedResponse{}, nil, fmt.Errorf("parse cached YAML: %w", err)
+	}
+	return cached, &schema, nil
 }
 
 type loaderContextKey int

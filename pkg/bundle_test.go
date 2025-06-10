@@ -588,7 +588,7 @@ func TestBundleRemoveIDs_Errors(t *testing.T) {
 					},
 				},
 			},
-			wantErr: `/properties/foo/$ref: parse $ref="::" as URL: parse "::": missing protocol scheme`,
+			wantErr: `/properties/foo/$ref: parse $ref as URL: parse "::": missing protocol scheme`,
 		},
 		{
 			name: "invalid ref",
