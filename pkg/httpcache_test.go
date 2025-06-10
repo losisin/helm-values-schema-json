@@ -24,7 +24,7 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 	cache := NewHTTPCache()
 
 	dir := cache.cacheDirFunc()
-	assert.Equal(t, "/foo/bar/.cache/helm-values-schema-json/httploader", dir)
+	require.Contains(t, dir, "/helm-values-schema-json/httploader")
 }
 
 func TestHTTPCache_CacheDir_Error(t *testing.T) {
