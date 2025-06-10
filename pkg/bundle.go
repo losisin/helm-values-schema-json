@@ -249,12 +249,12 @@ func bundleChangeRefsRec(parentDefPtr, ptr Ptr, root, schema *Schema) error {
 
 	ref, err := url.Parse(schema.Ref)
 	if err != nil {
-		return fmt.Errorf("%s: parse $ref=%q as URL: %w", ptr.Prop("$ref"), schema.Ref, err)
+		return fmt.Errorf("%s: parse $ref as URL: %w", ptr.Prop("$ref"), err)
 	}
 
 	name, ok := findDefNameByRef(root.Defs, ref)
 	if !ok {
-		return fmt.Errorf("%s: no $defs found that matches $ref=%q", ptr.Prop("$ref"), schema.Ref)
+		return fmt.Errorf("%s: no $defs found that matches $ref=%q", ptr.Prop("$ref"), ref.Redacted())
 	}
 
 	if ref.Fragment != "" {

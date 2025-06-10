@@ -3,6 +3,7 @@ module github.com/losisin/helm-values-schema-json/v2
 go 1.24.2
 
 require (
+	github.com/fxamacker/cbor/v2 v2.8.0
 	github.com/knadh/koanf/providers/file v1.2.0
 	github.com/knadh/koanf/providers/posflag v1.0.0
 	github.com/knadh/koanf/providers/structs v1.0.0
@@ -23,8 +24,15 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/tinylib/msgp v1.3.0 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/tools v0.22.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+tool github.com/tinylib/msgp
