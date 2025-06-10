@@ -12,6 +12,7 @@ import (
 )
 
 func MakeGetwdFail(t *testing.T) {
+	t.Helper()
 	if runtime.GOOS == "darwin" {
 		t.Skip("Skipping because don't know how to make os.Getwd fail on MacOS")
 	}
@@ -26,6 +27,7 @@ func MakeGetwdFail(t *testing.T) {
 
 // ResetFile will truncate the file and write the new content to it.
 func ResetFile(t *testing.T, file *os.File, content []byte) {
+	t.Helper()
 	_, err := file.Seek(0, io.SeekStart)
 	require.NoError(t, err)
 	require.NoError(t, file.Truncate(0))
@@ -35,6 +37,7 @@ func ResetFile(t *testing.T, file *os.File, content []byte) {
 
 // CreateTempFile creates a temporary file and removes it at the end of the test.
 func CreateTempFile(t *testing.T, pattern string) *os.File {
+	t.Helper()
 	tmpFile, err := os.CreateTemp("", pattern)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -46,6 +49,7 @@ func CreateTempFile(t *testing.T, pattern string) *os.File {
 
 // WriteTempFile creates a temporary file with a given content and removes it at the end of the test.
 func WriteTempFile(t *testing.T, pattern string, content []byte) *os.File {
+	t.Helper()
 	tmpFile := CreateTempFile(t, pattern)
 	_, err := tmpFile.Write(content)
 	require.NoError(t, err)
