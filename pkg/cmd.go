@@ -41,7 +41,7 @@ func NewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return GenerateJsonSchema(config)
+			return GenerateJsonSchema(cmd.Context(), config)
 		},
 		SilenceErrors: true,
 		SilenceUsage:  true,

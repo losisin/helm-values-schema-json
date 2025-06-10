@@ -19,9 +19,7 @@ import (
 //
 // The paths, outputDir & bundleRoot, are only used to change absolute paths
 // into relative paths in a solely cosmetic way.
-func Bundle(schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
-	ctx := context.Background()
-
+func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
 	absOutputDir, err := filepath.Abs(filepath.Dir(outputDir))
 	if err != nil {
 		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
