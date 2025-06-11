@@ -10,35 +10,46 @@ import (
 
 // schemasEqual is a helper function to compare two Schema objects.
 func schemasEqual(a, b *Schema) bool {
-	if a == nil || b == nil {
+	switch {
+	case a == nil, b == nil:
 		return a == b
-	}
+
 	// Compare simple fields
-	if a.Type != b.Type || a.Pattern != b.Pattern || a.UniqueItems != b.UniqueItems || a.Title != b.Title || a.Description != b.Description || a.ReadOnly != b.ReadOnly {
+	case a.Type != b.Type,
+		a.Pattern != b.Pattern,
+		a.UniqueItems != b.UniqueItems,
+		a.Title != b.Title,
+		a.Description != b.Description,
+		a.ReadOnly != b.ReadOnly:
 		return false
-	}
+
 	// Compare pointer fields
-	if !comparePointer(a.MultipleOf, b.MultipleOf) ||
-		!comparePointer(a.Maximum, b.Maximum) ||
-		!comparePointer(a.Minimum, b.Minimum) ||
-		!comparePointer(a.MaxLength, b.MaxLength) ||
-		!comparePointer(a.MinLength, b.MinLength) ||
-		!comparePointer(a.MaxItems, b.MaxItems) ||
-		!comparePointer(a.MinItems, b.MinItems) ||
-		!comparePointer(a.MaxProperties, b.MaxProperties) ||
-		!comparePointer(a.MinProperties, b.MinProperties) {
+	case !comparePointer(a.MultipleOf, b.MultipleOf),
+		!comparePointer(a.Maximum, b.Maximum),
+		!comparePointer(a.Minimum, b.Minimum),
+		!comparePointer(a.MaxLength, b.MaxLength),
+		!comparePointer(a.MinLength, b.MinLength),
+		!comparePointer(a.MaxItems, b.MaxItems),
+		!comparePointer(a.MinItems, b.MinItems),
+		!comparePointer(a.MaxProperties, b.MaxProperties),
+		!comparePointer(a.MinProperties, b.MinProperties):
 		return false
-	}
+
 	// Compare slice fields
-	if !reflect.DeepEqual(a.Enum, b.Enum) || !reflect.DeepEqual(a.Required, b.Required) {
+	case !reflect.DeepEqual(a.Type, b.Type),
+		!reflect.DeepEqual(a.Enum, b.Enum),
+		!reflect.DeepEqual(a.Required, b.Required),
+		!reflect.DeepEqual(a.Examples, b.Examples):
 		return false
-	}
+
 	// Recursively check nested fields
-	if !schemasEqual(a.Items, b.Items) {
+	case !schemasEqual(a.Items, b.Items):
 		return false
+
+	default:
+		// Compare map fields (Properties)
+		return reflect.DeepEqual(a.Properties, b.Properties)
 	}
-	// Compare map fields (Properties)
-	return reflect.DeepEqual(a.Properties, b.Properties)
 }
 
 func TestMergeSchemas(t *testing.T) {
@@ -182,9 +193,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
-			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
-			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Lorem ipsum"},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Old comment", Examples: []any{"foo", 1}},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
 		},
 		{
 			name: "allOf",

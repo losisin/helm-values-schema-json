@@ -90,6 +90,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Comment != "" {
 		dest.Comment = src.Comment
 	}
+	if src.Examples != nil {
+		dest.Examples = src.Examples
+	}
 	if src.AllOf != nil {
 		dest.AllOf = src.AllOf
 	}

@@ -80,6 +80,7 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "Title", schema: &Schema{Title: exampleString}},
 		{name: "Description", schema: &Schema{Description: exampleString}},
 		{name: "Comment", schema: &Schema{Comment: exampleString}},
+		{name: "Examples", schema: &Schema{Examples: exampleAnySlice}},
 		{name: "ReadOnly", schema: &Schema{ReadOnly: exampleBool}},
 		{name: "Default", schema: &Schema{Default: exampleString}},
 		{name: "Ref", schema: &Schema{Ref: exampleString}},
