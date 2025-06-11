@@ -73,6 +73,10 @@
                                                     "type": "object",
                                                     "properties": {
                                                         "key": {
+                                                            "examples": [
+                                                                "topology.kubernetes.io/zone",
+                                                                "kubernetes.io/hostname"
+                                                            ],
                                                             "type": "string"
                                                         },
                                                         "operator": {
