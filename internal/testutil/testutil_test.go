@@ -83,9 +83,9 @@ func TestPerGOOS(t *testing.T) {
 	}{
 		{name: "empty", goos: "", per: PerGOOS{}, want: ""},
 
-		{name: "linux uses default", goos: "linux", per: PerGOOS{Default: "default value"}, want: "linux value"},
+		{name: "linux uses default", goos: "linux", per: PerGOOS{Default: "default value"}, want: "default value"},
 		{name: "linux ignores windows", goos: "linux", per: PerGOOS{Default: "default value", Windows: "windows value"}, want: "default value"},
-		{name: "linux ignores darwin", goos: "linux", per: PerGOOS{Default: "default value", Darwin: "darwin value"}, want: "linux value"},
+		{name: "linux ignores darwin", goos: "linux", per: PerGOOS{Default: "default value", Darwin: "darwin value"}, want: "default value"},
 
 		{name: "darwin uses default", goos: "darwin", per: PerGOOS{Default: "default value"}, want: "default value"},
 		{name: "darwin ignores windows", goos: "darwin", per: PerGOOS{Default: "default value", Windows: "windows value"}, want: "default value"},
