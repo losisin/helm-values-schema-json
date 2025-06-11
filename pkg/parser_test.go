@@ -347,8 +347,8 @@ func TestEnsureCompliant(t *testing.T) {
 			draft:  7,
 			want: &Schema{
 				AllOf: []*Schema{
-					{Ref: "#"},
 					{Type: "object"},
+					{Ref: "#"},
 				},
 			},
 		},
