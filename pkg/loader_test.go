@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,6 +58,9 @@ func TestLoad_Errors(t *testing.T) {
 }
 
 func TestFileLoader_Error(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name       string
 		url        *url.URL
@@ -64,44 +69,65 @@ func TestFileLoader_Error(t *testing.T) {
 		wantErrIs  error
 	}{
 		{
-			name:    "invalid scheme",
-			url:     mustParseURL("ftp:///foo"),
-			wantErr: `file url in $ref="ftp:///foo" must start with "file://", "./", or "/"`,
+			name:       "invalid scheme",
+			url:        mustParseURL("ftp:///foo"),
+			fsRootPath: cwd,
+			wantErr:    `file url in $ref="ftp:///foo" must start with "file://", "./", or "/"`,
 		},
 		{
-			name:    "invalid path",
-			url:     mustParseURL("file://localhost"),
-			wantErr: `file url in $ref="file://localhost" must contain a path`,
+			name:       "empty path",
+			url:        mustParseURL(""),
+			fsRootPath: cwd,
+			wantErr:    `file url in $ref="" must contain a path`,
 		},
 		{
-			name:    "path escapes parent",
-			url:     mustParseURL("file:///file/that/does/not/exist"),
-			wantErr: "path escapes from parent",
+			name:       "invalid path",
+			url:        mustParseURL("file://"),
+			fsRootPath: cwd,
+			wantErr:    `parse file url: unexpected empty file://`,
 		},
 		{
-			name:      "path not found",
-			url:       mustParseURL("./local/file/that/does/not/exist"),
-			wantErrIs: os.ErrNotExist,
+			name: "path escapes parent",
+			url: mustParseURL(testutil.PerGOOS{
+				Default: "file:///file/that/does/not/exist",
+				Windows: "file://c:/file/that/does/not/exist",
+			}.String()),
+			fsRootPath: cwd,
+			wantErr:    "path escapes from parent",
 		},
 		{
-			name:    "invalid JSON",
-			url:     mustParseURL("./invalid-schema.json"),
-			wantErr: `parse JSON file: invalid character 'h' in literal true`,
+			name:       "path not found",
+			url:        mustParseURL("./local/file/that/does/not/exist"),
+			fsRootPath: cwd,
+			wantErrIs:  os.ErrNotExist,
 		},
 		{
-			name:    "invalid YAML",
-			url:     mustParseURL("./invalid-schema.yaml"),
-			wantErr: `parse YAML file: yaml: did not find expected key`,
+			name:       "invalid JSON",
+			url:        mustParseURL("./invalid-schema.json"),
+			fsRootPath: cwd,
+			wantErr:    `parse JSON file: invalid character 'h' in literal true`,
 		},
 		{
-			name:       "fail to get relative path from fsRootPath",
-			url:        mustParseURL("/foo/bar"),
-			fsRootPath: "some/relative/path",
-			wantErr:    `get relative path from bundle root: Rel: can't make /foo/bar relative to some/relative/path`,
+			name:       "invalid YAML",
+			url:        mustParseURL("./invalid-schema.yaml"),
+			fsRootPath: cwd,
+			wantErr:    `parse YAML file: yaml: did not find expected key`,
+		},
+		{
+			name: "fail to get relative path from fsRootPath",
+			url: mustParseURL(testutil.PerGOOS{
+				Default: "/foo/bar",
+				Windows: "file://C:/foo/bar",
+			}.String()),
+			fsRootPath: filepath.FromSlash("some/relative/path"),
+			wantErr: testutil.PerGOOS{
+				Default: `get relative path from bundle root: Rel: can't make /foo/bar relative to some/relative/path`,
+				Windows: `get relative path from bundle root: Rel: can't make C:\foo\bar relative to some\relative\path`,
+			}.String(),
 		},
 	}
 
-	root, err := os.OpenRoot("../testdata/bundle")
+	root, err := os.OpenRoot(filepath.FromSlash("../testdata/bundle"))
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, root.Close())

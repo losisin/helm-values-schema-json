@@ -129,13 +129,17 @@ func (loader FileLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if ref.Scheme != "file" && ref.Scheme != "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must start with "file://", "./", or "/"`, ref)
 	}
-	if ref.Path == "" {
-		return nil, fmt.Errorf(`file url in $ref=%q must contain a path`, ref)
+	refFile, err := ParseRefFileURL(ref)
+	if err != nil {
+		return nil, fmt.Errorf("parse file url: %w", err)
 	}
-	pathAbs := filepath.FromSlash(ref.Path)
+	if refFile.Path == "" {
+		return nil, fmt.Errorf("file url in $ref=%q must contain a path", ref)
+	}
+	pathAbs := filepath.FromSlash(refFile.Path)
 
 	path := pathAbs
-	if loader.fsRootPath != "" && filepath.IsAbs(path) {
+	if loader.fsRootPath != "" && filepath.IsAbs(pathAbs) {
 		rel, err := filepath.Rel(loader.fsRootPath, path)
 		if err != nil {
 			return nil, fmt.Errorf("get relative path from bundle root: %w", err)
