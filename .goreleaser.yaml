@@ -45,6 +45,7 @@ checksum:
 
 changelog:
   sort: asc
+  use: github
   groups:
     - title: Added
       regexp: '(?i)^(.*(feature|feat)(\([[:word:]]+\))??!?:|add(ed)? ).+$'
