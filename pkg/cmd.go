@@ -160,7 +160,7 @@ var DefaultConfig = Config{
 	Draft:  2020,
 	Indent: 4,
 
-	K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+	K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 }
 
 // Save values of parsed flags in Config
