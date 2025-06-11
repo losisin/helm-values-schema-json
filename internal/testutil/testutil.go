@@ -13,8 +13,9 @@ import (
 
 func MakeGetwdFail(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS == "darwin" {
-		t.Skip("Skipping because don't know how to make os.Getwd fail on MacOS")
+	switch runtime.GOOS {
+	case "darwin", "windows":
+		t.Skipf("Skipping because don't know how to make os.Getwd fail on GOOS=%s", runtime.GOOS)
 	}
 
 	// Setting up to make [os.Getwd] to fail, which on Linux can be done
