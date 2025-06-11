@@ -22,7 +22,7 @@ func TestExecute(t *testing.T) {
 	}{
 		{
 			name: "success",
-			args: []string{"--values=../testdata/basic.yaml", "--output=/dev/null"},
+			args: []string{"--values=../testdata/basic.yaml", "--output=" + os.DevNull},
 		},
 		{
 			name:      "fail reading config",

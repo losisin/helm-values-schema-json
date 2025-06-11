@@ -546,15 +546,15 @@ func ParseRefFileURL(u *url.URL) (RefFile, error) {
 		// Treat "/foo" & "file:///" as invalid
 		return RefFile{}, fmt.Errorf("absolute paths not supported")
 	}
-	u.Scheme = ""
 
-	if u.Host != "" {
-		u.Path = path.Join(u.Host, u.Path)
-		u.Host = ""
+	clone := *u
+	if clone.Host != "" {
+		clone.Path = path.Join(u.Host, u.Path)
+		clone.Host = ""
 	}
 
 	return RefFile{
-		Path: u.Path,
-		Frag: u.Fragment,
+		Path: clone.Path,
+		Frag: clone.Fragment,
 	}, nil
 }

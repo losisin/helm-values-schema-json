@@ -793,7 +793,10 @@ func TestHTTPLoader_Error(t *testing.T) {
 
 		loader := NewHTTPLoader(server.Client(), nil)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
-		assert.ErrorContains(t, err, `connect: connection refused`)
+		assert.ErrorContains(t, err, testutil.PerGOOS{
+			Default: `connect: connection refused`,
+			Windows: `connectex: No connection could be made because the target machine actively refused it.`,
+		}.String())
 	})
 
 	t.Run("invalid gzip", func(t *testing.T) {

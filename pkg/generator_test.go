@@ -415,7 +415,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Draft:  2020,
 				Indent: 4,
 			},
-			expectedErr: errors.New("error writing schema to file"),
+			expectedErr: errors.New("write output schema:"),
 		},
 		{
 			name: "bundle invalid root path",
