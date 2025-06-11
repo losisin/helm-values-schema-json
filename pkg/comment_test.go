@@ -354,6 +354,18 @@ func TestProcessList(t *testing.T) {
 			expectedList: []any{": this is not YAML :"},
 		},
 		{
+			name:         "invalid YAML but still using quotes",
+			comment:      "[: this is not YAML :, \"escaping stuff \\\" works\" ]",
+			stringsOnly:  true,
+			expectedList: []any{": this is not YAML :", "escaping stuff \" works"},
+		},
+		{
+			name:         "invalid YAML with null allowed",
+			comment:      "[: this is not YAML :, null]",
+			stringsOnly:  false,
+			expectedList: []any{": this is not YAML :", nil},
+		},
+		{
 			name:         "multiple strings",
 			comment:      "[\"value1\", \"value2\"]",
 			stringsOnly:  true,

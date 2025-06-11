@@ -117,9 +117,8 @@ func processList(comment string, stringsOnly bool) []any {
 			list = append(list, nil)
 			continue
 		}
-		if strings.HasPrefix(item, "\"") {
-			var unquoted string
-			if _, err := fmt.Sscanf("%q", item, &unquoted); err == nil {
+		if strings.HasPrefix(trimmedItem, "\"") {
+			if unquoted, err := strconv.Unquote(trimmedItem); err == nil {
 				list = append(list, unquoted)
 				continue
 			}
