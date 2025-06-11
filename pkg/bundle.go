@@ -128,7 +128,7 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 }
 
 func refRelativeToBasePath(ref *url.URL, basePathForIDs string) *url.URL {
-	refFile, err := ParseRefFileURL(ref)
+	refFile, err := ParseRefFileURLAllowAbs(ref)
 	pathFromSlash := filepath.FromSlash(refFile.Path)
 	if err != nil || refFile.Path == "" || !filepath.IsAbs(pathFromSlash) {
 		return ref
