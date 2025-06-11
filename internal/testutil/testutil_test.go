@@ -15,7 +15,7 @@ func TestMakeGetwdFail(t *testing.T) {
 	MakeGetwdFail(t)
 
 	_, err = os.Getwd()
-	require.ErrorContains(t, err, "getwd: no such file or directory")
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestCreateTempFile(t *testing.T) {

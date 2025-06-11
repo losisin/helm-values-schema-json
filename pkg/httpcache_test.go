@@ -39,23 +39,24 @@ func TestHTTPCache_CacheDir_Error(t *testing.T) {
 
 func TestLoadCache(t *testing.T) {
 	tests := []struct {
-		name    string
-		url     string
-		setup   func(t *testing.T, dir string)
-		want    CachedResponse
-		wantErr string
+		name      string
+		url       string
+		setup     func(t *testing.T, dir string)
+		want      CachedResponse
+		wantErr   string
+		wantErrIs error
 	}{
 		{
-			name:    "empty url",
-			url:     "",
-			setup:   func(t *testing.T, dir string) {},
-			wantErr: "no such file or directory",
+			name:      "empty url",
+			url:       "",
+			setup:     func(t *testing.T, dir string) {},
+			wantErrIs: os.ErrNotExist,
 		},
 		{
-			name:    "file not found",
-			url:     "http://example.com/file.txt",
-			setup:   func(t *testing.T, dir string) {},
-			wantErr: "no such file or directory",
+			name:      "file not found",
+			url:       "http://example.com/file.txt",
+			setup:     func(t *testing.T, dir string) {},
+			wantErrIs: os.ErrNotExist,
 		},
 		{
 			name: "dir",
@@ -149,10 +150,13 @@ func TestLoadCache(t *testing.T) {
 			tt.setup(t, dir)
 
 			cached, err := cache.LoadCache(req)
-			if tt.wantErr == "" {
-				require.NoError(t, err)
-			} else {
+			switch {
+			case tt.wantErrIs != nil:
+				require.ErrorIs(t, err, tt.wantErrIs)
+			case tt.wantErr != "":
 				assert.ErrorContains(t, err, tt.wantErr)
+			default:
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.want, cached)
 		})

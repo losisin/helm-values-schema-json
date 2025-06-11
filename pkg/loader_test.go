@@ -61,6 +61,7 @@ func TestFileLoader_Error(t *testing.T) {
 		url        *url.URL
 		fsRootPath string
 		wantErr    string
+		wantErrIs  error
 	}{
 		{
 			name:    "invalid scheme",
@@ -78,9 +79,9 @@ func TestFileLoader_Error(t *testing.T) {
 			wantErr: "path escapes from parent",
 		},
 		{
-			name:    "path not found",
-			url:     mustParseURL("./local/file/that/does/not/exist"),
-			wantErr: "no such file or directory",
+			name:      "path not found",
+			url:       mustParseURL("./local/file/that/does/not/exist"),
+			wantErrIs: os.ErrNotExist,
 		},
 		{
 			name:    "invalid JSON",
@@ -111,7 +112,12 @@ func TestFileLoader_Error(t *testing.T) {
 			loader := NewFileLoader((*RootFS)(root), tt.fsRootPath)
 			ctx := ContextWithLogger(t.Context(), t)
 			_, err := loader.Load(ctx, tt.url)
-			assert.ErrorContains(t, err, tt.wantErr)
+
+			if tt.wantErrIs != nil {
+				assert.ErrorIs(t, err, tt.wantErrIs)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
 		})
 	}
 }
