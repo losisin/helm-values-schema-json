@@ -1,7 +1,12 @@
 SHELL := /usr/bin/env bash
 
+ifeq ($(OS),Windows_NT)
+BINNAME := schema.exe
+else
 BINNAME := schema
-PLUGIN_SHORTNAME := json-schema
+endif
+
+PLUGIN_SHORTNAME := schema
 
 BUILD_DATE := $(shell date -u '+%Y-%m-%d %I:%M:%S UTC' 2> /dev/null)
 GIT_HASH := $(shell git rev-parse HEAD 2> /dev/null)
