@@ -88,8 +88,11 @@ type PerGOOS struct {
 	Darwin  string
 }
 
+// Variable is only used to fake which GOOS is set
+var goosOverrideForTests string
+
 func (err PerGOOS) String() string {
-	switch runtime.GOOS {
+	switch cmp.Or(goosOverrideForTests, runtime.GOOS) {
 	case "windows":
 		return cmp.Or(err.Windows, err.Default)
 	case "darwin":

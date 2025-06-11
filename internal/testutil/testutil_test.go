@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -71,4 +72,35 @@ func TestResetEnvAfterTest(t *testing.T) {
 		require.Equal(t, "inner", os.Getenv("foo"))
 	})
 	require.Equal(t, "bar", os.Getenv("foo"))
+}
+
+func TestPerGOOS(t *testing.T) {
+	tests := []struct {
+		name string
+		goos string
+		per  PerGOOS
+		want string
+	}{
+		{name: "empty", goos: "", per: PerGOOS{}, want: ""},
+
+		{name: "linux uses default", goos: "linux", per: PerGOOS{Default: "default value"}, want: "linux value"},
+		{name: "linux ignores windows", goos: "linux", per: PerGOOS{Default: "default value", Windows: "windows value"}, want: "default value"},
+		{name: "linux ignores darwin", goos: "linux", per: PerGOOS{Default: "default value", Darwin: "darwin value"}, want: "linux value"},
+
+		{name: "darwin uses default", goos: "darwin", per: PerGOOS{Default: "default value"}, want: "default value"},
+		{name: "darwin ignores windows", goos: "darwin", per: PerGOOS{Default: "default value", Windows: "windows value"}, want: "default value"},
+		{name: "darwin uses darwin", goos: "darwin", per: PerGOOS{Default: "default value", Darwin: "darwin value"}, want: "darwin value"},
+
+		{name: "windows uses default", goos: "windows", per: PerGOOS{Default: "default value"}, want: "default value"},
+		{name: "windows uses windows", goos: "windows", per: PerGOOS{Default: "default value", Windows: "windows value"}, want: "windows value"},
+		{name: "windows ignores darwin", goos: "windows", per: PerGOOS{Default: "default value", Darwin: "darwin value"}, want: "default value"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			goosOverrideForTests = tt.goos
+			defer func() { goosOverrideForTests = "" }()
+			assert.Equal(t, tt.want, tt.per.String())
+		})
+	}
 }
