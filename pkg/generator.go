@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,7 +40,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
-		filePathAbs, err := filepath.Abs(filePath)
+		filePathAbs, err := filepath.Abs(filepath.FromSlash(filePath))
 		if err != nil {
 			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
 		}
@@ -48,6 +49,10 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 		if err != nil {
 			return errors.New("error reading YAML file(s)")
 		}
+
+		// Change Window's CRLF to LF line endings
+		// as the YAML parser incorrectly includes them in comments otherwise
+		content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
 
 		var node yaml.Node
 		if err := yaml.Unmarshal(content, &node); err != nil {
@@ -128,7 +133,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
-	return WriteOutput(ctx, mergedSchema, config.Output, indentString)
+	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
 }
 
 func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent string) error {
