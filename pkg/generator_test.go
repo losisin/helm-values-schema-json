@@ -415,7 +415,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Draft:  2020,
 				Indent: 4,
 			},
-			expectedErr: errors.New("error writing schema to file"),
+			expectedErr: errors.New("write output schema:"),
 		},
 		{
 			name: "bundle invalid root path",
@@ -429,7 +429,10 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/bundle_output.json",
 			},
-			expectedErr: errors.New("bundle root \x00: open " + cwd + "/\x00: invalid argument"),
+			expectedErr: errors.New(testutil.PerGOOS{
+				Default: "bundle root \x00: open " + cwd + "/\x00: invalid argument",
+				Windows: "bundle root \x00: get absolute path: invalid argument",
+			}.String()),
 		},
 		{
 			name: "bundle wrong root path",
@@ -540,7 +543,8 @@ func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 		Draft:  2020,
 		Indent: 4,
 	})
-	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path: getwd: no such file or directory")
+	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path")
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
@@ -555,7 +559,8 @@ func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
 		Indent: 4,
 		Bundle: true,
 	})
-	require.ErrorContains(t, err, "output foo.json: get absolute path: getwd: no such file or directory")
+	require.ErrorContains(t, err, "output foo.json: get absolute path: ")
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
@@ -571,7 +576,8 @@ func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
 		Bundle:     true,
 		BundleRoot: "foo",
 	})
-	require.ErrorContains(t, err, "bundle root foo: get absolute path: getwd: no such file or directory")
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: ")
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {

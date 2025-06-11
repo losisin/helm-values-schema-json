@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -33,6 +34,7 @@ func TestBundleWithLoader_RemoveIDsError(t *testing.T) {
 
 func TestRefRelativeToBasePath(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name           string
 		ref            *url.URL
@@ -40,34 +42,61 @@ func TestRefRelativeToBasePath(t *testing.T) {
 		want           *url.URL
 	}{
 		{
-			name:           "ignore http",
-			ref:            mustParseURL("http://example.com"),
-			basePathForIDs: "/home/user",
-			want:           mustParseURL("http://example.com"),
+			name: "ignore http",
+			ref:  mustParseURL("http://example.com"),
+			basePathForIDs: testutil.PerGOOS{
+				Default: `/home/user`,
+				Windows: `C:\User`,
+			}.String(),
+			want: mustParseURL("http://example.com"),
 		},
 		{
-			name:           "ignore already relative",
-			ref:            mustParseURL("foo/bar"),
-			basePathForIDs: "/home/user",
-			want:           mustParseURL("foo/bar"),
+			name: "ignore already relative",
+			ref:  mustParseURL("foo/bar"),
+			basePathForIDs: testutil.PerGOOS{
+				Default: `/home/user`,
+				Windows: `C:\User`,
+			}.String(),
+			want: mustParseURL("foo/bar"),
 		},
 		{
-			name:           "ignore when cant make relative path",
-			ref:            mustParseURL("/foo/bar"),
-			basePathForIDs: "home/user",
-			want:           mustParseURL("/foo/bar"),
+			name: "ignore when cant make relative path",
+			ref: mustParseURL(testutil.PerGOOS{
+				Default: `/foo/bar`,
+				Windows: `file://C:/User`,
+			}.String()),
+			basePathForIDs: testutil.PerGOOS{
+				Default: `home/user`,
+				Windows: `User`,
+			}.String(),
+			want: mustParseURL(testutil.PerGOOS{
+				Default: `/foo/bar`,
+				Windows: `file://C:/User`,
+			}.String()),
 		},
 		{
-			name:           "change to subdir",
-			ref:            mustParseURL("/home/user/foo/bar"),
-			basePathForIDs: "/home/user",
-			want:           mustParseURL("foo/bar"),
+			name: "change to subdir",
+			ref: mustParseURL(testutil.PerGOOS{
+				Default: `/home/user/foo/bar`,
+				Windows: `file://C:/User/foo/bar`,
+			}.String()),
+			basePathForIDs: testutil.PerGOOS{
+				Default: `/home/user`,
+				Windows: `C:\User`,
+			}.String(),
+			want: mustParseURL(`foo/bar`),
 		},
 		{
-			name:           "change to parent dir",
-			ref:            mustParseURL("/home/foo"),
-			basePathForIDs: "/home/user",
-			want:           mustParseURL("../foo"),
+			name: "change to parent dir",
+			ref: mustParseURL(testutil.PerGOOS{
+				Default: `/home/foo`,
+				Windows: `file://C:/foo`,
+			}.String()),
+			basePathForIDs: testutil.PerGOOS{
+				Default: `/home/user`,
+				Windows: `C:\User`,
+			}.String(),
+			want: mustParseURL("../foo"),
 		},
 	}
 
