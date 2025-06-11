@@ -17,9 +17,6 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-//go:generate go tool msgp
-//msgp:ignore DummyHTTPCache HTTPFileCache HTTPMemoryCache
-
 type HTTPCache interface {
 	LoadCache(req *http.Request) (CachedResponse, error)
 	SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error)

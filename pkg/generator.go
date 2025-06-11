@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 )
 
 // Generate JSON schema
-func GenerateJsonSchema(config *Config) error {
+func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	// Check if the values flag is set
 	if len(config.Values) == 0 {
 		return errors.New("values flag is required")
@@ -109,7 +110,7 @@ func GenerateJsonSchema(config *Config) error {
 	}
 
 	if config.Bundle {
-		if err := Bundle(mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
+		if err := Bundle(ctx, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
 			return err
 		}
 	}
@@ -127,10 +128,12 @@ func GenerateJsonSchema(config *Config) error {
 		mergedSchema.AdditionalProperties = &SchemaFalse
 	}
 
-	return WriteOutput(mergedSchema, config.Output, indentString)
+	return WriteOutput(ctx, mergedSchema, config.Output, indentString)
 }
 
-func WriteOutput(mergedSchema *Schema, outputPath, indent string) error {
+func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent string) error {
+	logger := LoggerFromContext(ctx)
+
 	// If validation is successful, marshal the schema and save to the file
 	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indent)
 	if err != nil {
@@ -143,6 +146,6 @@ func WriteOutput(mergedSchema *Schema, outputPath, indent string) error {
 		return errors.New("error writing schema to file")
 	}
 
-	fmt.Println("JSON schema successfully generated")
+	logger.Log("JSON schema successfully generated")
 	return nil
 }

@@ -123,7 +123,9 @@ func NewFileLoader(fs fs.FS, fsRootPath string) FileLoader {
 var _ Loader = FileLoader{}
 
 // Load implements [Loader].
-func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) {
+func (loader FileLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
+	logger := LoggerFromContext(ctx)
+
 	if ref.Scheme != "file" && ref.Scheme != "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must start with "file://", "./", or "/"`, ref)
 	}
@@ -141,7 +143,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		path = rel
 	}
 
-	fmt.Println("Loading file", path)
+	logger.Log("Loading file", path)
 	f, err := loader.fs.Open(path)
 	if err != nil {
 		return nil, err
@@ -152,7 +154,7 @@ func (loader FileLoader) Load(_ context.Context, ref *url.URL) (*Schema, error) 
 		return nil, err
 	}
 
-	fmt.Printf("=> got %s\n", formatSizeBytes(len(b)))
+	logger.Logf("=> got %s", formatSizeBytes(len(b)))
 
 	var schema Schema
 	switch filepath.Ext(path) {
@@ -244,6 +246,7 @@ var failHTTPLoaderNewRequest bool
 
 // Load implements [Loader].
 func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
+	logger := LoggerFromContext(ctx)
 	// Hardcoding a higher limit so CI/CD pipelines don't get stuck
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -260,14 +263,14 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	fmt.Println("Loading", req.URL.Redacted())
+	logger.Log("Loading", req.URL.Redacted())
 
 	cached, cachedSchema, err := loader.LoadCache(req)
 	if err != nil {
-		fmt.Println("Error loading from cache:", err)
+		logger.Log("Error loading from cache:", err)
 	} else if cachedSchema != nil {
 		duration := time.Since(start)
-		fmt.Printf("=> got %s from cache in %s (expires in %s)\n",
+		logger.Logf("=> got %s from cache in %s (expires in %s)",
 			formatSizeBytes(len(cached.Data)),
 			duration.Truncate(time.Millisecond),
 			time.Until(cached.Expiry()).Truncate(time.Second))
@@ -301,13 +304,13 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 		cached, schema, err := loader.SaveCacheETag(req, resp, cached)
 		if err == nil {
 			duration := time.Since(start)
-			fmt.Printf("=> renewed cache of %s in %s (expires in %s)\n",
+			logger.Logf("=> renewed cache of %s in %s (expires in %s)",
 				formatSizeBytes(len(cached.Data)),
 				duration.Truncate(time.Millisecond),
 				cached.MaxAge.Truncate(time.Second))
 			return schema, nil
 		}
-		fmt.Println("Error using etag cache:", err)
+		logger.Log("Error using etag cache:", err)
 		// Redo the request, but without the etag this time
 		req.Header.Del("If-None-Match")
 		newResp, err := loader.client.Do(req)
@@ -360,17 +363,17 @@ func (loader HTTPLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 
 	cached, err = loader.SaveCache(req, resp, b)
 	if err != nil {
-		fmt.Println("Error saving response cache:", err)
+		logger.Log("Error saving response cache:", err)
 	}
 
 	duration := time.Since(start)
 	if cached.MaxAge > 0 {
-		fmt.Printf("=> cached %s in %s (expires in %s)\n",
+		logger.Logf("=> cached %s in %s (expires in %s)",
 			formatSizeBytes(len(b)),
 			duration.Truncate(time.Millisecond),
 			cached.MaxAge.Truncate(time.Second))
 	} else {
-		fmt.Printf("=> got %s in %s\n",
+		logger.Logf("=> got %s in %s",
 			formatSizeBytes(len(b)),
 			duration.Truncate(time.Millisecond))
 	}

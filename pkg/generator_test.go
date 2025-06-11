@@ -323,7 +323,8 @@ func TestGenerateJsonSchema(t *testing.T) {
 			require.NoError(t, err)
 			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
 
-			err = GenerateJsonSchema(tt.config)
+			ctx := ContextWithLogger(t.Context(), t)
+			err = GenerateJsonSchema(ctx, tt.config)
 			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
 
 			generatedBytes, err := os.ReadFile(tt.config.Output)
@@ -515,7 +516,8 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			err := GenerateJsonSchema(tt.config)
+			ctx := ContextWithLogger(t.Context(), t)
+			err := GenerateJsonSchema(ctx, tt.config)
 			assert.Error(t, err)
 			if err != nil {
 				assert.Contains(t, err.Error(), tt.expectedErr.Error())
@@ -532,7 +534,8 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 	testutil.MakeGetwdFail(t)
 
-	err := GenerateJsonSchema(&Config{
+	ctx := ContextWithLogger(t.Context(), t)
+	err := GenerateJsonSchema(ctx, &Config{
 		Values: []string{"foo/bar.yaml"},
 		Draft:  2020,
 		Indent: 4,
@@ -544,7 +547,8 @@ func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
 	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
 	testutil.MakeGetwdFail(t)
 
-	err := GenerateJsonSchema(&Config{
+	ctx := ContextWithLogger(t.Context(), t)
+	err := GenerateJsonSchema(ctx, &Config{
 		Values: []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
 		Output: "foo.json",
 		Draft:  2020,
@@ -558,7 +562,8 @@ func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
 	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
 	testutil.MakeGetwdFail(t)
 
-	err := GenerateJsonSchema(&Config{
+	ctx := ContextWithLogger(t.Context(), t)
+	err := GenerateJsonSchema(ctx, &Config{
 		Values:     []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
 		Output:     "/tmp/foo.json",        // unaffected by failing [os.Getwd] because it is an absolute path
 		Draft:      2020,
@@ -621,7 +626,8 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 				},
 			}
 
-			err := GenerateJsonSchema(config)
+			ctx := ContextWithLogger(t.Context(), t)
+			err := GenerateJsonSchema(ctx, config)
 			assert.NoError(t, err)
 
 			generatedBytes, err := os.ReadFile(config.Output)
@@ -648,6 +654,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 func TestWriteOutput_JSONError(t *testing.T) {
 	schema := &Schema{Type: func() {}}
 
-	err := WriteOutput(schema, os.DevNull, "  ")
+	ctx := ContextWithLogger(t.Context(), t)
+	err := WriteOutput(ctx, schema, os.DevNull, "  ")
 	require.ErrorContains(t, err, "unsupported type: func()")
 }
