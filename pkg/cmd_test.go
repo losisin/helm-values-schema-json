@@ -14,19 +14,20 @@ import (
 
 func TestExecute(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
-		wantOut string
+		name      string
+		args      []string
+		wantErr   string
+		wantErrIs error
+		wantOut   string
 	}{
 		{
 			name: "success",
-			args: []string{"--values=../testdata/basic.yaml", "--output=/dev/null"},
+			args: []string{"--values=../testdata/basic.yaml", "--output=" + os.DevNull},
 		},
 		{
-			name:    "fail reading config",
-			args:    []string{"--config=nonexisting.yaml"},
-			wantErr: "open nonexisting.yaml: no such file or directory",
+			name:      "fail reading config",
+			args:      []string{"--config=nonexisting.yaml"},
+			wantErrIs: os.ErrNotExist,
 		},
 		{
 			name:    "fail execution",
@@ -54,9 +55,12 @@ func TestExecute(t *testing.T) {
 			cmd.SetErr(&buf)
 			cmd.SetArgs(tt.args)
 			err := cmd.Execute()
-			if tt.wantErr != "" {
+			switch {
+			case tt.wantErrIs != nil:
+				assert.ErrorIs(t, err, tt.wantErrIs)
+			case tt.wantErr != "":
 				assert.ErrorContains(t, err, tt.wantErr)
-			} else {
+			default:
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, tt.wantOut, buf.String())
@@ -321,9 +325,10 @@ schemaRoot:
 
 func TestLoadConfig_Error(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  string
-		wantErr string
+		name      string
+		config    string
+		wantErr   string
+		wantErrIs error
 	}{
 		{
 			name: "invalid syntax",
@@ -339,9 +344,9 @@ values:
 			wantErr: "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `invalid` into int",
 		},
 		{
-			name:    "missing file",
-			config:  "",
-			wantErr: "no such file or directory",
+			name:      "missing file",
+			config:    "",
+			wantErrIs: os.ErrNotExist,
 		},
 	}
 
@@ -357,7 +362,11 @@ values:
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFilePath}))
 			conf, err := LoadConfig(cmd)
 
-			require.ErrorContains(t, err, tt.wantErr)
+			if tt.wantErrIs != nil {
+				require.ErrorIs(t, err, tt.wantErrIs)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
 			assert.Nil(t, conf)
 		})
 	}
@@ -402,7 +411,7 @@ func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
 	_, err := LoadConfig(cmd)
-	assert.ErrorContains(t, err, "resolve current working directory: getwd: no such file or directory")
+	assert.ErrorContains(t, err, "resolve current working directory: ")
 }
 
 func TestMergeConfig(t *testing.T) {

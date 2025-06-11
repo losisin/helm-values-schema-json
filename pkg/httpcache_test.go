@@ -24,7 +24,7 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 	cache := NewHTTPCache()
 
 	dir := cache.cacheDirFunc()
-	assert.Equal(t, "/foo/bar/.cache/helm-values-schema-json/httploader", dir)
+	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
 }
 
 func TestHTTPCache_CacheDir_Error(t *testing.T) {
@@ -34,28 +34,29 @@ func TestHTTPCache_CacheDir_Error(t *testing.T) {
 
 	cache := NewHTTPCache()
 	dir := cache.cacheDirFunc()
-	assert.Equal(t, "/tmp/helm-values-schema-json/httploader", dir)
+	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
 }
 
 func TestLoadCache(t *testing.T) {
 	tests := []struct {
-		name    string
-		url     string
-		setup   func(t *testing.T, dir string)
-		want    CachedResponse
-		wantErr string
+		name      string
+		url       string
+		setup     func(t *testing.T, dir string)
+		want      CachedResponse
+		wantErr   string
+		wantErrIs error
 	}{
 		{
-			name:    "empty url",
-			url:     "",
-			setup:   func(t *testing.T, dir string) {},
-			wantErr: "no such file or directory",
+			name:      "empty url",
+			url:       "",
+			setup:     func(t *testing.T, dir string) {},
+			wantErrIs: os.ErrNotExist,
 		},
 		{
-			name:    "file not found",
-			url:     "http://example.com/file.txt",
-			setup:   func(t *testing.T, dir string) {},
-			wantErr: "no such file or directory",
+			name:      "file not found",
+			url:       "http://example.com/file.txt",
+			setup:     func(t *testing.T, dir string) {},
+			wantErrIs: os.ErrNotExist,
 		},
 		{
 			name: "dir",
@@ -63,7 +64,10 @@ func TestLoadCache(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.cbor.gz"), 0755))
 			},
-			wantErr: "file.txt.cbor.gz: is a directory",
+			wantErr: testutil.PerGOOS{
+				Default: "file.txt.cbor.gz: is a directory",
+				Windows: "file.txt.cbor.gz: Incorrect function.",
+			}.String(),
 		},
 		{
 			name: "invalid gzip",
@@ -149,10 +153,13 @@ func TestLoadCache(t *testing.T) {
 			tt.setup(t, dir)
 
 			cached, err := cache.LoadCache(req)
-			if tt.wantErr == "" {
-				require.NoError(t, err)
-			} else {
+			switch {
+			case tt.wantErrIs != nil:
+				require.ErrorIs(t, err, tt.wantErrIs)
+			case tt.wantErr != "":
 				assert.ErrorContains(t, err, tt.wantErr)
+			default:
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.want, cached)
 		})
@@ -430,8 +437,10 @@ func TestURLToCachePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := urlToCachePath(tt.url)
-			if tt.want != got {
-				t.Errorf("wrong result\nurl:  %q\nwant: %q\ngot:  %q", tt.url, tt.want, got)
+
+			want := filepath.FromSlash(tt.want)
+			if want != got {
+				t.Errorf("wrong result\nurl:  %q\nwant: %q\ngot:  %q", tt.url, want, got)
 			}
 		})
 	}
