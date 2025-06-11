@@ -24,7 +24,7 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 	cache := NewHTTPCache()
 
 	dir := cache.cacheDirFunc()
-	require.Contains(t, dir, "/helm-values-schema-json/httploader")
+	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
 }
 
 func TestHTTPCache_CacheDir_Error(t *testing.T) {
@@ -34,7 +34,7 @@ func TestHTTPCache_CacheDir_Error(t *testing.T) {
 
 	cache := NewHTTPCache()
 	dir := cache.cacheDirFunc()
-	assert.Equal(t, "/tmp/helm-values-schema-json/httploader", dir)
+	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
 }
 
 func TestLoadCache(t *testing.T) {
@@ -64,7 +64,10 @@ func TestLoadCache(t *testing.T) {
 			setup: func(t *testing.T, dir string) {
 				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.cbor.gz"), 0755))
 			},
-			wantErr: "file.txt.cbor.gz: is a directory",
+			wantErr: testutil.PerGOOS{
+				Default: "file.txt.cbor.gz: is a directory",
+				Windows: "file.txt.cbor.gz: Incorrect function.",
+			}.String(),
 		},
 		{
 			name: "invalid gzip",
@@ -365,80 +368,77 @@ func TestURLToCachePath(t *testing.T) {
 	urlWithInvalidPath.Path = "\x00"
 
 	tests := []struct {
-		name      string
-		url       *url.URL
-		wantParts []string
+		name string
+		url  *url.URL
+		want string
 	}{
 		{
-			name:      "nil",
-			url:       nil,
-			wantParts: nil,
+			name: "nil",
+			url:  nil,
+			want: "",
 		},
 		{
-			name:      "with invalid path characters",
-			url:       urlWithInvalidPath,
-			wantParts: []string{"https", "example.com", "AA"},
+			name: "with invalid path characters",
+			url:  urlWithInvalidPath,
+			want: "https/example.com/AA",
 		},
 		{
-			name:      "no scheme",
-			url:       mustParseURL("//example.com"),
-			wantParts: []string{"no-scheme", "example.com", "_index"},
+			name: "no scheme",
+			url:  mustParseURL("//example.com"),
+			want: "no-scheme/example.com/_index",
 		},
 		{
-			name:      "port",
-			url:       mustParseURL("https://example.com:80"),
-			wantParts: []string{"https", "example.com", "80", "_index"},
+			name: "port",
+			url:  mustParseURL("https://example.com:80"),
+			want: "https/example.com/80/_index",
 		},
 		{
-			name:      "example.com no path",
-			url:       mustParseURL("https://example.com/"),
-			wantParts: []string{"https", "example.com", "_index"},
+			name: "example.com no path",
+			url:  mustParseURL("https://example.com/"),
+			want: "https/example.com/_index",
 		},
 		{
-			name:      "example.com with path",
-			url:       mustParseURL("https://example.com/index.html"),
-			wantParts: []string{"https", "example.com", "index.html"},
+			name: "example.com with path",
+			url:  mustParseURL("https://example.com/index.html"),
+			want: "https/example.com/index.html",
 		},
 		{
-			name:      "remove userinfo",
-			url:       mustParseURL("https://foo:bar@example.com/index.html"),
-			wantParts: []string{"https", "example.com", "index.html"},
+			name: "remove userinfo",
+			url:  mustParseURL("https://foo:bar@example.com/index.html"),
+			want: "https/example.com/index.html",
 		},
 		{
-			name:      "remove fragment",
-			url:       mustParseURL("https://example.com/index.html#foobar"),
-			wantParts: []string{"https", "example.com", "index.html"},
+			name: "remove fragment",
+			url:  mustParseURL("https://example.com/index.html#foobar"),
+			want: "https/example.com/index.html",
 		},
 		{
-			name:      "remove query",
-			url:       mustParseURL("https://example.com/index.html?foo=bar"),
-			wantParts: []string{"https", "example.com", "index.html"},
+			name: "remove query",
+			url:  mustParseURL("https://example.com/index.html?foo=bar"),
+			want: "https/example.com/index.html",
 		},
 		{
-			name:      "multiple slashes",
-			url:       mustParseURL("https://example.com//subdir///index.html"),
-			wantParts: []string{"https", "example.com", "subdir", "index.html"},
+			name: "multiple slashes",
+			url:  mustParseURL("https://example.com//subdir///index.html"),
+			want: "https/example.com/subdir/index.html",
 		},
 		{
-			name:      "dots",
-			url:       mustParseURL("https://example.com/."),
-			wantParts: []string{"https", "example.com", "_dot"},
+			name: "dots",
+			url:  mustParseURL("https://example.com/."),
+			want: "https/example.com/_dot",
 		},
 		{
-			name:      "folder escape",
-			url:       mustParseURL("https://example.com/../../foo/../../index.html"),
-			wantParts: []string{"https", "example.com", "_up", "_up", "foo", "_up", "_up", "index.html"},
+			name: "folder escape",
+			url:  mustParseURL("https://example.com/../../foo/../../index.html"),
+			want: "https/example.com/_up/_up/foo/_up/_up/index.html",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := urlToCachePath(tt.url)
-			var want string
-			if tt.wantParts != nil {
-				want = filepath.Join(tt.wantParts...)
-			}
 
+			want := filepath.FromSlash(tt.want)
 			if want != got {
 				t.Errorf("wrong result\nurl:  %q\nwant: %q\ngot:  %q", tt.url, want, got)
 			}

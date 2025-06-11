@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"cmp"
 	"io"
 	"os"
 	"runtime"
@@ -77,4 +78,23 @@ func ResetEnvAfterTest(t *testing.T) {
 			assert.NoError(t, os.Setenv(k, v))
 		}
 	})
+}
+
+// PerGOOS contains various strings used depending on which OS is running the test.
+type PerGOOS struct {
+	Default string
+
+	Windows string
+	Darwin  string
+}
+
+func (err PerGOOS) String() string {
+	switch runtime.GOOS {
+	case "windows":
+		return cmp.Or(err.Windows, err.Default)
+	case "darwin":
+		return cmp.Or(err.Darwin, err.Default)
+	default:
+		return err.Default
+	}
 }
