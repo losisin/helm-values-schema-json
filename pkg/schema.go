@@ -528,6 +528,17 @@ func ParseRefFile(ref string) (RefFile, error) {
 }
 
 func ParseRefFileURL(u *url.URL) (RefFile, error) {
+	refFile, err := ParseRefFileURLAllowAbs(u)
+
+	if strings.HasPrefix(refFile.Path, "/") {
+		// Treat "/foo" & "file:///" as invalid
+		return RefFile{}, fmt.Errorf("absolute paths not supported")
+	}
+
+	return refFile, err
+}
+
+func ParseRefFileURLAllowAbs(u *url.URL) (RefFile, error) {
 	switch {
 	case u.Scheme != "" && u.Scheme != "file":
 		return RefFile{}, nil
@@ -540,11 +551,6 @@ func ParseRefFileURL(u *url.URL) (RefFile, error) {
 
 	case u.Scheme == "file" && u.Host == "" && u.Path == "":
 		return RefFile{}, fmt.Errorf("unexpected empty file://")
-
-	case u.Scheme == "" && strings.HasPrefix(u.Path, "/"),
-		u.Scheme == "file" && u.Host == "" && u.Path != "":
-		// Treat "/foo" & "file:///" as invalid
-		return RefFile{}, fmt.Errorf("absolute paths not supported")
 	}
 
 	clone := *u

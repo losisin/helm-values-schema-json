@@ -129,7 +129,7 @@ func (loader FileLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 	if ref.Scheme != "file" && ref.Scheme != "" {
 		return nil, fmt.Errorf(`file url in $ref=%q must start with "file://", "./", or "/"`, ref)
 	}
-	refFile, err := ParseRefFileURL(ref)
+	refFile, err := ParseRefFileURLAllowAbs(ref)
 	if err != nil {
 		return nil, fmt.Errorf("parse file url: %w", err)
 	}
