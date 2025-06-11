@@ -193,8 +193,8 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		if !schemaClone.IsZero() {
 			*schema = Schema{
 				AllOf: []*Schema{
-					{Ref: schema.Ref},
 					&schemaClone,
+					{Ref: schema.Ref},
 				},
 			}
 		}
