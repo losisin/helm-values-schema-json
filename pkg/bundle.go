@@ -20,12 +20,12 @@ import (
 // The paths, outputDir & bundleRoot, are only used to change absolute paths
 // into relative paths in a solely cosmetic way.
 func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
-	absOutputDir, err := filepath.Abs(filepath.Dir(outputDir))
+	absOutputDir, err := filepath.Abs(filepath.Dir(filepath.FromSlash(outputDir)))
 	if err != nil {
 		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
 	}
 
-	bundleRootAbs, err := filepath.Abs(cmp.Or(bundleRoot, "."))
+	bundleRootAbs, err := filepath.Abs(cmp.Or(filepath.FromSlash(bundleRoot), "."))
 	if err != nil {
 		return fmt.Errorf("bundle root %s: get absolute path: %w", bundleRoot, err)
 	}
@@ -128,10 +128,12 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 }
 
 func refRelativeToBasePath(ref *url.URL, basePathForIDs string) *url.URL {
-	if ref.Scheme != "" || ref.Path == "" || !path.IsAbs(ref.Path) {
+	refFile, err := ParseRefFileURLAllowAbs(ref)
+	pathFromSlash := filepath.FromSlash(refFile.Path)
+	if err != nil || refFile.Path == "" || !filepath.IsAbs(pathFromSlash) {
 		return ref
 	}
-	rel, err := filepath.Rel(basePathForIDs, ref.Path)
+	rel, err := filepath.Rel(basePathForIDs, pathFromSlash)
 	if err != nil {
 		return ref
 	}

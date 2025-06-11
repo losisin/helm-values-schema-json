@@ -3,7 +3,15 @@ version: "2.0.0"
 usage: "generate values.schema.json from values yaml"
 description: "Helm plugin for generating values.schema.json from multiple values files."
 ignoreFlags: false
-command: "$HELM_PLUGIN_DIR/schema"
+platformCommand:
+  - os: linux
+    command: $HELM_PLUGIN_DIR/schema
+  - os: darwin
+    command: $HELM_PLUGIN_DIR/schema
+  - os: windows
+    command: >-
+      cmd /c $HELM_PLUGIN_DIR\schema.exe
+
 hooks:
   install: "cd $HELM_PLUGIN_DIR; ./scripts/install.sh"
   update: "cd $HELM_PLUGIN_DIR; HELM_PLUGIN_UPDATE=1 ./scripts/install.sh"

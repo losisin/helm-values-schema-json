@@ -1,6 +1,7 @@
 package yamlfile
 
 import (
+	"os"
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
@@ -26,7 +27,7 @@ func TestRead_FileNotFound(t *testing.T) {
 	var cfg struct{}
 	p := Provider(cfg, "non-existing-file.yaml", "mytag")
 	_, err := p.Read()
-	assert.ErrorContains(t, err, "no such file or directory")
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestRead_YAMLError(t *testing.T) {
