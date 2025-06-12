@@ -490,10 +490,10 @@ image:
 
 ### patternProperties
 
-JSON string added "AS IS" to the node. [section 10.3.2.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.2)
+YAML object added "AS IS" to the node. [section 10.3.2.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.2)
 
 ```yaml
-image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
+image: # @schema patternProperties: {"^[a-z]$": {type: string}}
   repository: "nginx"
 ```
 
@@ -515,7 +515,7 @@ image: # @schema patternProperties: {"^[a-z]$": {"type": "string"}}
 
 ### additionalProperties
 
-JSON Schema object or boolean. [section 10.3.2.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.3)
+YAML object of a Schema or boolean. [section 10.3.2.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.3.2.3)
 
 ```yaml
 image: # @schema additionalProperties: false
@@ -870,10 +870,10 @@ tag: "" # @schema examples: [v1.2.3, v1.2.3-beta1]
 
 ### default
 
-Any JSON value. [section 9.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.2)
+Any YAML value. [section 9.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.2)
 
 ```yaml
-tolerations: [] # @schema default: [{"key":"foo","operator":"Equal","value":"bar","effect":"NoSchedule"}]
+tolerations: [] # @schema default: [{key: foo, operator: Equal, value: bar, effect: NoSchedule}]
 ```
 
 ```json
@@ -924,11 +924,11 @@ Keywords for Applying Subschemas With Logic. Field `"type"` is dropped and you M
 
 ### allOf
 
-Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.1)
+Non-empty YAML array. Each item of the array MUST be a valid Schema. [section 10.2.1.1](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.1)
 
 ```yaml
 image:
-  digest: sha256:1234567890 # @schema allOf: [{"type": "string"}, {"minLength": 14}]
+  digest: sha256:1234567890 # @schema allOf: [{type: string}, {minLength: 14}]
 ```
 
 ```json
@@ -951,12 +951,12 @@ image:
 
 ### anyOf
 
-Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.2)
+Non-empty YAML array. Each item of the array MUST be a valid Schema. [section 10.2.1.2](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.2)
 
 ```yaml
 cluster:
   enabled: true
-  nodes: 3 # @schema anyOf: [{"type": "number", "multipleOf": 3}, {"type": "number", "multipleOf": 5}]
+  nodes: 3 # @schema anyOf: [{type: number, multipleOf: 3}, {type: number, multipleOf: 5}]
 ```
 
 ```json
@@ -984,12 +984,12 @@ cluster:
 
 ### oneOf
 
-Non-empty array. Each item of the array MUST be a valid JSON Schema. [section 10.2.1.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.3)
+Non-empty YAML array. Each item of the array MUST be a valid Schema. [section 10.2.1.3](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.3)
 
 ```yaml
 MY_SECRET:
   ref: "secret-reference-in-manager"
-  version: # @schema oneOf: [{"type": "string"}, {"type": "number"}]
+  version: # @schema oneOf: [{type: string}, {type: number}]
 ```
 
 ```json
@@ -1015,11 +1015,11 @@ MY_SECRET:
 
 ### not
 
-A valid JSON Schema. [section 10.2.1.4](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.4)
+YAML object. MUST be a valid Schema. [section 10.2.1.4](https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-00#section-10.2.1.4)
 
 ```yaml
 image:
-  tag: latest # @schema not: {"type": "object"}
+  tag: latest # @schema not: {type: object}
 ```
 
 ```json
