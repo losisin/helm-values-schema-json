@@ -792,7 +792,7 @@ func TestProcessUint64PtrComment(t *testing.T) {
 				t.Run(startVal.name, func(t *testing.T) {
 					t.Logf("Comment: %q", tt.comment)
 
-					var got *uint64 = startVal.value
+					got := startVal.value
 					err := processUint64PtrComment(&got, tt.comment)
 					if tt.wantErr != "" {
 						require.ErrorContains(t, err, tt.wantErr)
