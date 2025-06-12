@@ -19,6 +19,19 @@ func TestMakeGetwdFail(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestMakeGetwdFail_skipped(t *testing.T) {
+	goosOverrideForTests = "darwin"
+	defer func() { goosOverrideForTests = "" }()
+
+	var skipped bool
+	t.Run("sub-test", func(t *testing.T) {
+		defer func() { skipped = t.Skipped() }()
+		MakeGetwdFail(t)
+	})
+
+	require.True(t, skipped)
+}
+
 func TestCreateTempFile(t *testing.T) {
 	var file *os.File
 	t.Run("sub-test", func(t *testing.T) {

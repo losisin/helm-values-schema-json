@@ -53,6 +53,29 @@ func TestSchemaKindIsBool(t *testing.T) {
 	}
 }
 
+func TestSchemaBool(t *testing.T) {
+	tests := []struct {
+		name  string
+		value bool
+	}{
+		{name: "true", value: true},
+		{name: "false", value: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema1 := SchemaBool(tt.value)
+			assert.Equal(t, true, schema1.Kind().IsBool(), "Schema.Kind().IsBool()")
+
+			schema2 := SchemaBool(tt.value)
+			// Must not be the same pointer.
+			// We want each call to return a newly allocated instance so
+			// we don't get weird bugs where the "SchemaTrue" value is modified.
+			assert.NotSame(t, schema1, schema2)
+		})
+	}
+}
+
 func TestSchemaIsZero(t *testing.T) {
 	var (
 		exampleUint64      = uint64(1)
@@ -73,6 +96,7 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "empty", schema: &Schema{}, want: true},
 		{name: "SkipProperties", schema: &Schema{SkipProperties: true}, want: true},
 		{name: "Hidden", schema: &Schema{Hidden: true}, want: true},
+		{name: "RequiredByParent", schema: &Schema{RequiredByParent: true}, want: true},
 
 		{name: "Kind", schema: &Schema{kind: SchemaKindTrue}},
 		{name: "Schema", schema: &Schema{Schema: exampleString}},
@@ -138,13 +162,13 @@ func TestSchemaJSONUnmarshal(t *testing.T) {
 		{
 			name:     "true",
 			json:     `true`,
-			want:     &SchemaTrue,
+			want:     SchemaTrue(),
 			wantKind: SchemaKindTrue,
 		},
 		{
 			name:     "false",
 			json:     `false`,
-			want:     &SchemaFalse,
+			want:     SchemaFalse(),
 			wantKind: SchemaKindFalse,
 		},
 		{
@@ -184,12 +208,12 @@ func TestSchemaJSONMarshal(t *testing.T) {
 		},
 		{
 			name:   "true",
-			schema: &SchemaTrue,
+			schema: SchemaTrue(),
 			want:   `{"schema": true}`,
 		},
 		{
 			name:   "false",
-			schema: &SchemaFalse,
+			schema: SchemaFalse(),
 			want:   `{"schema": false}`,
 		},
 		{
@@ -230,12 +254,12 @@ func TestSchemaYAMLUnmarshal(t *testing.T) {
 		{
 			name: "true",
 			yaml: ` true `,
-			want: &SchemaTrue,
+			want: SchemaTrue(),
 		},
 		{
 			name: "false",
 			yaml: ` false `,
-			want: &SchemaFalse,
+			want: SchemaFalse(),
 		},
 		{
 			name: "object",
@@ -296,12 +320,12 @@ func TestSchemaYAMLMarshal(t *testing.T) {
 		},
 		{
 			name:   "true",
-			schema: &SchemaTrue,
+			schema: SchemaTrue(),
 			want:   `schema: true`,
 		},
 		{
 			name:   "false",
-			schema: &SchemaFalse,
+			schema: SchemaFalse(),
 			want:   `schema: false`,
 		},
 		{
@@ -537,14 +561,14 @@ func TestGetSchemaURL(t *testing.T) {
 
 func TestParseNode(t *testing.T) {
 	tests := []struct {
-		name          string
-		keyNode       *yaml.Node
-		valNode       *yaml.Node
-		expectedType  string
-		expectedProps map[string]*Schema
-		expectedItems *Schema
-		expectedReq   []string
-		isRequired    bool
+		name                string
+		keyNode             *yaml.Node
+		valNode             *yaml.Node
+		expectedType        string
+		expectedProps       map[string]*Schema
+		expectedItems       *Schema
+		expectedReq         []string
+		expectedReqByParent bool
 	}{
 		{
 			name: "parse object node",
@@ -606,13 +630,13 @@ func TestParseNode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema, isRequired, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, false)
+			schema, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedType, schema.Type)
 			assert.Equal(t, tt.expectedProps, schema.Properties)
 			assert.Equal(t, tt.expectedItems, schema.Items)
 			assert.Equal(t, tt.expectedReq, schema.Required)
-			assert.Equal(t, tt.isRequired, isRequired)
+			assert.Equal(t, tt.expectedReqByParent, schema.RequiredByParent)
 		})
 	}
 }
@@ -625,6 +649,21 @@ func TestParseNode_Error(t *testing.T) {
 		useHelmDocs bool
 		wantErr     string
 	}{
+		{
+			name: "invalid comment",
+			valNode: &yaml.Node{
+				Kind: yaml.MappingNode,
+				Content: []*yaml.Node{
+					{
+						Kind: yaml.ScalarNode, Value: "key",
+						HeadComment: "# @schema hidden: foo",
+					},
+					{Kind: yaml.ScalarNode, Value: "value"},
+				},
+			},
+			useHelmDocs: true,
+			wantErr:     "/key: parse @schema comments: hidden: invalid boolean",
+		},
 		{
 			name: "helm-docs map",
 			valNode: &yaml.Node{
@@ -668,7 +707,7 @@ func TestParseNode_Error(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, tt.useHelmDocs)
+			_, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, tt.useHelmDocs)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

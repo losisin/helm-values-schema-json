@@ -1,7 +1,8 @@
 package pkg
 
 import (
-	"encoding/json"
+	"cmp"
+	"errors"
 	"fmt"
 	"iter"
 	"strconv"
@@ -142,70 +143,67 @@ func convertScalarsToString(slice []any) {
 	}
 }
 
-func processComment(schema *Schema, commentLines []string) (isRequired, isHidden bool) {
-	isRequired = false
-	isHidden = false
-
+func processComment(schema *Schema, commentLines []string) error {
 	for key, value := range splitCommentsByParts(commentLines) {
 		switch key {
 		case "enum":
 			schema.Enum = processList(value, false)
+		case "skipProperties":
+			if err := processBoolComment(&schema.SkipProperties, value); err != nil {
+				return fmt.Errorf("skipProperties: %w", err)
+			}
 		case "multipleOf":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				if v > 0 {
-					schema.MultipleOf = &v
-				}
+			if err := processFloat64PtrComment(&schema.MultipleOf, value); err != nil {
+				return fmt.Errorf("multipleOf: %w", err)
+			}
+			if schema.MultipleOf != nil && *schema.MultipleOf <= 0 {
+				return fmt.Errorf("multipleOf: must be greater than zero")
 			}
 		case "maximum":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Maximum = &v
-			}
-		case "skipProperties":
-			if v, err := strconv.ParseBool(value); err == nil && v {
-				schema.SkipProperties = true
+			if err := processFloat64PtrComment(&schema.Maximum, value); err != nil {
+				return fmt.Errorf("maximum: %w", err)
 			}
 		case "minimum":
-			if v, err := strconv.ParseFloat(value, 64); err == nil {
-				schema.Minimum = &v
+			if err := processFloat64PtrComment(&schema.Minimum, value); err != nil {
+				return fmt.Errorf("minimum: %w", err)
 			}
 		case "maxLength":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxLength = &v
+			if err := processUint64PtrComment(&schema.MaxLength, value); err != nil {
+				return fmt.Errorf("maxLength: %w", err)
 			}
 		case "minLength":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinLength = &v
+			if err := processUint64PtrComment(&schema.MinLength, value); err != nil {
+				return fmt.Errorf("minLength: %w", err)
 			}
 		case "pattern":
 			schema.Pattern = value
 		case "maxItems":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxItems = &v
+			if err := processUint64PtrComment(&schema.MaxItems, value); err != nil {
+				return fmt.Errorf("maxItems: %w", err)
 			}
 		case "minItems":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinItems = &v
+			if err := processUint64PtrComment(&schema.MinItems, value); err != nil {
+				return fmt.Errorf("minItems: %w", err)
 			}
 		case "uniqueItems":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.UniqueItems = v
+			if err := processBoolComment(&schema.UniqueItems, value); err != nil {
+				return fmt.Errorf("uniqueItems: %w", err)
 			}
 		case "maxProperties":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MaxProperties = &v
+			if err := processUint64PtrComment(&schema.MaxProperties, value); err != nil {
+				return fmt.Errorf("maxProperties: %w", err)
 			}
 		case "minProperties":
-			if v, err := strconv.ParseUint(value, 10, 64); err == nil {
-				schema.MinProperties = &v
+			if err := processUint64PtrComment(&schema.MinProperties, value); err != nil {
+				return fmt.Errorf("minProperties: %w", err)
 			}
 		case "patternProperties":
-			var jsonObject map[string]*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.PatternProperties = jsonObject
+			if err := processObjectComment(&schema.PatternProperties, value); err != nil {
+				return fmt.Errorf("patternProperties: %w", err)
 			}
 		case "required":
-			if strings.TrimSpace(value) == "true" {
-				isRequired = true
+			if err := processBoolComment(&schema.RequiredByParent, value); err != nil {
+				return fmt.Errorf("required: %w", err)
 			}
 		case "type":
 			list := processList(value, true)
@@ -220,13 +218,12 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 		case "examples":
 			schema.Examples = processList(value, false)
 		case "readOnly":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.ReadOnly = v
+			if err := processBoolComment(&schema.ReadOnly, value); err != nil {
+				return fmt.Errorf("readOnly: %w", err)
 			}
 		case "default":
-			var jsonObject any
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.Default = jsonObject
+			if err := processObjectComment(&schema.Default, value); err != nil {
+				return fmt.Errorf("default: %w", err)
 			}
 		case "item":
 			if schema.Items == nil {
@@ -238,11 +235,11 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 				schema.Items.Type = list[0]
 			}
 		case "itemProperties":
-			if schema.Items.IsType("object") {
-				var itemProps map[string]*Schema
-				if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
-					schema.Items.Properties = itemProps
-				}
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			if err := processObjectComment(&schema.Items.Properties, value); err != nil {
+				return fmt.Errorf("itemProperties: %w", err)
 			}
 		case "itemEnum":
 			if schema.Items == nil {
@@ -250,47 +247,115 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 			}
 			schema.Items.Enum = processList(value, false)
 		case "additionalProperties":
-			if v, err := strconv.ParseBool(value); err == nil {
-				if v {
-					schema.AdditionalProperties = &SchemaTrue
-				} else {
-					schema.AdditionalProperties = &SchemaFalse
-				}
+			if strings.TrimSpace(value) == "" {
+				schema.AdditionalProperties = SchemaTrue()
+			} else if err := processObjectComment(&schema.AdditionalProperties, value); err != nil {
+				return fmt.Errorf("additionalProperties: %w", err)
 			}
 		case "unevaluatedProperties":
-			if v, err := strconv.ParseBool(value); err == nil {
-				schema.UnevaluatedProperties = &v
+			var b bool
+			if err := processBoolComment(&b, value); err != nil {
+				return fmt.Errorf("unevaluatedProperties: %w", err)
 			}
+			schema.UnevaluatedProperties = &b
 		case "$id":
 			schema.ID = value
 		case "$ref":
 			schema.Ref = value
 		case "hidden":
-			if v, err := strconv.ParseBool(value); err == nil && v {
-				isHidden = true
+			if err := processBoolComment(&schema.Hidden, value); err != nil {
+				return fmt.Errorf("hidden: %w", err)
 			}
 		case "allOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.AllOf = jsonObject
+			if err := processObjectComment(&schema.AllOf, value); err != nil {
+				return fmt.Errorf("allOf: %w", err)
 			}
 		case "anyOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.AnyOf = jsonObject
+			if err := processObjectComment(&schema.AnyOf, value); err != nil {
+				return fmt.Errorf("anyOf: %w", err)
 			}
 		case "oneOf":
-			var jsonObject []*Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.OneOf = jsonObject
+			if err := processObjectComment(&schema.OneOf, value); err != nil {
+				return fmt.Errorf("oneOf: %w", err)
 			}
 		case "not":
-			var jsonObject *Schema
-			if err := json.Unmarshal([]byte(value), &jsonObject); err == nil {
-				schema.Not = jsonObject
+			if err := processObjectComment(&schema.Not, value); err != nil {
+				return fmt.Errorf("not: %w", err)
 			}
+		default:
+			return fmt.Errorf("unknown annotation %q", key)
 		}
 	}
 
-	return isRequired, isHidden
+	return nil
+}
+
+func processObjectComment[T any](dest *T, comment string) error {
+	comment = strings.TrimSpace(comment)
+	switch comment {
+	case "":
+		return fmt.Errorf("parse object %q: missing value", comment)
+	}
+	var value T
+	if err := yaml.Unmarshal([]byte(comment), &value); err != nil {
+		return fmt.Errorf("parse object %q: %w", comment, err)
+	}
+	*dest = value
+	return nil
+}
+
+func processBoolComment(dest *bool, comment string) error {
+	switch strings.TrimSpace(comment) {
+	case "true", "":
+		*dest = true
+		return nil
+	case "false":
+		*dest = false
+		return nil
+	default:
+		return fmt.Errorf("invalid boolean %q, must be \"true\" or \"false\"", comment)
+	}
+}
+
+func processUint64PtrComment(dest **uint64, comment string) error {
+	comment = strings.TrimSpace(comment)
+	if comment == "null" {
+		*dest = nil
+		return nil
+	}
+	if strings.HasPrefix(comment, "-") {
+		return fmt.Errorf("invalid integer %q: negative values not allowed", comment)
+	}
+	num, err := strconv.ParseUint(comment, 10, 64)
+	if err != nil {
+		var numErr *strconv.NumError
+		_ = errors.As(err, &numErr)
+		// Reformat the error a little. Instead of this:
+		// 	strconv.ParseUint: parsing "foo": invalid syntax
+		// we get this:
+		// 	invalid integer "foo": invalid syntax
+		return fmt.Errorf("invalid integer %q: %w", comment, cmp.Or(numErr.Err, err))
+	}
+	*dest = &num
+	return nil
+}
+
+func processFloat64PtrComment(dest **float64, comment string) error {
+	comment = strings.TrimSpace(comment)
+	if comment == "null" {
+		*dest = nil
+		return nil
+	}
+	num, err := strconv.ParseFloat(comment, 64)
+	if err != nil {
+		var numErr *strconv.NumError
+		_ = errors.As(err, &numErr)
+		// Reformat the error a little. Instead of this:
+		// 	strconv.ParseUint: parsing "foo": invalid syntax
+		// we get this:
+		// 	invalid integer "foo": invalid syntax
+		return fmt.Errorf("invalid number %q: %w", comment, cmp.Or(numErr.Err, err))
+	}
+	*dest = &num
+	return nil
 }

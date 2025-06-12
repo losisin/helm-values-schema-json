@@ -20,7 +20,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	dest.SetKind(src.Kind())
 
 	// Resolve simple fields by favoring the fields from 'src' if they're provided
-	if src.Type != "" {
+	if src.Type != nil {
 		dest.Type = src.Type
 	}
 	if src.MultipleOf != nil {
@@ -116,6 +116,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 
 	// 'required' array is combined uniquely
 	dest.Required = uniqueStringAppend(dest.Required, src.Required...)
+	if src.RequiredByParent {
+		dest.RequiredByParent = src.RequiredByParent
+	}
 
 	// Merge 'items' if they exist (assuming they're not arrays)
 	if src.Items != nil {
@@ -177,8 +180,8 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		return err
 	}
 
-	if schema.AdditionalProperties == nil && noAdditionalProperties && schema.Type == "object" {
-		schema.AdditionalProperties = &SchemaFalse
+	if schema.AdditionalProperties == nil && noAdditionalProperties && schema.IsType("object") {
+		schema.AdditionalProperties = SchemaFalse()
 	}
 
 	switch {

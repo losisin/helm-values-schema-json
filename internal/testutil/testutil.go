@@ -12,9 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Variable is only used to fake which GOOS is set
+var goosOverrideForTests string
+
 func MakeGetwdFail(t *testing.T) {
 	t.Helper()
-	switch runtime.GOOS {
+	switch cmp.Or(goosOverrideForTests, runtime.GOOS) {
 	case "darwin", "windows":
 		t.Skipf("Skipping because don't know how to make os.Getwd fail on GOOS=%s", runtime.GOOS)
 	}
@@ -87,9 +90,6 @@ type PerGOOS struct {
 	Windows string
 	Darwin  string
 }
-
-// Variable is only used to fake which GOOS is set
-var goosOverrideForTests string
 
 func (err PerGOOS) String() string {
 	switch cmp.Or(goosOverrideForTests, runtime.GOOS) {
