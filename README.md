@@ -160,6 +160,14 @@ draft: 2020
 indent: 4
 output: values.schema.json
 
+bundle: false
+bundleRoot: ""
+bundleWithoutID: false
+
+useHelmDocs: false
+
+noAdditionalProperties: false
+
 schemaRoot:
   id: https://example.com/schema
   title: Helm Values Schema
