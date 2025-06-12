@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"encoding/json"
+	"fmt"
 	"iter"
 	"strconv"
 	"strings"
@@ -95,20 +96,50 @@ func getYAMLKind(value string) string {
 }
 
 func processList(comment string, stringsOnly bool) []any {
-	comment = strings.Trim(comment, "[]")
-	items := strings.Split(comment, ",")
+	if strings.HasPrefix(comment, "[") {
+		var list []any
+		if err := yaml.Unmarshal([]byte(comment), &list); err == nil {
+			if stringsOnly {
+				convertScalarsToString(list)
+			}
+			return list
+		}
+	}
+
+	if withoutLeft, ok := strings.CutPrefix(comment, "["); ok {
+		comment = strings.TrimSuffix(withoutLeft, "]")
+	}
 
 	var list []any
-	for _, item := range items {
+	for item := range strings.SplitSeq(comment, ",") {
 		trimmedItem := strings.TrimSpace(item)
 		if !stringsOnly && trimmedItem == "null" {
 			list = append(list, nil)
-		} else {
-			trimmedItem = strings.Trim(trimmedItem, "\"")
-			list = append(list, trimmedItem)
+			continue
 		}
+		if strings.HasPrefix(trimmedItem, "\"") {
+			if unquoted, err := strconv.Unquote(trimmedItem); err == nil {
+				list = append(list, unquoted)
+				continue
+			}
+		}
+		trimmedItem = strings.Trim(trimmedItem, "\"")
+		list = append(list, trimmedItem)
 	}
 	return list
+}
+
+func convertScalarsToString(slice []any) {
+	for i, v := range slice {
+		switch v := v.(type) {
+		case nil:
+			slice[i] = "null"
+		case int, float64, bool:
+			slice[i] = fmt.Sprint(v)
+		case []any:
+			convertScalarsToString(v)
+		}
+	}
 }
 
 func processComment(schema *Schema, commentLines []string) (isRequired, isHidden bool) {
@@ -177,11 +208,17 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 				isRequired = true
 			}
 		case "type":
-			schema.Type = processList(value, true)
+			list := processList(value, true)
+			schema.Type = list
+			if len(list) == 1 {
+				schema.Type = list[0]
+			}
 		case "title":
 			schema.Title = value
 		case "description":
 			schema.Description = value
+		case "examples":
+			schema.Examples = processList(value, false)
 		case "readOnly":
 			if v, err := strconv.ParseBool(value); err == nil {
 				schema.ReadOnly = v
@@ -192,11 +229,16 @@ func processComment(schema *Schema, commentLines []string) (isRequired, isHidden
 				schema.Default = jsonObject
 			}
 		case "item":
-			schema.Items = &Schema{
-				Type: value,
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			list := processList(value, true)
+			schema.Items.Type = list
+			if len(list) == 1 {
+				schema.Items.Type = list[0]
 			}
 		case "itemProperties":
-			if schema.Items.Type == "object" {
+			if schema.Items.IsType("object") {
 				var itemProps map[string]*Schema
 				if err := json.Unmarshal([]byte(value), &itemProps); err == nil {
 					schema.Items.Properties = itemProps

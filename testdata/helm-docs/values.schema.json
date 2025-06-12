@@ -46,9 +46,7 @@
         },
         "replicas": {
             "description": "Number of replicas",
-            "type": [
-                "integer"
-            ]
+            "type": "integer"
         },
         "service": {
             "description": "Kubernetes Service type",

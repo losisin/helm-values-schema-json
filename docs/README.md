@@ -93,6 +93,7 @@ The following annotations are supported:
 * [Meta-Data Annotations](#meta-data-annotations)
     * [title and description](#title-and-description)
     * [helm-docs](#helm-docs)
+    * [examples](#examples)
     * [default](#default)
     * [readOnly](#readonly)
 * [Schema Composition](#schema-composition)
@@ -171,7 +172,7 @@ app: &app
 
 ### Enum
 
-Always returns array of strings. Special case is `null` where instead of string, it is treated as valid input type. [section 6.1.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2)
+Array of JSON values. [section 6.1.2](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.2)
 
 ```yaml
 service: ClusterIP # @schema enum:[ClusterIP, LoadBalancer, null]
@@ -201,10 +202,10 @@ port: [80, 443] # @schema itemEnum:[80, 8080, 443, 8443]
     "items": {
         "type": "number",
         "enum": [
-            "80",
-            "443",
-            "8080",
-            "8443"
+            80,
+            443,
+            8080,
+            8443
         ]
     },
     "type": [
@@ -804,6 +805,25 @@ nameOverride: "myapp"
 nameOverride: "myapp"
 ```
 
+### examples
+
+(since v2.1.0)
+
+Array of JSON values. [section 9.5](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.5)
+
+```yaml
+tag: "" # @schema examples: [v1.2.3, v1.2.3-beta1]
+```
+
+```json
+"tag": {
+    "examples": [
+        "v1.2.3",
+        "v1.2.3-beta1"
+    ],
+    "type": "string"
+}
+```
 
 ### default
 

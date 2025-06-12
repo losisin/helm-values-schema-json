@@ -80,6 +80,7 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "Title", schema: &Schema{Title: exampleString}},
 		{name: "Description", schema: &Schema{Description: exampleString}},
 		{name: "Comment", schema: &Schema{Comment: exampleString}},
+		{name: "Examples", schema: &Schema{Examples: exampleAnySlice}},
 		{name: "ReadOnly", schema: &Schema{ReadOnly: exampleBool}},
 		{name: "Default", schema: &Schema{Default: exampleString}},
 		{name: "Ref", schema: &Schema{Ref: exampleString}},
@@ -447,6 +448,28 @@ func TestGetYAMLKind(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getYAMLKind(tt.value)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestSchemaIsType(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		typ    string
+		want   bool
+	}{
+		{name: "empty", schema: &Schema{}, typ: "string", want: false},
+		{name: "string equal", schema: &Schema{Type: "string"}, typ: "string", want: true},
+		{name: "string not equal", schema: &Schema{Type: "integer"}, typ: "string", want: false},
+		{name: "slice contains", schema: &Schema{Type: []any{"boolean", "string"}}, typ: "string", want: true},
+		{name: "slice not contains", schema: &Schema{Type: []any{"boolean", "integer"}}, typ: "string", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.schema.IsType(tt.typ)
+			assert.Equalf(t, tt.want, got, "Type: %#v", tt.schema.Type)
 		})
 	}
 }

@@ -81,6 +81,7 @@ type Schema struct {
 	Title                 string             `json:"title,omitempty" yaml:"title,omitempty"`
 	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
 	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
+	Examples              []any              `json:"examples,omitempty" yaml:"examples,omitempty"`
 	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
 	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
@@ -130,6 +131,7 @@ func (s *Schema) IsZero() bool {
 		len(s.Title) > 0,
 		len(s.Description) > 0,
 		len(s.Comment) > 0,
+		len(s.Examples) > 0,
 		s.ReadOnly,
 		s.Default != nil,
 		len(s.Ref) > 0,
@@ -260,6 +262,20 @@ func (s *Schema) SetKind(kind SchemaKind) {
 		s.kind = SchemaKindObject
 	default:
 		panic(fmt.Errorf("Schema.SetKind(%#v): unexpected kind", kind))
+	}
+}
+
+func (s *Schema) IsType(typ string) bool {
+	switch value := s.Type.(type) {
+	case []any:
+		for _, v := range value {
+			if v == typ {
+				return true
+			}
+		}
+		return false
+	default:
+		return value == typ
 	}
 }
 

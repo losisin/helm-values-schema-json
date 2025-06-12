@@ -11,9 +11,7 @@
                         "namespace": {
                             "type": "array",
                             "items": {
-                                "type": [
-                                    "string"
-                                ]
+                                "type": "string"
                             }
                         }
                     }

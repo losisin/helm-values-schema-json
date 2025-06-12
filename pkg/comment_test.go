@@ -327,19 +327,43 @@ func TestProcessList(t *testing.T) {
 			name:         "empty list",
 			comment:      "[]",
 			stringsOnly:  false,
-			expectedList: []any{""},
+			expectedList: []any{},
 		},
 		{
-			name:         "single string",
+			name:         "JSON string",
 			comment:      "[\"value\"]",
 			stringsOnly:  true,
 			expectedList: []any{"value"},
 		},
 		{
-			name:         "single string without quotes",
+			name:         "YAML string",
 			comment:      "[value]",
 			stringsOnly:  true,
 			expectedList: []any{"value"},
+		},
+		{
+			name:         "JSON string with escapes",
+			comment:      "[\"foo\\\"bar\\\"moo\"]",
+			stringsOnly:  true,
+			expectedList: []any{"foo\"bar\"moo"},
+		},
+		{
+			name:         "single string without quotes",
+			comment:      "[: this is not YAML :]",
+			stringsOnly:  true,
+			expectedList: []any{": this is not YAML :"},
+		},
+		{
+			name:         "invalid YAML but still using quotes",
+			comment:      "[: this is not YAML :, \"escaping stuff \\\" works\" ]",
+			stringsOnly:  true,
+			expectedList: []any{": this is not YAML :", "escaping stuff \" works"},
+		},
+		{
+			name:         "invalid YAML with null allowed",
+			comment:      "[: this is not YAML :, null]",
+			stringsOnly:  false,
+			expectedList: []any{": this is not YAML :", nil},
 		},
 		{
 			name:         "multiple strings",
@@ -354,10 +378,22 @@ func TestProcessList(t *testing.T) {
 			expectedList: []any{nil},
 		},
 		{
-			name:         "null not treated as special",
+			name:         "null as string",
 			comment:      "[null]",
 			stringsOnly:  true,
 			expectedList: []any{"null"},
+		},
+		{
+			name:         "numbers allowed",
+			comment:      "[123]",
+			stringsOnly:  false,
+			expectedList: []any{123},
+		},
+		{
+			name:         "numbers as string",
+			comment:      "[123]",
+			stringsOnly:  true,
+			expectedList: []any{"123"},
 		},
 		{
 			name:         "mixed strings and null",
@@ -366,10 +402,28 @@ func TestProcessList(t *testing.T) {
 			expectedList: []any{"value1", nil, "value2"},
 		},
 		{
+			name:         "mixed strings and string null",
+			comment:      "[\"value1\", null, \"value2\"]",
+			stringsOnly:  true,
+			expectedList: []any{"value1", "null", "value2"},
+		},
+		{
 			name:         "whitespace trimming",
 			comment:      "[ value1, value2 ]",
 			stringsOnly:  true,
 			expectedList: []any{"value1", "value2"},
+		},
+		{
+			name:         "trailing comma",
+			comment:      "[value1, value2,]",
+			stringsOnly:  true,
+			expectedList: []any{"value1", "value2"},
+		},
+		{
+			name:         "list of lists",
+			comment:      "[[foo], [bar, null]]",
+			stringsOnly:  true,
+			expectedList: []any{[]any{"foo"}, []any{"bar", "null"}},
 		},
 	}
 
@@ -435,7 +489,7 @@ func TestProcessComment(t *testing.T) {
 			name:             "Set array only item enum",
 			schema:           &Schema{},
 			comment:          "# @schema itemEnum:[1,2]",
-			expectedSchema:   &Schema{Items: &Schema{Enum: []any{"1", "2"}}},
+			expectedSchema:   &Schema{Items: &Schema{Enum: []any{1, 2}}},
 			expectedRequired: false,
 		},
 		{
@@ -499,6 +553,13 @@ func TestProcessComment(t *testing.T) {
 			schema:           &Schema{},
 			comment:          "# @schema not:{\"type\":\"string\"}",
 			expectedSchema:   &Schema{Not: &Schema{Type: "string"}},
+			expectedRequired: false,
+		},
+		{
+			name:             "Set examples",
+			schema:           &Schema{},
+			comment:          "# @schema examples:[foo, bar]",
+			expectedSchema:   &Schema{Examples: []any{"foo", "bar"}},
 			expectedRequired: false,
 		},
 	}

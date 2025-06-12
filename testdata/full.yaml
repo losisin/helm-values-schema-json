@@ -38,7 +38,7 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: topology.kubernetes.io/zone
+            - key: topology.kubernetes.io/zone # @schema examples: [topology.kubernetes.io/zone, kubernetes.io/hostname]
               operator: In
               values:
                 - antarctica-east1

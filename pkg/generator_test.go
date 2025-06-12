@@ -57,7 +57,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			config: &Config{
 				Draft:            2020,
 				Indent:           4,
-				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				K8sSchemaVersion: "v1.33.1",
 				Values: []string{
 					"../testdata/k8sRef.yaml",
@@ -489,7 +489,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				},
 				Output: "../testdata/fail-type_output.json",
 			},
-			expectedErr: errors.New("/properties/nameOverride/type/0: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
+			expectedErr: errors.New("/properties/nameOverride/type: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
 		},
 		{
 			name: "invalid helm-docs comment",

@@ -3,7 +3,7 @@
     "type": "object",
     "properties": {
         "memory": {
-            "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/v1.33.1/_definitions.json#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
+            "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.33.1/_definitions.json#/definitions/io.k8s.apimachinery.pkg.api.resource.Quantity",
             "type": "string"
         }
     }
