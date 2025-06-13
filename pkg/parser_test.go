@@ -15,8 +15,7 @@ func schemasEqual(a, b *Schema) bool {
 		return a == b
 
 	// Compare simple fields
-	case a.Type != b.Type,
-		a.Pattern != b.Pattern,
+	case a.Pattern != b.Pattern,
 		a.UniqueItems != b.UniqueItems,
 		a.Title != b.Title,
 		a.Description != b.Description,
@@ -187,9 +186,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: &SchemaFalse, UnevaluatedProperties: boolPtr(false)},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
 		},
 		{
 			name: "meta-data properties",
@@ -227,6 +226,12 @@ func TestMergeSchemas(t *testing.T) {
 			src:  &Schema{RefReferrer: ReferrerDir("/foo/bar")},
 			want: &Schema{RefReferrer: ReferrerDir("/foo/bar")},
 		},
+		{
+			name: "RequiredByParent",
+			dest: &Schema{RequiredByParent: false},
+			src:  &Schema{RequiredByParent: true},
+			want: &Schema{RequiredByParent: true},
+		},
 	}
 
 	for _, tt := range tests {
@@ -255,8 +260,8 @@ func TestEnsureCompliant(t *testing.T) {
 
 		{
 			name:   "bool schema",
-			schema: &SchemaTrue,
-			want:   &SchemaTrue,
+			schema: SchemaTrue(),
+			want:   SchemaTrue(),
 		},
 
 		{
@@ -294,7 +299,7 @@ func TestEnsureCompliant(t *testing.T) {
 			noAdditionalProperties: true,
 			want: &Schema{
 				Type:                 "object",
-				AdditionalProperties: &SchemaFalse,
+				AdditionalProperties: SchemaFalse(),
 			},
 		},
 

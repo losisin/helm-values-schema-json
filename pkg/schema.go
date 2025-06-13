@@ -27,16 +27,19 @@ const (
 	SchemaKindFalse
 )
 
-var (
-	SchemaTrue  = Schema{kind: SchemaKindTrue}
-	SchemaFalse = Schema{kind: SchemaKindFalse}
-)
+// SchemaTrue returns a newly allocated schema that just evaluates to "true"
+// when encoded as JSON/YAML.
+func SchemaTrue() *Schema { return &Schema{kind: SchemaKindTrue} }
+
+// SchemaTrue returns a newly allocated schema that just evaluates to "false"
+// when encoded as JSON/YAML.
+func SchemaFalse() *Schema { return &Schema{kind: SchemaKindFalse} }
 
 func SchemaBool(value bool) *Schema {
 	if value {
-		return &SchemaTrue
+		return SchemaTrue()
 	}
-	return &SchemaFalse
+	return SchemaFalse()
 }
 
 // IsBool returns true when the [Schema] represents a boolean value
@@ -116,8 +119,9 @@ type Schema struct {
 	// but the field is kept in this struct to allow bundled schemas to use them.
 	Definitions map[string]*Schema `json:"definitions,omitempty" yaml:"definitions,omitempty"`
 
-	SkipProperties bool `json:"-" yaml:"-"`
-	Hidden         bool `json:"-" yaml:"-"`
+	SkipProperties   bool `json:"-" yaml:"-"`
+	Hidden           bool `json:"-" yaml:"-"`
+	RequiredByParent bool `json:"-" yaml:"-"`
 }
 
 func (s *Schema) IsZero() bool {
@@ -190,8 +194,8 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	}
 
 	// Unmarshal using a new type to not cause infinite recursion when unmarshalling
-	type SchemaWithoutUnmarshaler Schema
-	model := (*SchemaWithoutUnmarshaler)(s)
+	type schema Schema
+	model := (*schema)(s)
 	return json.Unmarshal(data, model)
 }
 
@@ -203,8 +207,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	case SchemaKindFalse:
 		return []byte("false"), nil
 	default:
-		type SchemaWithoutMarshaler Schema
-		return json.Marshal((*SchemaWithoutMarshaler)(s))
+		type schema Schema
+		return json.Marshal((*schema)(s))
 	}
 }
 
@@ -224,8 +228,8 @@ func (s *Schema) UnmarshalYAML(value *yaml.Node) error {
 	}
 
 	// Unmarshal using a new type to not cause infinite recursion when unmarshalling
-	type SchemaWithoutUnmarshaler Schema
-	model := (*SchemaWithoutUnmarshaler)(s)
+	type schema Schema
+	model := (*schema)(s)
 	return value.Decode(model)
 }
 
@@ -237,8 +241,8 @@ func (s *Schema) MarshalYAML() (any, error) {
 	case SchemaKindFalse:
 		return false, nil
 	default:
-		type SchemaWithoutMarshaler Schema
-		return (*SchemaWithoutMarshaler)(s), nil
+		type schema Schema
+		return (*schema)(s), nil
 	}
 }
 
@@ -255,9 +259,9 @@ func (s *Schema) SetKind(kind SchemaKind) {
 	}
 	switch kind {
 	case SchemaKindTrue:
-		*s = SchemaTrue // will implicitly reset all other fields to zero
+		*s = Schema{kind: SchemaKindTrue} // will implicitly reset all other fields to zero
 	case SchemaKindFalse:
-		*s = SchemaFalse // will implicitly reset all other fields to zero
+		*s = Schema{kind: SchemaKindFalse} // will implicitly reset all other fields to zero
 	case SchemaKindObject:
 		s.kind = SchemaKindObject
 	default:
@@ -296,7 +300,7 @@ func getSchemaURL(draft int) (string, error) {
 	}
 }
 
-func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, bool, error) {
+func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, error) {
 	schema := &Schema{}
 
 	switch valNode.Kind {
@@ -306,18 +310,18 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		for i := 0; i < len(valNode.Content); i += 2 {
 			childKeyNode := valNode.Content[i]
 			childValNode := valNode.Content[i+1]
-			childSchema, childRequired, err := parseNode(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs)
+			childSchema, err := parseNode(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs)
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 
 			// Exclude hidden child schemas
 			if childSchema != nil && !childSchema.Hidden {
-				if childSchema.SkipProperties && childSchema.Type == "object" {
+				if childSchema.SkipProperties && childSchema.IsType("object") {
 					childSchema.Properties = nil
 				}
 				properties[childKeyNode.Value] = childSchema
-				if childRequired {
+				if childSchema.RequiredByParent {
 					required = append(required, childKeyNode.Value)
 				}
 			}
@@ -337,9 +341,9 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		hasItems := false
 
 		for i, itemNode := range valNode.Content {
-			itemSchema, _, err := parseNode(ptr.Item(i), nil, itemNode, useHelmDocs)
+			itemSchema, err := parseNode(ptr.Item(i), nil, itemNode, useHelmDocs)
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			if itemSchema != nil && !itemSchema.Hidden {
 				mergedItemSchema = mergeSchemas(mergedItemSchema, itemSchema)
@@ -364,23 +368,22 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 	if useHelmDocs {
 		helmDocs, err := ParseHelmDocsComment(helmDocsComments)
 		if err != nil {
-			return nil, false, fmt.Errorf("%s: parse helm-docs comment: %w", ptr, err)
+			return nil, fmt.Errorf("%s: parse helm-docs comment: %w", ptr, err)
 		}
 		if len(helmDocs.Path) == 0 || ptr.Equals(NewPtr(helmDocs.Path...)) {
 			schema.Description = helmDocs.Description
 		}
 	}
 
-	propIsRequired, isHidden := processComment(schema, schemaComments)
-	if isHidden {
-		return nil, false, nil
+	if err := processComment(schema, schemaComments); err != nil {
+		return nil, fmt.Errorf("%s: parse @schema comments: %w", ptr, err)
 	}
 
-	if schema.SkipProperties && schema.Type == "object" {
+	if schema.SkipProperties && schema.IsType("object") {
 		schema.Properties = nil
 	}
 
-	return schema, propIsRequired, nil
+	return schema, nil
 }
 
 func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {

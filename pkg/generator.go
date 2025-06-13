@@ -70,18 +70,15 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 		for i := 0; i < len(rootNode.Content); i += 2 {
 			keyNode := rootNode.Content[i]
 			valNode := rootNode.Content[i+1]
-			schema, isRequired, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
+			schema, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
 			if err != nil {
 				return fmt.Errorf("parse schema: %w", err)
 			}
 
 			// Exclude hidden nodes
 			if schema != nil && !schema.Hidden {
-				if schema.SkipProperties && schema.Type == "object" {
-					schema.Properties = nil
-				}
 				properties[keyNode.Value] = schema
-				if isRequired {
+				if schema.RequiredByParent {
 					required = append(required, keyNode.Value)
 				}
 			}
@@ -130,7 +127,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	if config.SchemaRoot.AdditionalProperties != nil {
 		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
 	} else if config.NoAdditionalProperties {
-		mergedSchema.AdditionalProperties = &SchemaFalse
+		mergedSchema.AdditionalProperties = SchemaFalse()
 	}
 
 	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)

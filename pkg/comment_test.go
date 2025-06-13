@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -437,139 +438,370 @@ func TestProcessList(t *testing.T) {
 
 func TestProcessComment(t *testing.T) {
 	tests := []struct {
-		name             string
-		schema           *Schema
-		comment          string
-		expectedSchema   *Schema
-		expectedRequired bool
+		name       string
+		schema     *Schema
+		comment    string
+		wantSchema *Schema
 	}{
 		{
-			name:             "Empty comment",
-			schema:           &Schema{},
-			comment:          "# @schema ",
-			expectedSchema:   &Schema{},
-			expectedRequired: false,
+			name:       "Empty comment",
+			schema:     &Schema{},
+			comment:    "# @schema ",
+			wantSchema: &Schema{},
 		},
 		{
-			name:             "Set type",
-			schema:           &Schema{},
-			comment:          "# @schema type:[string, null]",
-			expectedSchema:   &Schema{Type: []any{"string", "null"}},
-			expectedRequired: false,
+			name:       "Set type",
+			schema:     &Schema{},
+			comment:    "# @schema type:[string, null]",
+			wantSchema: &Schema{Type: []any{"string", "null"}},
 		},
 		{
-			name:             "Set enum",
-			schema:           &Schema{},
-			comment:          "# @schema enum:[one, two, null]",
-			expectedSchema:   &Schema{Enum: []any{"one", "two", nil}},
-			expectedRequired: false,
+			name:       "Set enum",
+			schema:     &Schema{},
+			comment:    "# @schema enum:[one, two, null]",
+			wantSchema: &Schema{Enum: []any{"one", "two", nil}},
 		},
 		{
-			name:             "Set numeric",
-			schema:           &Schema{},
-			comment:          "# @schema multipleOf:2;minimum:1;maximum:10",
-			expectedSchema:   &Schema{MultipleOf: float64Ptr(2), Minimum: float64Ptr(1), Maximum: float64Ptr(10)},
-			expectedRequired: false,
+			name:    "Set float integers",
+			schema:  &Schema{},
+			comment: "# @schema multipleOf:2; minimum:1; maximum:10",
+			wantSchema: &Schema{
+				MultipleOf: float64Ptr(2),
+				Minimum:    float64Ptr(1),
+				Maximum:    float64Ptr(10),
+			},
 		},
 		{
-			name:             "Set string",
-			schema:           &Schema{},
-			comment:          "# @schema pattern:^abv$;minLength:2;maxLength:10",
-			expectedSchema:   &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
-			expectedRequired: false,
+			name:    "Set float decimals",
+			schema:  &Schema{},
+			comment: "# @schema multipleOf:2.5; minimum:1.5; maximum:10.5",
+			wantSchema: &Schema{
+				MultipleOf: float64Ptr(2.5),
+				Minimum:    float64Ptr(1.5),
+				Maximum:    float64Ptr(10.5),
+			},
 		},
 		{
-			name:             "Set array",
-			schema:           &Schema{},
-			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:object;itemProperties:{\"key\": {\"type\": \"string\"}}",
-			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "object", Properties: map[string]*Schema{"key": {Type: "string"}}}},
-			expectedRequired: false,
+			name:   "Set float back to null",
+			schema: &Schema{},
+			comment: "# @schema multipleOf:2; minimum:1; maximum:10; " +
+				"multipleOf:null; minimum:null; maximum:null",
+			wantSchema: &Schema{
+				MultipleOf: nil,
+				Minimum:    nil,
+				Maximum:    nil,
+			},
 		},
 		{
-			name:             "Set array only item enum",
-			schema:           &Schema{},
-			comment:          "# @schema itemEnum:[1,2]",
-			expectedSchema:   &Schema{Items: &Schema{Enum: []any{1, 2}}},
-			expectedRequired: false,
+			name:    "Set integers",
+			schema:  &Schema{},
+			comment: "# @schema minLength:1; maxLength:2; minItems:3; maxItems:4; minProperties:5; maxProperties:6",
+			wantSchema: &Schema{
+				MinLength:     uint64Ptr(1),
+				MaxLength:     uint64Ptr(2),
+				MinItems:      uint64Ptr(3),
+				MaxItems:      uint64Ptr(4),
+				MinProperties: uint64Ptr(5),
+				MaxProperties: uint64Ptr(6),
+			},
 		},
 		{
-			name:             "Set array item type and enum",
-			schema:           &Schema{},
-			comment:          "# @schema minItems:1;maxItems:10;uniqueItems:true;item:string;itemEnum:[\"one\",\"two\"]",
-			expectedSchema:   &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "string", Enum: []any{"one", "two"}}},
-			expectedRequired: false,
+			name:   "Set integers back to null",
+			schema: &Schema{},
+			comment: "# @schema minLength:1; maxLength:2; minItems:3; maxItems:4; minProperties:5; maxProperties:6; " +
+				"minLength:null; maxLength:null; minItems:null; maxItems:null; minProperties:null; maxProperties:null",
+			wantSchema: &Schema{
+				MinLength:     nil,
+				MaxLength:     nil,
+				MinItems:      nil,
+				MaxItems:      nil,
+				MinProperties: nil,
+				MaxProperties: nil,
+			},
 		},
 		{
-			name:             "Set object",
-			schema:           &Schema{},
-			comment:          "# @schema minProperties:1;maxProperties:10;additionalProperties:false;$id:https://example.com/schema;$ref:schema/product.json",
-			expectedSchema:   &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: &SchemaFalse, ID: "https://example.com/schema", Ref: "schema/product.json"},
-			expectedRequired: false,
+			name:       "Set string",
+			schema:     &Schema{},
+			comment:    "# @schema pattern:^abv$;minLength:2;maxLength:10",
+			wantSchema: &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
 		},
 		{
-			name:             "Set meta-data",
-			schema:           &Schema{},
-			comment:          "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
-			expectedSchema:   &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
-			expectedRequired: false,
+			name:       "Set array",
+			schema:     &Schema{},
+			comment:    "# @schema minItems:1;maxItems:10;uniqueItems:true;item:object;itemProperties:{\"key\": {\"type\": \"string\"}}",
+			wantSchema: &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "object", Properties: map[string]*Schema{"key": {Type: "string"}}}},
 		},
 		{
-			name:             "Set skipProperties",
-			schema:           &Schema{},
-			comment:          "# @schema skipProperties:true;unevaluatedProperties:false",
-			expectedSchema:   &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
-			expectedRequired: false,
+			name:       "Set array only item enum",
+			schema:     &Schema{},
+			comment:    "# @schema itemEnum:[1,2]",
+			wantSchema: &Schema{Items: &Schema{Enum: []any{1, 2}}},
 		},
 		{
-			name:             "Set hidden",
-			schema:           &Schema{},
-			comment:          "# @schema hidden:true",
-			expectedSchema:   &Schema{},
-			expectedRequired: false,
+			name:       "Set array item type and enum",
+			schema:     &Schema{},
+			comment:    "# @schema minItems:1;maxItems:10;uniqueItems:true;item:string;itemEnum:[\"one\",\"two\"]",
+			wantSchema: &Schema{MinItems: uint64Ptr(1), MaxItems: uint64Ptr(10), UniqueItems: true, Items: &Schema{Type: "string", Enum: []any{"one", "two"}}},
 		},
 		{
-			name:             "Set allOf",
-			schema:           &Schema{},
-			comment:          "# @schema allOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{AllOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
+			name:       "Set object",
+			schema:     &Schema{},
+			comment:    "# @schema minProperties:1;maxProperties:10;additionalProperties:false;$id:https://example.com/schema;$ref:schema/product.json",
+			wantSchema: &Schema{MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), AdditionalProperties: SchemaFalse(), ID: "https://example.com/schema", Ref: "schema/product.json"},
 		},
 		{
-			name:             "Set anyOf",
-			schema:           &Schema{},
-			comment:          "# @schema anyOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{AnyOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
+			name:       "Set additionalProperties object",
+			schema:     &Schema{},
+			comment:    "# @schema additionalProperties:{\"type\":\"string\"}",
+			wantSchema: &Schema{AdditionalProperties: &Schema{Type: "string"}},
 		},
 		{
-			name:             "Set oneOf",
-			schema:           &Schema{},
-			comment:          "# @schema oneOf:[{\"type\":\"string\"}]",
-			expectedSchema:   &Schema{OneOf: []*Schema{{Type: "string"}}},
-			expectedRequired: false,
+			name:       "Set additionalProperties bool empty",
+			schema:     &Schema{},
+			comment:    "# @schema additionalProperties",
+			wantSchema: &Schema{AdditionalProperties: SchemaTrue()},
 		},
 		{
-			name:             "Set not",
-			schema:           &Schema{},
-			comment:          "# @schema not:{\"type\":\"string\"}",
-			expectedSchema:   &Schema{Not: &Schema{Type: "string"}},
-			expectedRequired: false,
+			name:       "Set meta-data",
+			schema:     &Schema{},
+			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
+			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
 		},
 		{
-			name:             "Set examples",
-			schema:           &Schema{},
-			comment:          "# @schema examples:[foo, bar]",
-			expectedSchema:   &Schema{Examples: []any{"foo", "bar"}},
-			expectedRequired: false,
+			name:       "Set skipProperties",
+			schema:     &Schema{},
+			comment:    "# @schema skipProperties:true;unevaluatedProperties:false",
+			wantSchema: &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
+		},
+		{
+			name:       "Set hidden",
+			schema:     &Schema{},
+			comment:    "# @schema hidden:true",
+			wantSchema: &Schema{Hidden: true},
+		},
+		{
+			name:       "Set and unset hidden",
+			schema:     &Schema{},
+			comment:    "# @schema hidden:true; hidden:false",
+			wantSchema: &Schema{Hidden: false},
+		},
+		{
+			name:       "Set required",
+			schema:     &Schema{},
+			comment:    "# @schema required:true",
+			wantSchema: &Schema{RequiredByParent: true},
+		},
+		{
+			name:       "Set and unset required",
+			schema:     &Schema{},
+			comment:    "# @schema required:true; required:false",
+			wantSchema: &Schema{RequiredByParent: false},
+		},
+		{
+			name:       "Set allOf",
+			schema:     &Schema{},
+			comment:    "# @schema allOf:[{\"type\":\"string\"}]",
+			wantSchema: &Schema{AllOf: []*Schema{{Type: "string"}}},
+		},
+		{
+			name:       "Set anyOf",
+			schema:     &Schema{},
+			comment:    "# @schema anyOf:[{\"type\":\"string\"}]",
+			wantSchema: &Schema{AnyOf: []*Schema{{Type: "string"}}},
+		},
+		{
+			name:       "Set oneOf",
+			schema:     &Schema{},
+			comment:    "# @schema oneOf:[{\"type\":\"string\"}]",
+			wantSchema: &Schema{OneOf: []*Schema{{Type: "string"}}},
+		},
+		{
+			name:       "Set not JSON",
+			schema:     &Schema{},
+			comment:    "# @schema not:{\"type\":\"string\"}",
+			wantSchema: &Schema{Not: &Schema{Type: "string"}},
+		},
+		{
+			name:       "Set examples",
+			schema:     &Schema{},
+			comment:    "# @schema examples:[foo, bar]",
+			wantSchema: &Schema{Examples: []any{"foo", "bar"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var required bool
-			processComment(tt.schema, []string{tt.comment})
-			assert.Equal(t, tt.expectedSchema, tt.schema)
-			assert.Equal(t, tt.expectedRequired, required)
+			err := processComment(tt.schema, []string{tt.comment})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantSchema, tt.schema)
+		})
+	}
+}
+
+func TestProcessComment_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		wantErr string
+	}{
+		{name: "unknown annotation", comment: "# @schema foobar: 123", wantErr: "unknown annotation \"foobar\""},
+
+		{name: "required invalid bool", comment: "# @schema required: foo", wantErr: "required: invalid boolean"},
+		{name: "readOnly invalid bool", comment: "# @schema readOnly: foo", wantErr: "readOnly: invalid boolean"},
+		{name: "hidden invalid bool", comment: "# @schema hidden: foo", wantErr: "hidden: invalid boolean"},
+		{name: "required invalid bool", comment: "# @schema required: foo", wantErr: "required: invalid boolean"},
+		{name: "uniqueItems invalid bool", comment: "# @schema uniqueItems: foo", wantErr: "uniqueItems: invalid boolean"},
+		{name: "skipProperties invalid bool", comment: "# @schema skipProperties: foo", wantErr: "skipProperties: invalid boolean"},
+		{name: "unevaluatedProperties invalid bool", comment: "# @schema unevaluatedProperties: foo", wantErr: "unevaluatedProperties: invalid boolean"},
+
+		{name: "maxLength invalid uint64", comment: "# @schema maxLength: foo", wantErr: "maxLength: invalid integer"},
+		{name: "minLength invalid uint64", comment: "# @schema minLength: foo", wantErr: "minLength: invalid integer"},
+		{name: "maxItems invalid uint64", comment: "# @schema maxItems: foo", wantErr: "maxItems: invalid integer"},
+		{name: "minItems invalid uint64", comment: "# @schema minItems: foo", wantErr: "minItems: invalid integer"},
+		{name: "maxProperties invalid uint64", comment: "# @schema maxProperties: foo", wantErr: "maxProperties: invalid integer"},
+		{name: "minProperties invalid uint64", comment: "# @schema minProperties: foo", wantErr: "minProperties: invalid integer"},
+
+		{name: "multipleOf invalid float64", comment: "# @schema multipleOf: foo", wantErr: "multipleOf: invalid number"},
+		{name: "multipleOf zero", comment: "# @schema multipleOf: 0", wantErr: "multipleOf: must be greater than zero"},
+		{name: "minimum invalid float64", comment: "# @schema minimum: foo", wantErr: "minimum: invalid number"},
+		{name: "maximum invalid float64", comment: "# @schema maximum: foo", wantErr: "maximum: invalid number"},
+
+		{name: "patternProperties invalid YAML", comment: "# @schema patternProperties: {", wantErr: "patternProperties: parse object \"{\": yaml"},
+		{name: "default invalid YAML", comment: "# @schema default: {", wantErr: "default: parse object \"{\": yaml"},
+		{name: "itemProperties invalid YAML", comment: "# @schema itemProperties: {", wantErr: "itemProperties: parse object \"{\": yaml"},
+		{name: "additionalProperties invalid YAML", comment: "# @schema additionalProperties: {", wantErr: "additionalProperties: parse object \"{\": yaml"},
+		{name: "allOf invalid YAML", comment: "# @schema allOf: {", wantErr: "allOf: parse object \"{\": yaml"},
+		{name: "anyOf invalid YAML", comment: "# @schema anyOf: {", wantErr: "anyOf: parse object \"{\": yaml"},
+		{name: "oneOf invalid YAML", comment: "# @schema oneOf: {", wantErr: "oneOf: parse object \"{\": yaml"},
+		{name: "not invalid YAML", comment: "# @schema not: {", wantErr: "not: parse object \"{\": yaml"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var schema Schema
+			err := processComment(&schema, []string{tt.comment})
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestProcessObjectComment(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		want    *Schema
+		wantErr string
+	}{
+		{name: "empty", comment: "", wantErr: "parse object \"\": missing value"},
+		{name: "empty object", comment: "{}", want: &Schema{}},
+		{name: "null", comment: "null", want: nil},
+		{name: "JSON syntax", comment: "{\"type\":\"string\"}", want: &Schema{Type: "string"}},
+		{name: "YAML syntax", comment: "{type: string}", want: &Schema{Type: "string"}},
+		{name: "invalid field", comment: "{\"readOnly\": \"foobar\"}", wantErr: "parse object \"{\\\"readOnly\\\": \\\"foobar\\\"}\": yaml: unmarshal errors:"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Comment: %q", tt.comment)
+			var got *Schema
+			err := processObjectComment(&got, tt.comment)
+			if tt.wantErr != "" {
+				t.Logf("Unexpected value: %#v", got)
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.want, got)
+			}
+		})
+	}
+
+	t.Run("overrides instead of merges", func(t *testing.T) {
+		schema := &Schema{
+			Minimum: float64Ptr(123),
+		}
+		err := processObjectComment(&schema, "{\"type\": \"string\"}")
+		require.NoError(t, err)
+
+		want := &Schema{
+			Type: "string",
+			// we don't want "Minimum" to stick around
+		}
+		require.Equal(t, want, schema)
+	})
+}
+
+func TestProcessBoolComment(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		want    bool
+		wantErr string
+	}{
+		{name: "empty", comment: "", want: true},
+		{name: "only spacing", comment: "  \t ", want: true},
+		{name: "true", comment: "true", want: true},
+		{name: "true with spacing", comment: " \t  true  \t ", want: true},
+		{name: "true uppercase", comment: "TRUE", wantErr: "invalid boolean \"TRUE\", must be \"true\" or \"false\""},
+		{name: "false", comment: "false", want: false},
+		{name: "false with spacing", comment: " \t  false \t ", want: false},
+		{name: "false uppercase", comment: "FALSE", wantErr: "invalid boolean \"FALSE\", must be \"true\" or \"false\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Comment: %q", tt.comment)
+			var got bool
+			err := processBoolComment(&got, tt.comment)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestProcessUint64PtrComment(t *testing.T) {
+	tests := []struct {
+		name    string
+		comment string
+		want    *uint64
+		wantErr string
+	}{
+		{name: "empty", comment: "", wantErr: "invalid integer \"\": invalid syntax"},
+		{name: "only spacing", comment: "  \t ", wantErr: "invalid integer \"\": invalid syntax"},
+		{name: "null", comment: "null", want: nil},
+		{name: "integer", comment: "123", want: uint64Ptr(123)},
+		{name: "negative integer", comment: "-123", wantErr: "invalid integer \"-123\": negative values not allowed"},
+		{name: "float", comment: "1.23", wantErr: "invalid integer \"1.23\": invalid syntax"},
+		{name: "hex", comment: "0x123", wantErr: "invalid integer \"0x123\": invalid syntax"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			startValues := []struct {
+				name  string
+				value *uint64
+			}{
+				{name: "overriding nil", value: nil},
+				{name: "overriding value", value: uint64Ptr(123)},
+			}
+
+			for _, startVal := range startValues {
+				t.Run(startVal.name, func(t *testing.T) {
+					t.Logf("Comment: %q", tt.comment)
+
+					got := startVal.value
+					err := processUint64PtrComment(&got, tt.comment)
+					if tt.wantErr != "" {
+						require.ErrorContains(t, err, tt.wantErr)
+					} else {
+						require.NoError(t, err)
+						require.Equal(t, tt.want, got)
+					}
+				})
+			}
 		})
 	}
 }

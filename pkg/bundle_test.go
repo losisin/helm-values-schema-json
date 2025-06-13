@@ -415,9 +415,9 @@ func TestBundle(t *testing.T) {
 
 		{
 			name:   "additionalProperties false",
-			schema: &Schema{AdditionalProperties: &SchemaFalse},
+			schema: &Schema{AdditionalProperties: SchemaFalse()},
 			loader: DummyLoader{},
-			want:   &Schema{AdditionalProperties: &SchemaFalse},
+			want:   &Schema{AdditionalProperties: SchemaFalse()},
 		},
 		{
 			name: "additionalProperties schema",
