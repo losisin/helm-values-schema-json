@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/fxamacker/cbor/v2 v2.8.0
 	github.com/knadh/koanf/providers/file v1.2.0
-	github.com/knadh/koanf/providers/posflag v1.0.0
+	github.com/knadh/koanf/providers/posflag v1.0.1
 	github.com/knadh/koanf/providers/structs v1.0.0
 	github.com/knadh/koanf/v2 v2.2.0
 	github.com/spf13/cobra v1.9.1
