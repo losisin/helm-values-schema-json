@@ -134,6 +134,7 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "UnevaluatedProperties", schema: &Schema{UnevaluatedProperties: &exampleBool}},
 		{name: "Defs", schema: &Schema{Defs: exampleMap}},
 		{name: "Definitions", schema: &Schema{Definitions: exampleMap}},
+		{name: "Const", schema: &Schema{Const: exampleString}},
 	}
 
 	for _, tt := range tests {

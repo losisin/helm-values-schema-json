@@ -105,6 +105,9 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.Not != nil {
 		dest.Not = src.Not
 	}
+	if src.Const != nil {
+		dest.Const = src.Const
+	}
 
 	// Merge 'enum' field (assuming that maintaining order doesn't matter)
 	dest.Enum = append(dest.Enum, src.Enum...)
@@ -188,7 +191,8 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 	case len(schema.AllOf) > 0,
 		len(schema.AnyOf) > 0,
 		len(schema.OneOf) > 0,
-		schema.Not != nil:
+		schema.Not != nil,
+		schema.Const != nil:
 		// These fields collide with "type"
 		schema.Type = nil
 	}

@@ -564,8 +564,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:       "Set meta-data",
 			schema:     &Schema{},
-			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
-			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
+			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\";const:\"foo\"",
+			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo", Const: "foo"},
 		},
 		{
 			name:       "Set skipProperties",

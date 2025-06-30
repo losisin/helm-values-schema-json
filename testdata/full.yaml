@@ -8,6 +8,9 @@ nameOverride: foo # @schema required: true
 # Enum
 service: ClusterIP # @schema enum: [ClusterIP, LoadBalancer, null]
 
+# Const
+const: {} # @schema const: {"foo": "bar"}
+
 # NULL
 empty: # @schema type: [string, null]
 

@@ -192,9 +192,9 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "meta-data properties",
-			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Old comment", Examples: []any{"foo", 1}},
-			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
-			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
+			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Old comment", Examples: []any{"foo", 1}},
+			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
+			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
 		},
 		{
 			name: "allOf",
