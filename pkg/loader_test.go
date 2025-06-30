@@ -95,7 +95,7 @@ func TestFileLoader_Error(t *testing.T) {
 			fsRootPath: cwd,
 			wantErr: testutil.PerGOOS{
 				Default: `path escapes from parent`,
-				Windows: `get relative path from bundle root: Rel: can't make c:\\file\\that\\does\\not\\exist`,
+				Windows: `get relative path from bundle root: Rel: can't make c:\file\that\does\not\exist`,
 			}.String(),
 		},
 		{
