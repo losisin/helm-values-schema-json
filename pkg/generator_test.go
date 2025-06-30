@@ -333,7 +333,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateBytes, err := os.ReadFile(tt.templateSchemaFile)
 			require.NoError(t, err, "Error from os.ReadFile on templateSchemaFile")
 
-			t.Logf("Generated output:\n%s\n", generatedBytes)
+			// t.Logf("Generated output:\n%s\n", generatedBytes)
 
 			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 		})
