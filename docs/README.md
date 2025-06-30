@@ -217,7 +217,7 @@ port: [80, 443] # @schema itemEnum:[80, 8080, 443, 8443]
 
 ### Const
 
-The `const` keyword is used to restrict a value to a single value and is equivalent to an `enum`. Following best practices, `type` is dropped from genenrated schema [section 6.1.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.3)
+The `const` keyword is used to restrict instances to a single specific JSON value of any type including `null`. Therefore, `type` is redundant and dropped from generated schema. [section 6.1.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1.3)
 
 ```yaml
 nameOverride: foo # @schema const: foo
