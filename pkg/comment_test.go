@@ -564,8 +564,8 @@ func TestProcessComment(t *testing.T) {
 		{
 			name:       "Set meta-data",
 			schema:     &Schema{},
-			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\"",
-			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo"},
+			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\";const:\"foo\"",
+			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo", Const: "foo"},
 		},
 		{
 			name:       "Set skipProperties",
@@ -674,6 +674,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "anyOf invalid YAML", comment: "# @schema anyOf: {", wantErr: "anyOf: parse object \"{\": yaml"},
 		{name: "oneOf invalid YAML", comment: "# @schema oneOf: {", wantErr: "oneOf: parse object \"{\": yaml"},
 		{name: "not invalid YAML", comment: "# @schema not: {", wantErr: "not: parse object \"{\": yaml"},
+		{name: "const invalid YAML", comment: "# @schema const: {", wantErr: "const: parse object \"{\": yaml"},
 	}
 
 	for _, tt := range tests {
