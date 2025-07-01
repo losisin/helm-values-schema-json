@@ -101,7 +101,7 @@
                 }
             }
         },
-        "const": {
+        "annotations": {
             "const": {
                 "foo": "bar"
             }

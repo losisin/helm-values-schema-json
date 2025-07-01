@@ -90,7 +90,7 @@ func TestFileLoader_Error(t *testing.T) {
 			name: "path escapes parent",
 			url: mustParseURL(testutil.PerGOOS{
 				Default: "file:///file/that/does/not/exist",
-				Windows: "file://C:/file/that/does/not/exist",
+				Windows: "file://D:/file/that/does/not/exist",
 			}.String()),
 			fsRootPath: cwd,
 			wantErr:    "path escapes from parent",
