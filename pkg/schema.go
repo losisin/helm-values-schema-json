@@ -113,6 +113,7 @@ type Schema struct {
 	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty" yaml:"patternProperties,omitempty"`
 	AdditionalProperties  *Schema            `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 	UnevaluatedProperties *bool              `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
+	Const                 any                `json:"const,omitempty" yaml:"const,omitempty"`
 
 	Defs map[string]*Schema `json:"$defs,omitempty" yaml:"$defs,omitempty"`
 	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
@@ -164,7 +165,8 @@ func (s *Schema) IsZero() bool {
 		s.AdditionalProperties != nil,
 		s.UnevaluatedProperties != nil,
 		len(s.Defs) > 0,
-		len(s.Definitions) > 0:
+		len(s.Definitions) > 0,
+		s.Const != nil:
 		return false
 	default:
 		return true

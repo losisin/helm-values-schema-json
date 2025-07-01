@@ -101,6 +101,11 @@
                 }
             }
         },
+        "annotations": {
+            "const": {
+                "foo": "bar"
+            }
+        },
         "empty": {
             "type": [
                 "string",

@@ -4,6 +4,7 @@
     "properties": {
         "fullnameOverride": {
             "title": "Full name override",
+            "default": "baz",
             "type": "string"
         },
         "image": {
