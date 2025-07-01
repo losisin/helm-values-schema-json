@@ -282,6 +282,10 @@ func processComment(schema *Schema, commentLines []string) error {
 			if err := processObjectComment(&schema.Not, value); err != nil {
 				return fmt.Errorf("not: %w", err)
 			}
+		case "const":
+			if err := processObjectComment(&schema.Const, value); err != nil {
+				return fmt.Errorf("const: %w", err)
+			}
 		default:
 			return fmt.Errorf("unknown annotation %q", key)
 		}
