@@ -28,7 +28,7 @@ func TestWriterLogger(t *testing.T) {
 	t.Run("default logger from empty context", func(t *testing.T) {
 		logger := LoggerFromContext(context.Background())
 		require.IsType(t, WriterLogger{}, logger)
-		assert.Same(t, os.Stdout, logger.(WriterLogger).Output)
+		assert.Same(t, os.Stderr, logger.(WriterLogger).Output)
 	})
 
 	t.Run("logger from context", func(t *testing.T) {
