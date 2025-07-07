@@ -543,7 +543,7 @@ func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 		Draft:  2020,
 		Indent: 4,
 	})
-	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path")
+	require.ErrorContains(t, err, "read --values=\"foo/bar.yaml\": get absolute path:")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
