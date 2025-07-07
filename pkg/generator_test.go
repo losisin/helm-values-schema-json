@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -363,6 +364,15 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("values flag is required"),
 		},
 		{
+			name: "Too many stdin values",
+			config: &Config{
+				Values: []string{"-", "some-file.txt", "-"},
+				Draft:  2020,
+				Indent: 0,
+			},
+			expectedErr: errors.New("values flag must not contain multiple stdin (\"-f -\")"),
+		},
+		{
 			name: "Invalid draft version",
 			config: &Config{
 				Values: []string{"../testdata/basic.yaml"},
@@ -690,16 +700,20 @@ func TestReadInputFile_Stdin(t *testing.T) {
 	assert.Equal(t, cwd, referrer.dir, "Referrer")
 }
 
-type ReaderWithError struct {
+type ReaderWriterWithError struct {
 	Err error
 }
 
-func (r ReaderWithError) Read([]byte) (int, error) {
+func (r ReaderWriterWithError) Read([]byte) (int, error) {
+	return 0, r.Err
+}
+
+func (r ReaderWriterWithError) Write([]byte) (int, error) {
 	return 0, r.Err
 }
 
 func TestReadInputFile_StdinError(t *testing.T) {
-	stdin := ReaderWithError{errors.New("testing error")}
+	stdin := ReaderWriterWithError{errors.New("testing error")}
 	_, _, err := readInputFile(stdin, "-")
 	require.ErrorContains(t, err, "error reading from stdin: testing error")
 }
@@ -718,4 +732,42 @@ func TestWriteOutput_JSONError(t *testing.T) {
 	ctx := ContextWithLogger(t.Context(), t)
 	err := WriteOutput(ctx, schema, os.DevNull, "  ")
 	require.ErrorContains(t, err, "unsupported type: func()")
+}
+
+func TestWriteOutputFile_WriteToFile(t *testing.T) {
+	var stdout io.Writer = nil
+	err := writeOutputFile(stdout, "some_example_output.txt", []byte("some content\n"))
+	require.NoError(t, err)
+	require.FileExists(t, "some_example_output.txt")
+	content, err := os.ReadFile("some_example_output.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "some content\n", string(content))
+
+	defer func() {
+		_ = os.Remove("some_example_output.txt")
+	}()
+}
+
+func TestWriteOutputFile_WriteToStdout(t *testing.T) {
+	var stdout bytes.Buffer
+	err := writeOutputFile(&stdout, "-", []byte("some stdout content\n"))
+	require.NoError(t, err)
+	assert.Equal(t, "some stdout content\n", stdout.String())
+	assert.NoFileExists(t, "-")
+
+	defer func() {
+		// Just in case it creates a file
+		_ = os.Remove("-")
+	}()
+}
+
+func TestWriteOutputFile_WriteToStdoutError(t *testing.T) {
+	stdout := ReaderWriterWithError{errors.New("testing error")}
+	err := writeOutputFile(&stdout, "-", []byte("some stdout content\n"))
+	require.ErrorContains(t, err, "write schema to stdout: testing error")
+
+	defer func() {
+		// Just in case it creates a file
+		_ = os.Remove("-")
+	}()
 }

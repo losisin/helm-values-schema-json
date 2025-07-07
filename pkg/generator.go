@@ -20,6 +20,9 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	if len(config.Values) == 0 {
 		return errors.New("values flag is required")
 	}
+	if countOccurrencesSlice(config.Values, "-") > 1 {
+		return errors.New("values flag must not contain multiple stdin (\"-f -\")")
+	}
 
 	// Determine the schema URL based on the draft version
 	schemaURL, err := getSchemaURL(config.Draft)
@@ -168,10 +171,24 @@ func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent s
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
+	if err := writeOutputFile(os.Stdout, outputPath, jsonBytes); err != nil {
 		return fmt.Errorf("write output schema: %w", err)
 	}
 
 	logger.Log("JSON schema successfully generated")
+	return nil
+}
+
+func writeOutputFile(stdout io.Writer, path string, content []byte) error {
+	if path == "-" {
+		if _, err := stdout.Write(content); err != nil {
+			return fmt.Errorf("write schema to stdout: %w", err)
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		return fmt.Errorf("write output schema: %w", err)
+	}
 	return nil
 }
