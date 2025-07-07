@@ -246,6 +246,11 @@ func processComment(schema *Schema, commentLines []string) error {
 				schema.Items = &Schema{}
 			}
 			schema.Items.Enum = processList(value, false)
+		case "itemRef":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			schema.Items.Ref = value
 		case "additionalProperties":
 			if strings.TrimSpace(value) == "" {
 				schema.AdditionalProperties = SchemaTrue()
