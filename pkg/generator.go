@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +41,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
-		fileReferrer, content, err := readInputFile(filePath)
+		fileReferrer, content, err := readInputFile(os.Stdin, filePath)
 		if err != nil {
 			return fmt.Errorf("read --values=%q: %w", filePath, err)
 		}
@@ -128,7 +129,21 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
 }
 
-func readInputFile(filePath string) (Referrer, []byte, error) {
+func readInputFile(stdin io.Reader, filePath string) (Referrer, []byte, error) {
+	if filePath == "-" {
+		content, err := io.ReadAll(stdin)
+		if err != nil {
+			return Referrer{}, nil, fmt.Errorf("error reading from stdin: %w", err)
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return Referrer{}, nil, fmt.Errorf("get directory as referrer for stdin: %w", err)
+		}
+
+		return ReferrerDir(cwd), content, nil
+	}
+
 	filePathAbs, err := filepath.Abs(filepath.FromSlash(filePath))
 	if err != nil {
 		return Referrer{}, nil, fmt.Errorf("get absolute path: %w", err)
@@ -136,7 +151,7 @@ func readInputFile(filePath string) (Referrer, []byte, error) {
 
 	content, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
-		return Referrer{}, nil, errors.New("error reading YAML file(s)")
+		return Referrer{}, nil, fmt.Errorf("error reading YAML file(s): %w", err)
 	}
 
 	return ReferrerDir(filepath.Dir(filePathAbs)), content, nil

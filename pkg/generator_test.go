@@ -3,8 +3,10 @@ package pkg
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
@@ -655,6 +657,59 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadInputFile_ReadFile(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	var stdin io.Reader = nil // should not be used
+	referrer, content, err := readInputFile(stdin, "generator_test.go")
+	require.NoError(t, err)
+
+	assert.Equal(t, cwd, referrer.dir, "Referrer")
+	assert.NotEmpty(t, content)
+}
+
+func TestReadInputFile_FileNotFound(t *testing.T) {
+	var stdin io.Reader = nil // should not be used
+	_, _, err := readInputFile(stdin, "file_that_does_not_exist.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestReadInputFile_Stdin(t *testing.T) {
+	stdin := strings.NewReader("hello this is text from stdin\n")
+
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	referrer, content, err := readInputFile(stdin, "-")
+	require.NoError(t, err)
+
+	assert.Equal(t, "hello this is text from stdin\n", string(content), "Stdin content should equal")
+	assert.Equal(t, cwd, referrer.dir, "Referrer")
+}
+
+type ReaderWithError struct {
+	Err error
+}
+
+func (r ReaderWithError) Read([]byte) (int, error) {
+	return 0, r.Err
+}
+
+func TestReadInputFile_StdinError(t *testing.T) {
+	stdin := ReaderWithError{errors.New("testing error")}
+	_, _, err := readInputFile(stdin, "-")
+	require.ErrorContains(t, err, "error reading from stdin: testing error")
+}
+
+func TestReadInputFile_StdinCwdError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	stdin := strings.NewReader("hello\n")
+	_, _, err := readInputFile(stdin, "-")
+	require.ErrorContains(t, err, "get directory as referrer for stdin:")
 }
 
 func TestWriteOutput_JSONError(t *testing.T) {
