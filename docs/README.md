@@ -89,6 +89,7 @@ The following annotations are supported:
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
     * [$ref](#ref)
+    * [itemRef](#itemRef)
     * [$k8s alias](#k8s-alias)
     * [bundling](#bundling)
 * [Meta-Data Annotations](#meta-data-annotations)
@@ -704,6 +705,24 @@ subchart: # @schema $ref: https://example.com/schema.json
 }
 ```
 
+### itemRef
+
+(since v2.2.0)
+
+This is a special key that apply [$ref](#ref) on items of an array.
+
+```yaml
+imagePullPolicy: [] # @schema itemRef: https://example.com/schema.json
+```
+
+```json
+"imagePullPolicy": {
+    "items": {
+        "$ref": "https://example.com/schema.json"
+    }
+}
+```
+
 ### $k8s alias
 
 (since v1.9.0)
@@ -739,7 +758,7 @@ memory: # @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.apimachinery.
 
 ### bundling
 
-(Since v1.9.0)
+(since v1.9.0)
 
 You can bundle referenced schemas, which will resolve the `$ref` and embeds the
 result in `$defs`. To enable bundling, use the command-line flags:

@@ -538,6 +538,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Items: &Schema{Enum: []any{1, 2}}},
 		},
 		{
+			name:       "Set array only item ref",
+			schema:     &Schema{},
+			comment:    "# @schema itemRef: http://example.com",
+			wantSchema: &Schema{Items: &Schema{Ref: "http://example.com"}},
+		},
+		{
 			name:       "Set array item type and enum",
 			schema:     &Schema{},
 			comment:    "# @schema minItems:1;maxItems:10;uniqueItems:true;item:string;itemEnum:[\"one\",\"two\"]",
