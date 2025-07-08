@@ -20,7 +20,7 @@ func main() {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	if err := cmd.Execute(); err != nil {
-		fmt.Println("Error:", err)
+		fmt.Fprintln(os.Stderr, "Error:", err)
 	}
 }
 

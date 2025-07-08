@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,9 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	// Check if the values flag is set
 	if len(config.Values) == 0 {
 		return errors.New("values flag is required")
+	}
+	if countOccurrencesSlice(config.Values, "-") > 1 {
+		return errors.New("values flag must not contain multiple stdin (\"-f -\")")
 	}
 
 	// Determine the schema URL based on the draft version
@@ -40,14 +44,9 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 	// Iterate over the input YAML files
 	for _, filePath := range config.Values {
-		filePathAbs, err := filepath.Abs(filepath.FromSlash(filePath))
+		fileReferrer, content, err := readInputFile(os.Stdin, filePath)
 		if err != nil {
-			return fmt.Errorf("%s: get absolute path: %w", filePath, err)
-		}
-
-		content, err := os.ReadFile(filepath.Clean(filePath))
-		if err != nil {
-			return errors.New("error reading YAML file(s)")
+			return fmt.Errorf("read --values=%q: %w", filePath, err)
 		}
 
 		// Change Window's CRLF to LF line endings
@@ -94,7 +93,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 			ID:          config.SchemaRoot.ID,
 		}
 
-		tempSchema.SetReferrer(ReferrerDir(filepath.Dir(filePathAbs)))
+		tempSchema.SetReferrer(fileReferrer)
 		// Set root $ref after updating the referrer on all other $refs
 		if config.SchemaRoot.Ref != "" {
 			tempSchema.Ref = config.SchemaRoot.Ref
@@ -133,6 +132,34 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
 }
 
+func readInputFile(stdin io.Reader, filePath string) (Referrer, []byte, error) {
+	if filePath == "-" {
+		content, err := io.ReadAll(stdin)
+		if err != nil {
+			return Referrer{}, nil, fmt.Errorf("error reading from stdin: %w", err)
+		}
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return Referrer{}, nil, fmt.Errorf("get directory as referrer for stdin: %w", err)
+		}
+
+		return ReferrerDir(cwd), content, nil
+	}
+
+	filePathAbs, err := filepath.Abs(filepath.FromSlash(filePath))
+	if err != nil {
+		return Referrer{}, nil, fmt.Errorf("get absolute path: %w", err)
+	}
+
+	content, err := os.ReadFile(filepath.Clean(filePath))
+	if err != nil {
+		return Referrer{}, nil, fmt.Errorf("error reading YAML file(s): %w", err)
+	}
+
+	return ReferrerDir(filepath.Dir(filePathAbs)), content, nil
+}
+
 func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent string) error {
 	logger := LoggerFromContext(ctx)
 
@@ -144,10 +171,24 @@ func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent s
 	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
-	if err := os.WriteFile(outputPath, jsonBytes, 0600); err != nil {
+	if err := writeOutputFile(os.Stdout, outputPath, jsonBytes); err != nil {
 		return fmt.Errorf("write output schema: %w", err)
 	}
 
 	logger.Log("JSON schema successfully generated")
+	return nil
+}
+
+func writeOutputFile(stdout io.Writer, path string, content []byte) error {
+	if path == "-" {
+		if _, err := stdout.Write(content); err != nil {
+			return fmt.Errorf("write schema to stdout: %w", err)
+		}
+		return nil
+	}
+
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		return fmt.Errorf("write output schema: %w", err)
+	}
 	return nil
 }

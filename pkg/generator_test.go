@@ -1,10 +1,13 @@
 package pkg
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
@@ -361,6 +364,15 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("values flag is required"),
 		},
 		{
+			name: "Too many stdin values",
+			config: &Config{
+				Values: []string{"-", "some-file.txt", "-"},
+				Draft:  2020,
+				Indent: 0,
+			},
+			expectedErr: errors.New("values flag must not contain multiple stdin (\"-f -\")"),
+		},
+		{
 			name: "Invalid draft version",
 			config: &Config{
 				Values: []string{"../testdata/basic.yaml"},
@@ -543,7 +555,7 @@ func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 		Draft:  2020,
 		Indent: 4,
 	})
-	require.ErrorContains(t, err, "foo/bar.yaml: get absolute path")
+	require.ErrorContains(t, err, "read --values=\"foo/bar.yaml\": get absolute path:")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
@@ -657,10 +669,105 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 	}
 }
 
+func TestReadInputFile_ReadFile(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	var stdin io.Reader = nil // should not be used
+	referrer, content, err := readInputFile(stdin, "generator_test.go")
+	require.NoError(t, err)
+
+	assert.Equal(t, cwd, referrer.dir, "Referrer")
+	assert.NotEmpty(t, content)
+}
+
+func TestReadInputFile_FileNotFound(t *testing.T) {
+	var stdin io.Reader = nil // should not be used
+	_, _, err := readInputFile(stdin, "file_that_does_not_exist.txt")
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestReadInputFile_Stdin(t *testing.T) {
+	stdin := strings.NewReader("hello this is text from stdin\n")
+
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	referrer, content, err := readInputFile(stdin, "-")
+	require.NoError(t, err)
+
+	assert.Equal(t, "hello this is text from stdin\n", string(content), "Stdin content should equal")
+	assert.Equal(t, cwd, referrer.dir, "Referrer")
+}
+
+type ReaderWriterWithError struct {
+	Err error
+}
+
+func (r ReaderWriterWithError) Read([]byte) (int, error) {
+	return 0, r.Err
+}
+
+func (r ReaderWriterWithError) Write([]byte) (int, error) {
+	return 0, r.Err
+}
+
+func TestReadInputFile_StdinError(t *testing.T) {
+	stdin := ReaderWriterWithError{errors.New("testing error")}
+	_, _, err := readInputFile(stdin, "-")
+	require.ErrorContains(t, err, "error reading from stdin: testing error")
+}
+
+func TestReadInputFile_StdinCwdError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	stdin := strings.NewReader("hello\n")
+	_, _, err := readInputFile(stdin, "-")
+	require.ErrorContains(t, err, "get directory as referrer for stdin:")
+}
+
 func TestWriteOutput_JSONError(t *testing.T) {
 	schema := &Schema{Type: func() {}}
 
 	ctx := ContextWithLogger(t.Context(), t)
 	err := WriteOutput(ctx, schema, os.DevNull, "  ")
 	require.ErrorContains(t, err, "unsupported type: func()")
+}
+
+func TestWriteOutputFile_WriteToFile(t *testing.T) {
+	var stdout io.Writer = nil
+	err := writeOutputFile(stdout, "some_example_output.txt", []byte("some content\n"))
+	require.NoError(t, err)
+	require.FileExists(t, "some_example_output.txt")
+	content, err := os.ReadFile("some_example_output.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "some content\n", string(content))
+
+	defer func() {
+		_ = os.Remove("some_example_output.txt")
+	}()
+}
+
+func TestWriteOutputFile_WriteToStdout(t *testing.T) {
+	var stdout bytes.Buffer
+	err := writeOutputFile(&stdout, "-", []byte("some stdout content\n"))
+	require.NoError(t, err)
+	assert.Equal(t, "some stdout content\n", stdout.String())
+	assert.NoFileExists(t, "-")
+
+	defer func() {
+		// Just in case it creates a file
+		_ = os.Remove("-")
+	}()
+}
+
+func TestWriteOutputFile_WriteToStdoutError(t *testing.T) {
+	stdout := ReaderWriterWithError{errors.New("testing error")}
+	err := writeOutputFile(&stdout, "-", []byte("some stdout content\n"))
+	require.ErrorContains(t, err, "write schema to stdout: testing error")
+
+	defer func() {
+		// Just in case it creates a file
+		_ = os.Remove("-")
+	}()
 }

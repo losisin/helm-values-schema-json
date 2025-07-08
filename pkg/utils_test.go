@@ -127,3 +127,26 @@ func TestComparePointer(t *testing.T) {
 		})
 	}
 }
+
+func TestCountOccurencesSlice(t *testing.T) {
+	tests := []struct {
+		name  string
+		slice []int
+		item  int
+		want  int
+	}{
+		{name: "nil", slice: nil, item: 5, want: 0},
+		{name: "no matches", slice: []int{1, 2, 3, 4, 6, 7, 8, 9}, item: 5, want: 0},
+		{name: "all matches", slice: []int{5, 5, 5, 5, 5, 5, 5, 5}, item: 5, want: 8},
+		{name: "some matches", slice: []int{5, 2, 3, 4, 5, 6, 5, 8, 5}, item: 5, want: 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := countOccurrencesSlice(tt.slice[:], tt.item)
+			if got != tt.want {
+				t.Errorf("wrong result\nwant: %d\ngot:  %d", tt.want, got)
+			}
+		})
+	}
+}

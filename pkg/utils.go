@@ -94,3 +94,13 @@ func comparePointer[T comparable](a, b *T) bool {
 	}
 	return false
 }
+
+func countOccurrencesSlice[T comparable](slice []T, item T) int {
+	var count int
+	for _, value := range slice {
+		if value == item {
+			count++
+		}
+	}
+	return count
+}

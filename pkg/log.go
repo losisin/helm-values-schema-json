@@ -34,7 +34,7 @@ func ContextWithLogger(parent context.Context, logger Logger) context.Context {
 func LoggerFromContext(ctx context.Context) Logger {
 	logger := ctx.Value(loggerContextValue)
 	if logger == nil {
-		return NewLogger(os.Stdout)
+		return NewLogger(os.Stderr)
 	}
 	return logger.(Logger)
 }
