@@ -4,4 +4,5 @@
   entry: scripts/git-hook.sh
   language: script
   name: Helm values schema json
+  pass_filenames: false
   require_serial: true
