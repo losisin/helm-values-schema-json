@@ -12,6 +12,9 @@ import (
 // This is set by goreleaser using ldflags
 var Version string
 
+// Using variable to allow mocking this during tests
+var osExit = os.Exit
+
 func main() {
 	cmd := pkg.NewCmd()
 	cmd.Version = getVersion()
@@ -20,7 +23,10 @@ func main() {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			osExit(1)
+		}
 	}
 }
 
