@@ -128,7 +128,7 @@ func TestComparePointer(t *testing.T) {
 	}
 }
 
-func TestCountOccurencesSlice(t *testing.T) {
+func TestCountOccurrencesSlice(t *testing.T) {
 	tests := []struct {
 		name  string
 		slice []int

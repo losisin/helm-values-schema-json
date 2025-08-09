@@ -200,7 +200,7 @@ In most cases you will want to run the plugin with default options:
 $ helm schema
 ```
 
-This will read `values.yaml`, set draft version to `2020-12` and save outpout to `values.schema.json`.
+This will read `values.yaml`, set draft version to `2020-12` and save output to `values.schema.json`.
 
 #### Extended
 

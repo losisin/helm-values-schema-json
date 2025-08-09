@@ -481,19 +481,19 @@ func TestSchemaIsType(t *testing.T) {
 	tests := []struct {
 		name   string
 		schema *Schema
-		typ    string
+		isType string
 		want   bool
 	}{
-		{name: "empty", schema: &Schema{}, typ: "string", want: false},
-		{name: "string equal", schema: &Schema{Type: "string"}, typ: "string", want: true},
-		{name: "string not equal", schema: &Schema{Type: "integer"}, typ: "string", want: false},
-		{name: "slice contains", schema: &Schema{Type: []any{"boolean", "string"}}, typ: "string", want: true},
-		{name: "slice not contains", schema: &Schema{Type: []any{"boolean", "integer"}}, typ: "string", want: false},
+		{name: "empty", schema: &Schema{}, isType: "string", want: false},
+		{name: "string equal", schema: &Schema{Type: "string"}, isType: "string", want: true},
+		{name: "string not equal", schema: &Schema{Type: "integer"}, isType: "string", want: false},
+		{name: "slice contains", schema: &Schema{Type: []any{"boolean", "string"}}, isType: "string", want: true},
+		{name: "slice not contains", schema: &Schema{Type: []any{"boolean", "integer"}}, isType: "string", want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.schema.IsType(tt.typ)
+			got := tt.schema.IsType(tt.isType)
 			assert.Equalf(t, tt.want, got, "Type: %#v", tt.schema.Type)
 		})
 	}
