@@ -6,19 +6,22 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(t *testing.T) {
 	tests := []struct {
-		name          string
-		args          []string
-		setup         func()
-		cleanup       func()
-		expectedError string
-		expectedOut   string
+		name             string
+		args             []string
+		setup            func()
+		cleanup          func()
+		expectedError    string
+		expectedOut      string
+		expectedExitCode int
 	}{
 		{
 			name:          "HelpFlag",
@@ -33,10 +36,11 @@ func TestMain(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name:          "InvalidFlags",
-			args:          []string{"schema", "--fail"},
-			expectedOut:   "",
-			expectedError: "unknown flag: --fail",
+			name:             "InvalidFlags",
+			args:             []string{"schema", "--fail"},
+			expectedOut:      "",
+			expectedError:    "unknown flag: --fail",
+			expectedExitCode: 1,
 		},
 		{
 			name:          "SuccessfulRun",
@@ -45,10 +49,11 @@ func TestMain(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name:          "GenerateError",
-			args:          []string{"schema", "--values", "fail.yaml", "--draft", "2020"},
-			expectedOut:   "error reading YAML file(s)",
-			expectedError: "",
+			name:             "GenerateError",
+			args:             []string{"schema", "--values", "fail.yaml", "--draft", "2020"},
+			expectedOut:      "",
+			expectedError:    "error reading YAML file(s)",
+			expectedExitCode: 1,
 		},
 		{
 			name: "ErrorLoadingConfigFile",
@@ -84,8 +89,9 @@ func TestMain(t *testing.T) {
 					}
 				}
 			},
-			expectedOut:   "",
-			expectedError: "Error: load config file .schema.yaml:",
+			expectedOut:      "",
+			expectedError:    "load config file .schema.yaml:",
+			expectedExitCode: 1,
 		},
 	}
 
@@ -97,6 +103,16 @@ func TestMain(t *testing.T) {
 				os.Stdout = stdout
 				os.Stderr = stderr
 			}(os.Args, os.Stdout, os.Stderr)
+
+			var exitCode int
+			defer func(oldFunc func(code int)) { osExit = oldFunc }(osExit)
+			osExit = func(code int) { exitCode = code }
+
+			t.Cleanup(func() {
+				if err := os.Remove("values.schema.json"); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("failed to remove values.schema.json: %v", err)
+				}
+			})
 
 			if tt.setup != nil {
 				tt.setup()
@@ -111,25 +127,18 @@ func TestMain(t *testing.T) {
 
 			os.Args = tt.args
 
-			errCh := make(chan error, 1)
-
+			var wg sync.WaitGroup
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				main()
-				if err := w.Close(); err != nil {
-					errCh <- err
-				}
-				close(errCh)
+				require.NoError(t, w.Close())
 			}()
-
-			if err := <-errCh; err != nil {
-				t.Errorf("Error closing pipe: %v", err)
-			}
+			wg.Wait()
 
 			var buf bytes.Buffer
 			_, err := io.Copy(&buf, r)
-			if err != nil {
-				t.Errorf("Error reading stdout: %v", err)
-			}
+			require.NoError(t, err, "Error reading stdout")
 
 			out := buf.String()
 
@@ -137,9 +146,7 @@ func TestMain(t *testing.T) {
 			if tt.expectedOut != "" {
 				assert.Contains(t, out, tt.expectedOut)
 			}
-			if err := os.Remove("values.schema.json"); err != nil && !os.IsNotExist(err) {
-				t.Errorf("failed to remove values.schema.json: %v", err)
-			}
+			assert.Equal(t, tt.expectedExitCode, exitCode, "Expected exit code")
 		})
 	}
 }
