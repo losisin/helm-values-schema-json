@@ -271,17 +271,17 @@ func (s *Schema) SetKind(kind SchemaKind) {
 	}
 }
 
-func (s *Schema) IsType(typ string) bool {
+func (s *Schema) IsType(t string) bool {
 	switch value := s.Type.(type) {
 	case []any:
 		for _, v := range value {
-			if v == typ {
+			if v == t {
 				return true
 			}
 		}
 		return false
 	default:
-		return value == typ
+		return value == t
 	}
 }
 

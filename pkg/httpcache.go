@@ -168,7 +168,7 @@ func getCacheControlMaxAge(header string) time.Duration {
 // urlToCachePath returns a relative path that can be used as a file path
 // when storing files in a cache, keyed by their URL.
 //
-// This function is lossy and one-way. It is not meant to be reversable.
+// This function is lossy and one-way. It is not meant to be reversible.
 // It has potential for collisions, but not during normal usage.
 //
 // The purpose is to make the file path human readable to allow the user
