@@ -781,6 +781,7 @@ Bundling supports the following schemes:
 
 ```yaml
 ## HTTP & HTTPS
+## NOTE: JSON or YAML parsing is based on the "Content-Type" response header (default: JSON)
 # @schema $ref: http://example.com/schema.json
 # @schema $ref: http://example.com/schema.yaml
 # @schema $ref: https://example.com/schema.json
@@ -788,6 +789,7 @@ Bundling supports the following schemes:
 
 ## Local files
 ## NOTE: "file://" only supports absolute paths
+## NOTE: JSON or YAML parsing is based on file extension (default: JSON)
 # @schema $ref: file:///some/absolute/path.json
 # @schema $ref: file:///some/absolute/path.yaml
 # @schema $ref: /some/absolute/path.json
