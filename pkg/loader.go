@@ -162,7 +162,7 @@ func (loader FileLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error
 
 	var schema Schema
 	switch filepath.Ext(path) {
-	case ".yml", ".yaml":
+	case ".yml", ".yaml", ".kyml", ".kyaml":
 		if err := yaml.Unmarshal(b, &schema); err != nil {
 			return nil, fmt.Errorf("parse YAML file: %w", err)
 		}
