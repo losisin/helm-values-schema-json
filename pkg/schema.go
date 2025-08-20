@@ -121,6 +121,7 @@ type Schema struct {
 	Definitions map[string]*Schema `json:"definitions,omitempty" yaml:"definitions,omitempty"`
 
 	SkipProperties   bool `json:"-" yaml:"-"`
+	MergeProperties  bool `json:"-" yaml:"-"`
 	Hidden           bool `json:"-" yaml:"-"`
 	RequiredByParent bool `json:"-" yaml:"-"`
 }
@@ -305,9 +306,12 @@ func getSchemaURL(draft int) (string, error) {
 func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, error) {
 	schema := &Schema{}
 
+	var orderedMapProperties []*Schema
+
 	switch valNode.Kind {
 	case yaml.MappingNode:
-		properties := make(map[string]*Schema)
+		orderedMapProperties = make([]*Schema, 0, len(valNode.Content)/2)
+		properties := make(map[string]*Schema, len(valNode.Content)/2)
 		required := []string{}
 		for i := 0; i < len(valNode.Content); i += 2 {
 			childKeyNode := valNode.Content[i]
@@ -322,6 +326,7 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 				if childSchema.SkipProperties && childSchema.IsType("object") {
 					childSchema.Properties = nil
 				}
+				orderedMapProperties = append(orderedMapProperties, childSchema)
 				properties[childKeyNode.Value] = childSchema
 				if childSchema.RequiredByParent {
 					required = append(required, childKeyNode.Value)
@@ -382,6 +387,13 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 	}
 
 	if schema.SkipProperties && schema.IsType("object") {
+		schema.Properties = nil
+	} else if schema.MergeProperties && len(orderedMapProperties) > 0 {
+		result := orderedMapProperties[0]
+		for _, prop := range orderedMapProperties[1:] {
+			result = mergeSchemas(result, prop)
+		}
+		schema.AdditionalProperties = result
 		schema.Properties = nil
 	}
 

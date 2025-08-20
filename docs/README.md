@@ -84,6 +84,7 @@ The following annotations are supported:
     * [required](#required)
     * [patternProperties](#patternproperties)
     * [additionalProperties](#additionalproperties)
+    * [mergeProperties](#mergeproperties)
 * [Unevaluated Locations](#unevaluated-locations)
     * [unevaluatedProperties](#unevaluatedproperties)
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
@@ -193,7 +194,7 @@ service: ClusterIP # @schema enum:[ClusterIP, LoadBalancer, null]
 
 ### ItemEnum
 
-This is a special key that apply [enum](#enum) on items of an array.
+This is a special annotation that applies [enum](#enum) on items of an array.
 
 ```yaml
 port: [80, 443] # @schema itemEnum:[80, 8080, 443, 8443]
@@ -333,7 +334,7 @@ replicas: 5 # @schema minimum:2
 
 ### item
 
-Define the item type of empty arrays.
+This is a special annotation that sets the item type of arrays.
 
 ```yaml
 imagePullSecrets: [] # @schema item: object
@@ -472,7 +473,10 @@ nodeSelector: # @schema minProperties:1
 
 ### required
 
-Array of unique strings appended to the parent node. [section 6.5.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.3)
+This is a special annotation that adds the field's map key to its parent node's
+`required` setting.
+
+JSON Schema `required` is an array of unique strings. [section 6.5.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5.3)
 
 The `:true` part of `required:true` is optional.
 
@@ -560,6 +564,51 @@ image: {} # @schema additionalProperties: {type: string}
         "type": "string"
     },
     "type": "object"
+}
+```
+
+### mergeProperties
+
+(since v2.3.0)
+
+This is a special annotation that merges all of the node's properties
+into `additionalProperties`.
+
+Useful when you have a YAML map where the map keys are arbitrary values,
+such as when the map keys are resource names.
+
+```yaml
+services: # @schema mergeProperties: true
+  my-frontend:
+    image: example/webapp
+    serviceType: LoadBalancer
+
+  my-backend:
+    image: example/backend
+    ports:
+      - 8080
+```
+
+```json
+"services": {
+    "type": "object",
+    "additionalProperties": {
+        "type": "object",
+        "properties": {
+            "image": {
+                "type": "string"
+            },
+            "ports": {
+                "type": "array",
+                "items": {
+                    "type": "integer"
+                }
+            },
+            "serviceType": {
+                "type": "string"
+            }
+        }
+    }
 }
 ```
 
@@ -709,7 +758,7 @@ subchart: # @schema $ref: https://example.com/schema.json
 
 (since v2.2.0)
 
-This is a special key that apply [$ref](#ref) on items of an array.
+This is a special annotation that apply [$ref](#ref) on items of an array.
 
 ```yaml
 imagePullPolicy: [] # @schema itemRef: https://example.com/schema.json

@@ -152,6 +152,10 @@ func processComment(schema *Schema, commentLines []string) error {
 			if err := processBoolComment(&schema.SkipProperties, value); err != nil {
 				return fmt.Errorf("skipProperties: %w", err)
 			}
+		case "mergeProperties":
+			if err := processBoolComment(&schema.MergeProperties, value); err != nil {
+				return fmt.Errorf("mergeProperties: %w", err)
+			}
 		case "multipleOf":
 			if err := processFloat64PtrComment(&schema.MultipleOf, value); err != nil {
 				return fmt.Errorf("multipleOf: %w", err)
