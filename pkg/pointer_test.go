@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,64 +138,74 @@ func TestParsePtr(t *testing.T) {
 
 func TestPtr_HasPrefix(t *testing.T) {
 	tests := []struct {
-		name   string
-		ptr    Ptr
-		prefix Ptr
-		want   bool
+		name      string
+		ptr       Ptr
+		prefix    Ptr
+		want      bool
+		wantAfter Ptr
 	}{
 		{
-			name:   "empty both",
-			ptr:    nil,
-			prefix: nil,
-			want:   true,
+			name:      "empty both",
+			ptr:       nil,
+			prefix:    nil,
+			want:      true,
+			wantAfter: nil,
 		},
 		{
-			name:   "empty prefix",
-			ptr:    Ptr{"foo"},
-			prefix: nil,
-			want:   true,
+			name:      "empty prefix",
+			ptr:       Ptr{"foo"},
+			prefix:    nil,
+			want:      true,
+			wantAfter: Ptr{"foo"},
 		},
 		{
-			name:   "empty ptr",
-			ptr:    nil,
-			prefix: NewPtr("foo"),
-			want:   false,
+			name:      "empty ptr",
+			ptr:       nil,
+			prefix:    NewPtr("foo"),
+			want:      false,
+			wantAfter: nil,
 		},
 		{
-			name:   "longer prefix than ptr",
-			ptr:    NewPtr("foo"),
-			prefix: NewPtr("foo", "bar"),
-			want:   false,
+			name:      "longer prefix than ptr",
+			ptr:       NewPtr("foo"),
+			prefix:    NewPtr("foo", "bar"),
+			want:      false,
+			wantAfter: NewPtr("foo"),
 		},
 		{
-			name:   "match",
-			ptr:    NewPtr("foo", "bar"),
-			prefix: NewPtr("foo"),
-			want:   true,
+			name:      "match",
+			ptr:       NewPtr("foo", "bar"),
+			prefix:    NewPtr("foo"),
+			want:      true,
+			wantAfter: NewPtr("bar"),
 		},
 		{
-			name:   "match plain",
-			ptr:    NewPtr("foo", "bar"),
-			prefix: NewPtr("foo"),
-			want:   true,
+			name:      "match plain",
+			ptr:       NewPtr("foo", "bar"),
+			prefix:    NewPtr("foo"),
+			want:      true,
+			wantAfter: NewPtr("bar"),
 		},
 		{
-			name:   "match with special chars",
-			ptr:    NewPtr("foo/bar"),
-			prefix: NewPtr("foo/bar"),
-			want:   true,
+			name:      "match with special chars",
+			ptr:       NewPtr("foo/bar"),
+			prefix:    NewPtr("foo/bar"),
+			want:      true,
+			wantAfter: nil,
 		},
 		{
-			name:   "no match because of special chars in ptr",
-			ptr:    NewPtr("foo/bar"),
-			prefix: NewPtr("foo"),
-			want:   false,
+			name:      "no match because of special chars in ptr",
+			ptr:       NewPtr("foo/bar"),
+			prefix:    NewPtr("foo"),
+			want:      false,
+			wantAfter: NewPtr("foo/bar"),
 		},
 		{
-			name:   "no match because of special chars in prefix",
-			ptr:    NewPtr("foo", "bar"),
-			prefix: NewPtr("foo/bar"),
-			want:   false,
+			name:      "no match because of special chars in prefix",
+			ptr:       NewPtr("foo", "bar"),
+			prefix:    NewPtr("foo/bar"),
+			want:      false,
+			wantAfter: NewPtr("foo", "bar"),
 		},
 	}
 
@@ -202,8 +213,13 @@ func TestPtr_HasPrefix(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.ptr.HasPrefix(tt.prefix)
 			if got != tt.want {
-				t.Fatalf("wrong result\nptr:    %q\nprefix: %q\nwant:   %t\ngot:    %t",
+				t.Errorf("wrong HasPrefix result\nptr:    %q\nprefix: %q\nwant:   %t\ngot:    %t",
 					tt.ptr, tt.prefix, tt.want, got)
+			}
+			gotAfter, _ := tt.ptr.CutPrefix(tt.prefix)
+			if !slices.Equal(gotAfter, tt.wantAfter) {
+				t.Errorf("wrong CutPrefix result\nptr:    %q\nprefix: %q\nwant after: %[3]q (%#[3]v)\ngot after:  %[4]q (%#[4]v)",
+					tt.ptr, tt.prefix, tt.wantAfter, gotAfter)
 			}
 		})
 	}
@@ -279,6 +295,253 @@ func TestPtr_Equals(t *testing.T) {
 				t.Fatalf("wrong result\nptr:   %q\nother: %q\nwant:  %t\ngot:   %t",
 					tt.ptr, tt.other, tt.want, got)
 			}
+		})
+	}
+}
+
+func TestPtr_Resolve(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		ptr    Ptr
+		want   func(schema *Schema) []ResolvedSchema
+	}{
+		{
+			name:   "nil ptr is same as root",
+			schema: &Schema{ID: "root"},
+			ptr:    nil,
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{{nil, schema}}
+			},
+		},
+		{
+			name:   "root ptr",
+			schema: &Schema{ID: "root"},
+			ptr:    Ptr{},
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{{Ptr{}, schema}}
+			},
+		},
+		{
+			name: "find in defs",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("$defs", "foo.json"), schema.Defs["foo.json"]},
+				}
+			},
+		},
+		{
+			name: "find in definitions",
+			schema: &Schema{
+				Definitions: map[string]*Schema{
+					"foo.json": {ID: "foo.json"},
+				},
+			},
+			ptr: NewPtr("definitions", "foo.json"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("definitions", "foo.json"), schema.Definitions["foo.json"]},
+				}
+			},
+		},
+		{
+			name: "find in patternProperties",
+			schema: &Schema{PatternProperties: map[string]*Schema{
+				"foo": {ID: "foo"},
+			}},
+			ptr: NewPtr("patternProperties", "foo"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("patternProperties", "foo"), schema.PatternProperties["foo"]},
+				}
+			},
+		},
+		{
+			name: "find in properties",
+			schema: &Schema{Properties: map[string]*Schema{
+				"foo": {ID: "foo"},
+			}},
+			ptr: NewPtr("properties", "foo"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("properties", "foo"), schema.Properties["foo"]},
+				}
+			},
+		},
+
+		{
+			name:   "find in allOf",
+			schema: &Schema{AllOf: []*Schema{{ID: "foo"}}},
+			ptr:    NewPtr("allOf", "0"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("allOf", "0"), schema.AllOf[0]},
+				}
+			},
+		},
+		{
+			name:   "find in anyOf",
+			schema: &Schema{AnyOf: []*Schema{{ID: "foo"}}},
+			ptr:    NewPtr("anyOf", "0"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("anyOf", "0"), schema.AnyOf[0]},
+				}
+			},
+		},
+		{
+			name:   "find in oneOf",
+			schema: &Schema{OneOf: []*Schema{{ID: "foo"}}},
+			ptr:    NewPtr("oneOf", "0"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("oneOf", "0"), schema.OneOf[0]},
+				}
+			},
+		},
+
+		{
+			name: "find nested",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID: "foo.json",
+						Definitions: map[string]*Schema{
+							"bar.json": {ID: "bar.json"},
+						},
+					},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json", "definitions", "bar.json"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("$defs", "foo.json"), schema.Defs["foo.json"]},
+					{NewPtr("$defs", "foo.json", "definitions", "bar.json"), schema.Defs["foo.json"].Definitions["bar.json"]},
+				}
+			},
+		},
+
+		{
+			name:   "find additionalItems",
+			schema: &Schema{AdditionalItems: &Schema{ID: "additionalItems"}},
+			ptr:    NewPtr("additionalItems"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("additionalItems"), schema.AdditionalItems},
+				}
+			},
+		},
+		{
+			name:   "find additionalProperties",
+			schema: &Schema{AdditionalProperties: &Schema{ID: "additionalProperties"}},
+			ptr:    NewPtr("additionalProperties"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("additionalProperties"), schema.AdditionalProperties},
+				}
+			},
+		},
+		{
+			name:   "find items",
+			schema: &Schema{Items: &Schema{ID: "items"}},
+			ptr:    NewPtr("items"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("items"), schema.Items},
+				}
+			},
+		},
+		{
+			name: "find nested items",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo": {Items: &Schema{ID: "items"}},
+				},
+			},
+			ptr: NewPtr("$defs", "foo", "items"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("$defs", "foo"), schema.Defs["foo"]},
+					{NewPtr("$defs", "foo", "items"), schema.Defs["foo"].Items},
+				}
+			},
+		},
+		{
+			name:   "find not",
+			schema: &Schema{Not: &Schema{ID: "not"}},
+			ptr:    NewPtr("not"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("not"), schema.Not},
+				}
+			},
+		},
+
+		{
+			name: "unknown property",
+			schema: &Schema{
+				Defs: map[string]*Schema{"foo.json": {ID: "foo.json"}},
+			},
+			ptr: NewPtr("foobar", "moodoo"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{{NewPtr(), schema}}
+			},
+		},
+		{
+			name: "unknown array",
+			schema: &Schema{
+				Defs: map[string]*Schema{"foo.json": {ID: "foo.json"}},
+			},
+			ptr: NewPtr("foobar", "0"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{{NewPtr(), schema}}
+			},
+		},
+		{
+			name: "unknown nested",
+			schema: &Schema{
+				Defs: map[string]*Schema{
+					"foo.json": {
+						ID: "foo.json",
+						Definitions: map[string]*Schema{
+							"bar.json": {ID: "bar.json"},
+						},
+					},
+				},
+			},
+			ptr: NewPtr("$defs", "foo.json", "definitions", "moo.json"),
+			want: func(schema *Schema) []ResolvedSchema {
+				return []ResolvedSchema{
+					{NewPtr(), schema},
+					{NewPtr("$defs", "foo.json"), schema.Defs["foo.json"]},
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolved := tt.ptr.Resolve(tt.schema)
+			assert.Equal(t, tt.want(tt.schema), resolved)
 		})
 	}
 }

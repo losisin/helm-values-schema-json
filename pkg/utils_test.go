@@ -150,3 +150,34 @@ func TestCountOccurrencesSlice(t *testing.T) {
 		})
 	}
 }
+
+func TestTryIndex(t *testing.T) {
+	var (
+		a = uint64Ptr(1)
+		b = uint64Ptr(2)
+		c = uint64Ptr(3)
+	)
+	tests := []struct {
+		name  string
+		slice []*uint64
+		index int
+		want  *uint64
+	}{
+		{name: "nil 0", slice: nil, index: 0, want: nil},
+		{name: "nil out-of-bound", slice: nil, index: 10, want: nil},
+		{name: "empty 0", slice: []*uint64{}, index: 0, want: nil},
+		{name: "empty out-of-bound", slice: []*uint64{}, index: 10, want: nil},
+		{name: "in-bounds", slice: []*uint64{a, b, c}, index: 1, want: b},
+		{name: "too high", slice: []*uint64{a, b, c}, index: 10, want: nil},
+		{name: "too low", slice: []*uint64{a, b, c}, index: -10, want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tryIndex(tt.slice, tt.index)
+			if got != tt.want {
+				t.Errorf("wrong result\nslice: %#v\nwant: %#v\ngot:  %#v", tt.slice, tt.want, got)
+			}
+		})
+	}
+}
