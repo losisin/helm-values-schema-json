@@ -69,6 +69,7 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().Int("draft", DefaultConfig.Draft, "Draft version (4, 6, 7, 2019, or 2020)")
 	cmd.Flags().Int("indent", DefaultConfig.Indent, "Indentation spaces (even number)")
 	cmd.Flags().Bool("no-additional-properties", false, "Default additionalProperties to false for all objects in the schema")
+	cmd.Flags().Bool("no-default-global", false, "Disable automatic injection of 'global' property when schema root does not allow it")
 
 	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
 	cmd.Flags().Bool("bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
@@ -170,6 +171,7 @@ type Config struct {
 	Draft                  int      `yaml:"draft" koanf:"draft"`
 	Indent                 int      `yaml:"indent" koanf:"indent"`
 	NoAdditionalProperties bool     `yaml:"noAdditionalProperties" koanf:"no-additional-properties"`
+	NoDefaultGlobal        bool     `yaml:"noDefaultGlobal" koanf:"no-default-global"`
 	Bundle                 bool     `yaml:"bundle" koanf:"bundle"`
 	BundleRoot             string   `yaml:"bundleRoot" koanf:"bundle-root"`
 	BundleWithoutID        bool     `yaml:"bundleWithoutID" koanf:"bundle-without-id"`

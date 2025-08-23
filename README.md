@@ -152,6 +152,7 @@ Example:
 
 ```yaml
 # .schema.yaml
+# yaml-language-server: $schema=https://github.com/losisin/helm-values-schema-json/raw/refs/heads/main/config.schema.json
 
 values:
   - values.yaml

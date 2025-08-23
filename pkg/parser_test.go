@@ -383,7 +383,7 @@ func TestEnsureCompliant(t *testing.T) {
 			if tt.draft == 0 {
 				tt.draft = 2020
 			}
-			err := ensureCompliant(tt.schema, tt.noAdditionalProperties, tt.draft)
+			err := ensureCompliant(tt.schema, tt.noAdditionalProperties, false, tt.draft)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -444,7 +444,7 @@ func TestEnsureCompliant_recursive(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ensureCompliant(tc.schema, false, 2020)
+			err := ensureCompliant(tc.schema, false, false, 2020)
 			assert.Error(t, err)
 		})
 	}

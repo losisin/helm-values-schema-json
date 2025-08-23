@@ -150,12 +150,14 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 	return dest
 }
 
-func ensureCompliant(schema *Schema, noAdditionalProperties bool, draft int) error {
+func ensureCompliant(schema *Schema, noAdditionalProperties, noDefaultGlobal bool, draft int) error {
 	if err := ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft); err != nil {
 		return err
 	}
 
-	addMissingGlobalProperty(schema) // only apply to schema root
+	if !noDefaultGlobal {
+		addMissingGlobalProperty(schema) // only apply to schema root
+	}
 	return nil
 }
 

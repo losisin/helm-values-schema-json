@@ -55,7 +55,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 		var node yaml.Node
 		if err := yaml.Unmarshal(content, &node); err != nil {
-			return errors.New("error unmarshaling YAML")
+			return errors.New("error unmarshalling YAML")
 		}
 
 		if len(node.Content) == 0 {
@@ -123,7 +123,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
-	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.Draft); err != nil {
+	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.NoDefaultGlobal, config.Draft); err != nil {
 		return err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version
