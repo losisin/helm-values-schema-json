@@ -183,7 +183,7 @@ func TestRefRelativeToBasePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := refRelativeToBasePath(tt.ref, tt.basePathForIDs)
-			assert.Equal(t, tt.want, got)
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -277,7 +277,7 @@ func TestGenerateBundledName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := generateBundledName(tt.id, tt.defs)
-			assert.Equal(t, tt.want, got)
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -527,7 +527,7 @@ func TestBundle(t *testing.T) {
 			ctx := ContextWithLogger(t.Context(), t)
 			err := BundleSchema(ctx, tt.loader, tt.schema, "/")
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 
 			want, err := yaml.Marshal(tt.want)
 			require.NoError(t, err)
@@ -666,7 +666,7 @@ func TestBundleRemoveIDs(t *testing.T) {
 			t.Parallel()
 			err := BundleRemoveIDs(tt.schema)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 
 			want, err := yaml.Marshal(tt.want)
 			require.NoError(t, err)
@@ -911,7 +911,7 @@ func TestRemoveUnusedDefs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			RemoveUnusedDefs(tt.schema)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 
 			want, err := yaml.Marshal(tt.want)
 			require.NoError(t, err)

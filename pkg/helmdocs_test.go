@@ -3,7 +3,7 @@ package pkg
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -223,7 +223,7 @@ func TestParseHelmDocsComment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			helmDocs, err := ParseHelmDocsComment(tt.comment)
 			require.NoErrorf(t, err, "Comment: %q", tt.comment)
-			assert.Equalf(t, tt.want, helmDocs, "Comment: %q", tt.comment)
+			testutil.Equalf(t, tt.want, helmDocs, "Comment: %q", tt.comment)
 		})
 	}
 }
@@ -329,7 +329,7 @@ func TestParseHelmDocsPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseHelmDocsPath(tt.path)
 			require.NoErrorf(t, err, "Path: %q", tt.path)
-			assert.Equalf(t, tt.want, got, "Path: %q", tt.path)
+			testutil.Equalf(t, tt.want, got, "Path: %q", tt.path)
 		})
 	}
 }
@@ -563,8 +563,8 @@ func TestSplitHeadCommentsByHelmDocs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schemaComments, helmDocsComments := SplitHelmDocsComment(tt.comment)
-			assert.Equal(t, tt.wantSchema, schemaComments, "Schema comments")
-			assert.Equal(t, tt.wantHelmDocs, helmDocsComments, "helm-docs comments")
+			testutil.Equal(t, tt.wantSchema, schemaComments, "Schema comments")
+			testutil.Equal(t, tt.wantHelmDocs, helmDocsComments, "helm-docs comments")
 		})
 	}
 }

@@ -260,9 +260,9 @@ func TestCacheLoader(t *testing.T) {
 	assert.Same(t, schema1, schema2)
 	assert.Same(t, schema2, schema3)
 	assert.Same(t, schema3, schema1)
-	assert.Equal(t, 1, schema1.Enum[0], "schema1")
-	assert.Equal(t, 1, schema2.Enum[0], "schema2")
-	assert.Equal(t, 1, schema3.Enum[0], "schema3")
+	testutil.Equal(t, 1, schema1.Enum[0], "schema1")
+	testutil.Equal(t, 1, schema2.Enum[0], "schema2")
+	testutil.Equal(t, 1, schema3.Enum[0], "schema3")
 }
 
 func TestHTTPLoader(t *testing.T) {
@@ -401,8 +401,8 @@ func TestHTTPLoader(t *testing.T) {
 					want = tt.wantFunc(server.URL)
 				}
 
-				assert.Equal(t, want, schema, "Schema")
-				assert.Equal(t, "test/"+t.Name(), gotUserAgent, "UserAgent")
+				testutil.Equal(t, want, schema, "Schema")
+				testutil.Equal(t, "test/"+t.Name(), gotUserAgent, "UserAgent")
 			})
 		}
 
@@ -426,7 +426,7 @@ func TestHTTPLoader(t *testing.T) {
 			loader := NewHTTPLoader(server.Client(), nil)
 			_, err := loader.Load(ctx, mustParseURL(server.URL))
 			require.NoError(t, err)
-			assert.Equal(t, `<http://some-referrerer>; rel="describedby"`, linkHeader, "Link header")
+			testutil.Equal(t, `<http://some-referrerer>; rel="describedby"`, linkHeader, "Link header")
 		})
 	}
 }
@@ -480,7 +480,7 @@ func TestHTTPLoader_Cache(t *testing.T) {
 			CachedAt: now,
 			Data:     []byte("{}"),
 		}
-		assert.Equal(t, want, cached)
+		testutil.Equal(t, want, cached)
 	})
 
 	t.Run("load cache", func(t *testing.T) {
@@ -499,10 +499,10 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
-		assert.Equal(t, "Already cached", schema.Comment)
+		testutil.Equal(t, "Already cached", schema.Comment)
 		require.Len(t, cache.Map, 1)
 		cached := cache.Map[server.URL]
-		assert.Equal(t, alreadyCached, cached)
+		testutil.Equal(t, alreadyCached, cached)
 	})
 
 	t.Run("load invalid cache", func(t *testing.T) {
@@ -520,7 +520,7 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		ctx := ContextWithLogger(t.Context(), t)
 		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
-		assert.Equal(t, "from server", schema.Comment)
+		testutil.Equal(t, "from server", schema.Comment)
 	})
 
 	t.Run("cache errors", func(t *testing.T) {
@@ -563,7 +563,7 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
-		assert.Equal(t, []string{"myETag"}, etagsReceived)
+		testutil.Equal(t, []string{"myETag"}, etagsReceived)
 		assert.NotEqual(t, "Already cached", schema.Comment)
 	})
 
@@ -598,7 +598,7 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		schema, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.NoError(t, err)
 
-		assert.Equal(t, 2, requestsReceived)
+		testutil.Equal(t, 2, requestsReceived)
 		assert.NotEqual(t, "Already cached", schema.Comment)
 	})
 
@@ -634,7 +634,7 @@ func TestHTTPLoader_Cache(t *testing.T) {
 		ctx := ContextWithLogger(t.Context(), t)
 		_, err := loader.Load(ctx, mustParseURL(server.URL))
 		require.ErrorContains(t, err, "request $ref over HTTP:")
-		assert.Equal(t, 1, requestsReceived)
+		testutil.Equal(t, 1, requestsReceived)
 	})
 }
 
@@ -649,7 +649,7 @@ func TestHTTPLoader_SaveCacheETag(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Nil(t, schema)
-		assert.Equal(t, CachedResponse{}, cached)
+		testutil.Equal(t, CachedResponse{}, cached)
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
@@ -667,7 +667,7 @@ func TestHTTPLoader_SaveCacheETag(t *testing.T) {
 		require.ErrorContains(t, err, "parse cached YAML:")
 
 		assert.Nil(t, schema)
-		assert.Equal(t, CachedResponse{}, cached)
+		testutil.Equal(t, CachedResponse{}, cached)
 	})
 }
 

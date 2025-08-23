@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -116,4 +117,98 @@ func TestPerGOOS(t *testing.T) {
 			assert.Equal(t, tt.want, tt.per.String())
 		})
 	}
+}
+
+func TestColorizeDiff_withColor(t *testing.T) {
+	input := "" +
+		"(-want, +got):\n" +
+		" empty line\n" +
+		"nonspace prefix\n" +
+		"\t... // some comment\n" +
+		"-removed line\n" +
+		"+added line\n" +
+		"~changed line"
+	want := "" +
+		"(\033[31m-want\033[0m, \033[32m+got\033[0m):\n" +
+		" empty line\n" +
+		"nonspace prefix\n" +
+		"\033[90m\t... // some comment\033[0m\n" +
+		"\033[31m-removed line\033[0m\n" +
+		"\033[32m+added line\033[0m\n" +
+		"\033[33m~changed line\033[0m"
+
+	t.Run("colorizes", func(t *testing.T) {
+		t.Setenv("NO_COLOR", "")
+		t.Setenv("TERM", "")
+		require.Equal(t, want, colorizeDiff(input))
+	})
+
+	t.Run("no_color", func(t *testing.T) {
+		t.Setenv("NO_COLOR", "1")
+		t.Setenv("TERM", "")
+		require.Equal(t, input, colorizeDiff(input))
+	})
+
+	t.Run("term dumb", func(t *testing.T) {
+		t.Setenv("NO_COLOR", "")
+		t.Setenv("TERM", "dumb")
+		require.Equal(t, input, colorizeDiff(input))
+	})
+}
+
+func TestEqual_dontFail(t *testing.T) {
+	type Struct struct {
+		Foo string
+		Bar int
+	}
+
+	a := Struct{Foo: "hello", Bar: 1}
+	// Passing regular "t" so if the Equal function fails then this test fails too
+	Equal(t, a, a, "my message")
+	Equalf(t, a, a, "my %s", "format")
+	MustEqual(t, a, a, "my message")
+	MustEqualf(t, a, a, "my %s", "format")
+}
+
+func TestEqual_fails(t *testing.T) {
+	type Struct struct {
+		Foo string
+		Bar int
+	}
+
+	a := Struct{Foo: "hello", Bar: 1}
+	b := Struct{Foo: "world", Bar: 2}
+
+	var output string
+	fake := FakeT{
+		HelperFunc: func() {},
+		ErrorfFunc: func(format string, args ...any) {
+			output = fmt.Sprintf(format, args...)
+		},
+		FatalfFunc: func(format string, args ...any) {
+			output = fmt.Sprintf(format, args...)
+		},
+	}
+
+	output = ""
+	Equal(fake, a, b, "my message")
+	require.Contains(t, output, "my message ")
+
+	output = ""
+	Equalf(fake, a, b, "my %s", "format")
+	require.Contains(t, output, "my format ")
+
+	output = ""
+	MustEqual(fake, a, b, "my message")
+	require.Contains(t, output, "my message ")
+
+	output = ""
+	MustEqualf(fake, a, b, "my %s", "format")
+	require.Contains(t, output, "my format ")
+}
+
+func TestAddSpace(t *testing.T) {
+	assert.Equal(t, "", addSpace(""))
+	assert.Equal(t, "foo ", addSpace("foo"))
+	assert.Equal(t, "foo ", addSpace("foo "))
 }

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 )
 
 func TestPtr(t *testing.T) {
@@ -131,7 +131,7 @@ func TestParsePtr(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ParsePtr(tt.path)
-			assert.Equal(t, tt.want, got)
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -541,7 +541,7 @@ func TestPtr_Resolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resolved := tt.ptr.Resolve(tt.schema)
-			assert.Equal(t, tt.want(tt.schema), resolved)
+			testutil.Equal(t, tt.want(tt.schema), resolved)
 		})
 	}
 }

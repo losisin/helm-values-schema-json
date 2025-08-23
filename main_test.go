@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,20 +147,20 @@ func TestMain(t *testing.T) {
 			if tt.expectedOut != "" {
 				assert.Contains(t, out, tt.expectedOut)
 			}
-			assert.Equal(t, tt.expectedExitCode, exitCode, "Expected exit code")
+			testutil.Equal(t, tt.expectedExitCode, exitCode, "Expected exit code")
 		})
 	}
 }
 
 func TestGetVersion(t *testing.T) {
 	Version = "v1.2.3"
-	assert.Equal(t, "v1.2.3", getVersion())
+	testutil.Equal(t, "v1.2.3", getVersion())
 
 	Version = "1.2.3"
-	assert.Equal(t, "v1.2.3", getVersion())
+	testutil.Equal(t, "v1.2.3", getVersion())
 
 	Version = ""
-	assert.Equal(t, "(devel)", getVersion())
+	testutil.Equal(t, "(devel)", getVersion())
 }
 
 func TestGetVersionFromBuildInfo(t *testing.T) {
