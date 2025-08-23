@@ -95,3 +95,31 @@ func TestWithLineComment(t *testing.T) {
 
 	assert.Equal(t, "foobar # some line comment\n", string(b))
 }
+
+func TestWithHeadComment(t *testing.T) {
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: "foobar",
+	}
+
+	node = WithHeadComment("some head comment", node)
+
+	b, err := yaml.Marshal(node)
+	require.NoError(t, err)
+
+	assert.Equal(t, "# some head comment\nfoobar\n", string(b))
+}
+
+func TestWithFootComment(t *testing.T) {
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: "foobar",
+	}
+
+	node = WithFootComment("some foot comment", node)
+
+	b, err := yaml.Marshal(node)
+	require.NoError(t, err)
+
+	assert.Equal(t, "foobar\n# some foot comment\n", string(b))
+}
