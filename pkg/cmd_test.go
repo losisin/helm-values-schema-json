@@ -433,6 +433,7 @@ output: fileOutput.json
 draft: 2020
 indent: 4
 noAdditionalProperties: true
+noDefaultGlobal: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -449,6 +450,7 @@ schemaRoot:
 				"--draft=2019",
 				"--indent=2",
 				"--no-additional-properties=false",
+				"--no-default-global=false",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
 				"--use-helm-docs=false",
@@ -485,6 +487,7 @@ output: fileOutput.json
 draft: 2020
 indent: 4
 noAdditionalProperties: true
+noDefaultGlobal: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -504,6 +507,7 @@ schemaRoot:
 				K8sSchemaURL:           "fileURL",
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
+				NoDefaultGlobal:        true,
 				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
@@ -523,6 +527,7 @@ output: fileOutput.json
 draft: 2020
 indent: 4
 noAdditionalProperties: true
+noDefaultGlobal: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -544,6 +549,7 @@ schemaRoot:
 				K8sSchemaURL:           "fileURL",
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
+				NoDefaultGlobal:        true,
 				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
@@ -564,6 +570,7 @@ schemaRoot:
 				"--draft=2019",
 				"--indent=2",
 				"--no-additional-properties=false",
+				"--no-default-global=false",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
 				"--use-helm-docs=true",

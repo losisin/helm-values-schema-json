@@ -1,0 +1,24 @@
+values:
+  - ".schema.yaml"
+
+draft: 2020
+indent: 4
+output: values.schema.json
+
+bundle: true
+bundleRoot: ""
+bundleWithoutID: true
+
+k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
+k8sSchemaVersion: "v1.33.1"
+
+useHelmDocs: true
+
+noAdditionalProperties: false
+
+schemaRoot:
+  id: https://example.com/schema
+  ref: ../bundle/simple-subschema.schema.json
+  title: Helm Values Schema
+  description: Schema for Helm values
+  additionalProperties: true

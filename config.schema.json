@@ -1,0 +1,127 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Helm Schema config file",
+    "description": "JSON Schema for the \"helm schema\" plugin, allowing you to set configs using a config file instead of using command-line flags. The default file name used by \"helm schema\" is \".schema.yaml\".",
+    "type": "object",
+    "properties": {
+        "bundle": {
+            "description": "Bundle referenced ($ref) subschemas into a single file inside $defs.",
+            "default": false,
+            "type": "boolean"
+        },
+        "bundleRoot": {
+            "description": "Root directory to allow local referenced files to be loaded from. Defaults to the current working directory.",
+            "examples": [
+                "./",
+                "../"
+            ],
+            "default": "",
+            "type": "string"
+        },
+        "bundleWithoutID": {
+            "description": "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension.",
+            "default": false,
+            "type": "boolean"
+        },
+        "draft": {
+            "description": "JSON Schema draft version.",
+            "default": 2020,
+            "type": "integer",
+            "enum": [
+                4,
+                6,
+                7,
+                2019,
+                2020
+            ]
+        },
+        "indent": {
+            "description": "Output JSON indentation level.",
+            "examples": [
+                2,
+                4
+            ],
+            "default": 4,
+            "type": "integer",
+            "minimum": 2,
+            "multipleOf": 2
+        },
+        "k8sSchemaURL": {
+            "description": "URL template used in \"$ref: $k8s/...\" alias. Uses Go text templating, where \"{{ .K8sSchemaVersion }}\" maps to the k8sSchemaVersion config.",
+            "examples": [
+                "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+                "https://kubernetesjsonschema.dev/{{ .K8sSchemaVersion }}/"
+            ],
+            "default": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+            "type": "string"
+        },
+        "k8sSchemaVersion": {
+            "description": "Version used in the \"k8sSchemaURL\" template for \"$ref: $k8s/...\" alias. This setting has no default value and must be set in order to use the \"$k8s\" alias.",
+            "type": "string"
+        },
+        "noAdditionalProperties": {
+            "description": "Default additionalProperties to false for all objects in the schema.",
+            "default": false,
+            "type": "boolean"
+        },
+        "noDefaultGlobal": {
+            "description": "Disable automatic injection of 'global' property when schema root does not allow it.",
+            "default": false,
+            "type": "boolean"
+        },
+        "output": {
+            "description": "Output file path.",
+            "default": "values.schema.json",
+            "type": "string"
+        },
+        "schemaRoot": {
+            "description": "Set of configs for configuring properties on the output root schema.",
+            "type": "object",
+            "properties": {
+                "additionalProperties": {
+                    "description": "JSON Schema \"additionalProperties\" on the output schema root. This has precedence over the \"noAdditionalProperties\" config.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "description": {
+                    "description": "JSON Schema \"description\" on the output schema root.",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "JSON Schema \"$id\" on the output schema root.",
+                    "type": "string"
+                },
+                "ref": {
+                    "description": "JSON Schema \"$ref\" on the output schema root. When using local file references (e.g \"./foobar.json\") the path is relative to your .schema.yaml config file.",
+                    "type": "string"
+                },
+                "title": {
+                    "description": "JSON Schema \"title\" on the output schema root.",
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
+        },
+        "useHelmDocs": {
+            "description": "Read descriptions from https://github.com/norwoodj/helm-docs comments.",
+            "default": false,
+            "type": "boolean"
+        },
+        "values": {
+            "description": "One or more YAML files as inputs.",
+            "default": [
+                "values.yaml"
+            ],
+            "type": "array",
+            "items": {
+                "examples": [
+                    "values.yaml"
+                ],
+                "type": "string"
+            }
+        }
+    },
+    "additionalProperties": false
+}

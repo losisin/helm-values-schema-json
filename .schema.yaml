@@ -1,25 +1,89 @@
-# Required
-values:
-  - ".schema.yaml"
+# yaml-language-server: $schema=./config.schema.json
 
+# Config file for "helm schema", which by default should be named ".schema.yaml"
+#
+# Note that these values are not default values.
+# They're just used to generate the schema of the config file.
+#
+# See the `default: ...` annotations for the actual defaults, if any.
+
+# -- One or more YAML files as inputs.
+# Flag: --values, -f
+values: # @schema default: [values.yaml]
+  - ".schema.yaml" # @schema examples: [values.yaml]
+
+# -- JSON Schema draft version.
+# Flag: --draft
 draft: 2020 # @schema enum: [4, 6, 7, 2019, 2020]; default: 2020
-indent: 4 # @schema default: 4
-output: values.schema.json # @schema default: values.schema.json
 
-bundle: true # @schema default: false
-bundleRoot: "" # @schema default: ""
-bundleWithoutID: true # @schema default: false
+# -- Output JSON indentation level.
+# Flag: --indent
+indent: 4 # @schema default: 4; multipleOf: 2; minimum: 2; examples: [2, 4]
 
+# -- Output file path.
+# Flag: --output, -o
+output: config.schema.json # @schema default: values.schema.json
+
+# -- Bundle referenced ($ref) subschemas into a single file inside $defs.
+# Flag: --bundle
+bundle: false # @schema default: false
+
+# -- Root directory to allow local referenced files to be loaded from.
+# Defaults to the current working directory.
+# Flag: --bundle-root
+bundleRoot: "" # @schema default: ""; examples: [./, ../]
+
+# -- Bundle without using $id to reference bundled schemas,
+# which improves compatibility with e.g the VS Code JSON extension.
+# Flag: --bundle-without-id
+bundleWithoutID: false # @schema default: false
+
+# -- URL template used in "$ref: $k8s/..." alias.
+# Uses Go text templating, where "{{ .K8sSchemaVersion }}" maps to the k8sSchemaVersion config.
+# Flag: --k8s-schema-url
 k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
+# @schema default: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
+# @schema examples: [https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/, https://kubernetesjsonschema.dev/{{ .K8sSchemaVersion }}/]
+
+# -- Version used in the "k8sSchemaURL" template for "$ref: $k8s/..." alias.
+# This setting has no default value and must be set in order to use the "$k8s" alias.
+# Flag: --k8s-schema-version
 k8sSchemaVersion: "v1.33.1"
 
+# -- Read descriptions from https://github.com/norwoodj/helm-docs comments.
+# Flag: --use-helm-docs
 useHelmDocs: true # @schema default: false
 
-noAdditionalProperties: false # @schema default: false
+# -- Default additionalProperties to false for all objects in the schema.
+# Flag: --no-additional-properties
+noAdditionalProperties: true # @schema default: false
 
+# -- Disable automatic injection of 'global' property when schema root does not allow it.
+# Flag: --no-default-global
+noDefaultGlobal: true # @schema default: false
+
+# -- Set of configs for configuring properties on the output root schema.
+# Flag: --schema-root.*
 schemaRoot:
-  id: https://example.com/schema
-  ref: testdata/bundle/simple-subschema.schema.json
-  title: Helm Values Schema
-  description: Schema for Helm values
-  additionalProperties: true
+  # -- JSON Schema "$id" on the output schema root.
+  # Flag: --schema-root.id
+  id: ""
+
+  # -- JSON Schema "$ref" on the output schema root.
+  # When using local file references (e.g "./foobar.json") the path is relative
+  # to your .schema.yaml config file.
+  # Flag: --schema-root.ref
+  ref: ""
+
+  # -- JSON Schema "title" on the output schema root.
+  # Flag: --schema-root.title
+  title: Helm Schema config file
+
+  # -- JSON Schema "description" on the output schema root.
+  # Flag: --schema-root.description
+  description: JSON Schema for the "helm schema" plugin, allowing you to set configs using a config file instead of using command-line flags. The default file name used by "helm schema" is ".schema.yaml".
+
+  # -- JSON Schema "additionalProperties" on the output schema root.
+  # This has precedence over the "noAdditionalProperties" config.
+  # Flag: --schema-root.additionalProperties
+  additionalProperties: false # @schema type: [boolean, null]; default: null

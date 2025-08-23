@@ -452,7 +452,7 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Draft:  2020,
 				Indent: 4,
 			},
-			expectedErr: errors.New("error unmarshaling YAML"),
+			expectedErr: errors.New("error unmarshalling YAML"),
 		},
 		{
 			name: "Read-only filesystem",
