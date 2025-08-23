@@ -130,11 +130,12 @@ Flags:
       --bundle-without-id                   Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
       --config string                       Config file for setting defaults. (default ".schema.yaml")
       --draft int                           Draft version (4, 6, 7, 2019, or 2020) (default 2020)
-  -h, --help                                help for helm
+  -h, --help                                help for helm schema
       --indent int                          Indentation spaces (even number) (default 4)
-      --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/")
+      --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/")
       --k8s-schema-version string           Version used in the --k8s-schema-url template for $ref: $k8s/... alias
       --no-additional-properties            Default additionalProperties to false for all objects in the schema
+      --no-default-global                   Disable automatic injection of 'global' property when schema root does not allow it
   -o, --output string                       Output file path (default "values.schema.json")
       --schema-root.additional-properties   Allow additional properties
       --schema-root.description string      JSON schema description
@@ -143,6 +144,7 @@ Flags:
       --schema-root.title string            JSON schema title
       --use-helm-docs                       Read description from https://github.com/norwoodj/helm-docs comments
   -f, --values strings                      One or more YAML files as inputs. Use comma-separated list or supply flag multiple times (default [values.yaml])
+  -v, --version                             version for helm schema
 ```
 
 ### Configuration file
@@ -165,9 +167,13 @@ bundle: false
 bundleRoot: ""
 bundleWithoutID: false
 
+k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
+k8sSchemaVersion: "v1.33.1"
+
 useHelmDocs: false
 
 noAdditionalProperties: false
+noDefaultGlobal: false
 
 schemaRoot:
   id: https://example.com/schema
