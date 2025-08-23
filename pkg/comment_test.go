@@ -569,6 +569,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{AdditionalProperties: SchemaTrue()},
 		},
 		{
+			name:       "Set unevaluatedProperties bool empty",
+			schema:     &Schema{},
+			comment:    "# @schema unevaluatedProperties",
+			wantSchema: &Schema{UnevaluatedProperties: SchemaTrue()},
+		},
+		{
 			name:       "Set meta-data",
 			schema:     &Schema{},
 			comment:    "# @schema title:My Title;description: some description;readOnly:false;default:\"foo\";const:\"foo\"",
@@ -578,7 +584,7 @@ func TestProcessComment(t *testing.T) {
 			name:       "Set skipProperties",
 			schema:     &Schema{},
 			comment:    "# @schema skipProperties:true;unevaluatedProperties:false",
-			wantSchema: &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
+			wantSchema: &Schema{SkipProperties: true, UnevaluatedProperties: SchemaFalse()},
 		},
 		{
 			name:       "Set mergeProperties",
@@ -666,7 +672,6 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "uniqueItems invalid bool", comment: "# @schema uniqueItems: foo", wantErr: "uniqueItems: invalid boolean"},
 		{name: "skipProperties invalid bool", comment: "# @schema skipProperties: foo", wantErr: "skipProperties: invalid boolean"},
 		{name: "mergeProperties invalid bool", comment: "# @schema mergeProperties: foo", wantErr: "mergeProperties: invalid boolean"},
-		{name: "unevaluatedProperties invalid bool", comment: "# @schema unevaluatedProperties: foo", wantErr: "unevaluatedProperties: invalid boolean"},
 
 		{name: "maxLength invalid uint64", comment: "# @schema maxLength: foo", wantErr: "maxLength: invalid integer"},
 		{name: "minLength invalid uint64", comment: "# @schema minLength: foo", wantErr: "minLength: invalid integer"},
@@ -684,6 +689,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "default invalid YAML", comment: "# @schema default: {", wantErr: "default: parse object \"{\": yaml"},
 		{name: "itemProperties invalid YAML", comment: "# @schema itemProperties: {", wantErr: "itemProperties: parse object \"{\": yaml"},
 		{name: "additionalProperties invalid YAML", comment: "# @schema additionalProperties: {", wantErr: "additionalProperties: parse object \"{\": yaml"},
+		{name: "unevaluatedProperties invalid YAML", comment: "# @schema unevaluatedProperties: {", wantErr: "unevaluatedProperties: parse object \"{\": yaml"},
 		{name: "allOf invalid YAML", comment: "# @schema allOf: {", wantErr: "allOf: parse object \"{\": yaml"},
 		{name: "anyOf invalid YAML", comment: "# @schema anyOf: {", wantErr: "anyOf: parse object \"{\": yaml"},
 		{name: "oneOf invalid YAML", comment: "# @schema oneOf: {", wantErr: "oneOf: parse object \"{\": yaml"},

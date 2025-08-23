@@ -1,56 +1,12 @@
 package pkg
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// schemasEqual is a helper function to compare two Schema objects.
-func schemasEqual(a, b *Schema) bool {
-	switch {
-	case a == nil, b == nil:
-		return a == b
-
-	// Compare simple fields
-	case a.Pattern != b.Pattern,
-		a.UniqueItems != b.UniqueItems,
-		a.Title != b.Title,
-		a.Description != b.Description,
-		a.ReadOnly != b.ReadOnly:
-		return false
-
-	// Compare pointer fields
-	case !comparePointer(a.MultipleOf, b.MultipleOf),
-		!comparePointer(a.Maximum, b.Maximum),
-		!comparePointer(a.Minimum, b.Minimum),
-		!comparePointer(a.MaxLength, b.MaxLength),
-		!comparePointer(a.MinLength, b.MinLength),
-		!comparePointer(a.MaxItems, b.MaxItems),
-		!comparePointer(a.MinItems, b.MinItems),
-		!comparePointer(a.MaxProperties, b.MaxProperties),
-		!comparePointer(a.MinProperties, b.MinProperties):
-		return false
-
-	// Compare slice fields
-	case !reflect.DeepEqual(a.Type, b.Type),
-		!reflect.DeepEqual(a.Enum, b.Enum),
-		!reflect.DeepEqual(a.Required, b.Required),
-		!reflect.DeepEqual(a.Examples, b.Examples):
-		return false
-
-	// Recursively check nested fields
-	case !schemasEqual(a.Items, b.Items):
-		return false
-
-	default:
-		// Compare map fields (Properties)
-		return reflect.DeepEqual(a.Properties, b.Properties)
-	}
-}
 
 func TestMergeSchemas(t *testing.T) {
 	tests := []struct {
@@ -187,15 +143,27 @@ func TestMergeSchemas(t *testing.T) {
 		},
 		{
 			name: "object properties",
-			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
-			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
-			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: boolPtr(false)},
+			dest: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: SchemaFalse()},
+			src:  &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: SchemaFalse()},
+			want: &Schema{Type: "object", MinProperties: uint64Ptr(1), MaxProperties: uint64Ptr(10), PatternProperties: map[string]*Schema{"^.$": {Type: "string"}}, AdditionalProperties: SchemaFalse(), UnevaluatedProperties: SchemaFalse()},
 		},
 		{
 			name: "meta-data properties",
 			dest: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "Old comment", Examples: []any{"foo", 1}},
 			src:  &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
 			want: &Schema{Type: "object", Title: "My Title", Description: "My description", ReadOnly: true, Default: "default value", Const: "const value", ID: "http://example.com/schema", Ref: "schema/product.json", Schema: "https://my-schema", Comment: "New comment", Examples: []any{"bar"}},
+		},
+		{
+			name: "vocabulary",
+			dest: &Schema{Vocabulary: map[string]bool{"a": true, "b": false, "c": true}},
+			src:  &Schema{Vocabulary: map[string]bool{"b": true, "c": false, "d": true}},
+			want: &Schema{Vocabulary: map[string]bool{"a": true, "b": true, "c": false, "d": true}},
+		},
+		{
+			name: "vocabulary nil",
+			dest: &Schema{Vocabulary: nil},
+			src:  &Schema{Vocabulary: map[string]bool{"a": true}},
+			want: &Schema{Vocabulary: map[string]bool{"a": true}},
 		},
 		{
 			name: "allOf",
@@ -222,10 +190,46 @@ func TestMergeSchemas(t *testing.T) {
 			want: &Schema{Type: "object", Not: &Schema{Type: "string"}},
 		},
 		{
+			name: "if",
+			dest: &Schema{Type: "object"},
+			src:  &Schema{Type: "object", If: &Schema{Type: "string"}},
+			want: &Schema{Type: "object", If: &Schema{Type: "string"}},
+		},
+		{
+			name: "then",
+			dest: &Schema{Type: "object"},
+			src:  &Schema{Type: "object", Then: &Schema{Type: "string"}},
+			want: &Schema{Type: "object", Then: &Schema{Type: "string"}},
+		},
+		{
+			name: "else",
+			dest: &Schema{Type: "object"},
+			src:  &Schema{Type: "object", Else: &Schema{Type: "string"}},
+			want: &Schema{Type: "object", Else: &Schema{Type: "string"}},
+		},
+		{
 			name: "refReferrer",
-			dest: &Schema{RefReferrer: ReferrerDir("/foo")},
-			src:  &Schema{RefReferrer: ReferrerDir("/foo/bar")},
-			want: &Schema{RefReferrer: ReferrerDir("/foo/bar")},
+			dest: &Schema{Ref: "foo", RefReferrer: ReferrerDir("/foo")},
+			src:  &Schema{Ref: "foobar", RefReferrer: ReferrerDir("/foo/bar")},
+			want: &Schema{Ref: "foobar", RefReferrer: ReferrerDir("/foo/bar")},
+		},
+		{
+			name: "dynamicRefReferrer",
+			dest: &Schema{DynamicRef: "foo", DynamicRefReferrer: ReferrerDir("/foo")},
+			src:  &Schema{DynamicRef: "foobar", DynamicRefReferrer: ReferrerDir("/foo/bar")},
+			want: &Schema{DynamicRef: "foobar", DynamicRefReferrer: ReferrerDir("/foo/bar")},
+		},
+		{
+			name: "contains",
+			dest: &Schema{Contains: &Schema{ID: "dest"}, MinContains: uint64Ptr(1), MaxLength: uint64Ptr(2)},
+			src:  &Schema{Contains: &Schema{ID: "src"}, MinContains: uint64Ptr(10), MaxLength: uint64Ptr(20)},
+			want: &Schema{Contains: &Schema{ID: "src"}, MinContains: uint64Ptr(10), MaxLength: uint64Ptr(20)},
+		},
+		{
+			name: "prefixItems",
+			dest: &Schema{PrefixItems: []*Schema{{ID: "dest"}}},
+			src:  &Schema{PrefixItems: []*Schema{{ID: "src"}}},
+			want: &Schema{PrefixItems: []*Schema{{ID: "src"}}},
 		},
 		{
 			name: "RequiredByParent",
@@ -238,9 +242,7 @@ func TestMergeSchemas(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := mergeSchemas(tt.dest, tt.src)
-			if !schemasEqual(got, tt.want) {
-				t.Errorf("mergeSchemas() got = %v, want %v", got, tt.want)
-			}
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }

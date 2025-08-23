@@ -79,41 +79,68 @@ type Schema struct {
 	kind SchemaKind
 
 	// Field ordering is taken from https://github.com/sourcemeta/core/blob/429eb970f3e303c3f61ba3cf066c7bd766453e15/src/core/jsonschema/jsonschema.cc#L459-L546
-	Schema                string             `json:"$schema,omitempty" yaml:"$schema,omitempty"`
-	ID                    string             `json:"$id,omitempty" yaml:"$id,omitempty"`
-	Title                 string             `json:"title,omitempty" yaml:"title,omitempty"`
-	Description           string             `json:"description,omitempty" yaml:"description,omitempty"`
-	Comment               string             `json:"$comment,omitempty" yaml:"$comment,omitempty"`
-	Examples              []any              `json:"examples,omitempty" yaml:"examples,omitempty"`
-	ReadOnly              bool               `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	Default               any                `json:"default,omitempty" yaml:"default,omitempty"`
-	Ref                   string             `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	RefReferrer           Referrer           `json:"-" yaml:"-"`
-	Type                  any                `json:"type,omitempty" yaml:"type,omitempty"`
-	Enum                  []any              `json:"enum,omitempty" yaml:"enum,omitempty"`
-	AllOf                 []*Schema          `json:"allOf,omitempty" yaml:"allOf,omitempty"`
-	AnyOf                 []*Schema          `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
-	OneOf                 []*Schema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
-	Not                   *Schema            `json:"not,omitempty" yaml:"not,omitempty"`
-	Maximum               *float64           `json:"maximum,omitempty" yaml:"maximum,omitempty"`
-	Minimum               *float64           `json:"minimum,omitempty" yaml:"minimum,omitempty"`
-	MultipleOf            *float64           `json:"multipleOf,omitempty" yaml:"multipleOf,omitempty"`
-	Pattern               string             `json:"pattern,omitempty" yaml:"pattern,omitempty"`
-	MaxLength             *uint64            `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
-	MinLength             *uint64            `json:"minLength,omitempty" yaml:"minLength,omitempty"`
-	MaxItems              *uint64            `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
-	MinItems              *uint64            `json:"minItems,omitempty" yaml:"minItems,omitempty"`
-	UniqueItems           bool               `json:"uniqueItems,omitempty" yaml:"uniqueItems,omitempty"`
-	Items                 *Schema            `json:"items,omitempty" yaml:"items,omitempty"`
-	AdditionalItems       *Schema            `json:"additionalItems,omitempty" yaml:"additionalItems,omitempty"`
-	Required              []string           `json:"required,omitempty" yaml:"required,omitempty"`
-	MaxProperties         *uint64            `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
-	MinProperties         *uint64            `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
-	Properties            map[string]*Schema `json:"properties,omitempty" yaml:"properties,omitempty"`
-	PatternProperties     map[string]*Schema `json:"patternProperties,omitempty" yaml:"patternProperties,omitempty"`
-	AdditionalProperties  *Schema            `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
-	UnevaluatedProperties *bool              `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
-	Const                 any                `json:"const,omitempty" yaml:"const,omitempty"`
+	Schema                string              `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID                    string              `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Vocabulary            map[string]bool     `json:"$vocabulary,omitempty" yaml:"$vocabulary,omitempty"`
+	Anchor                string              `json:"$anchor,omitempty" yaml:"$anchor,omitempty"`
+	DynamicAnchor         string              `json:"$dynamicAnchor,omitempty" yaml:"$dynamicAnchor,omitempty"`
+	RecursiveAnchor       string              `json:"$recursiveAnchor,omitempty" yaml:"$recursiveAnchor,omitempty"` // Deprecated. Replaced by $dynamicAnchor
+	Title                 string              `json:"title,omitempty" yaml:"title,omitempty"`
+	Description           string              `json:"description,omitempty" yaml:"description,omitempty"`
+	Comment               string              `json:"$comment,omitempty" yaml:"$comment,omitempty"`
+	Examples              []any               `json:"examples,omitempty" yaml:"examples,omitempty"`
+	Deprecated            bool                `json:"decrecated,omitempty" yaml:"deprecated,omitempty"`
+	ReadOnly              bool                `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	WriteOnly             bool                `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
+	Default               any                 `json:"default,omitempty" yaml:"default,omitempty"`
+	Ref                   string              `json:"$ref,omitempty" yaml:"$ref,omitempty"`
+	RefReferrer           Referrer            `json:"-" yaml:"-"`
+	DynamicRef            string              `json:"$dynamicRef,omitempty" yaml:"$dynamicRef,omitempty"`
+	DynamicRefReferrer    Referrer            `json:"-" yaml:"-"`
+	RecursiveRef          string              `json:"$recursiveRef,omitempty" yaml:"$recursiveRef,omitempty"` // Deprecated. Replaced by $dynamicRef
+	Type                  any                 `json:"type,omitempty" yaml:"type,omitempty"`
+	Const                 any                 `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum                  []any               `json:"enum,omitempty" yaml:"enum,omitempty"`
+	AllOf                 []*Schema           `json:"allOf,omitempty" yaml:"allOf,omitempty"`
+	AnyOf                 []*Schema           `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
+	OneOf                 []*Schema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Not                   *Schema             `json:"not,omitempty" yaml:"not,omitempty"`
+	If                    *Schema             `json:"if,omitempty" yaml:"if,omitempty"`
+	Then                  *Schema             `json:"then,omitempty" yaml:"then,omitempty"`
+	Else                  *Schema             `json:"else,omitempty" yaml:"else,omitempty"`
+	ExclusiveMaximum      *float64            `json:"exclusiveMaximum,omitempty" yaml:"exclusiveMaximum,omitempty"`
+	Maximum               *float64            `json:"maximum,omitempty" yaml:"maximum,omitempty"`
+	ExclusiveMinimum      *float64            `json:"exclusiveMinimum,omitempty" yaml:"exclusiveMinimum,omitempty"`
+	Minimum               *float64            `json:"minimum,omitempty" yaml:"minimum,omitempty"`
+	MultipleOf            *float64            `json:"multipleOf,omitempty" yaml:"multipleOf,omitempty"`
+	Pattern               string              `json:"pattern,omitempty" yaml:"pattern,omitempty"`
+	Format                string              `json:"format,omitempty" yaml:"format,omitempty"`
+	MaxLength             *uint64             `json:"maxLength,omitempty" yaml:"maxLength,omitempty"`
+	MinLength             *uint64             `json:"minLength,omitempty" yaml:"minLength,omitempty"`
+	ContentEncoding       string              `json:"contentEncoding,omitempty" yaml:"contentEncoding,omitempty"`
+	ContentMediaType      string              `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
+	ContentSchema         *Schema             `json:"contentSchema,omitempty" yaml:"contentSchema,omitempty"`
+	MaxItems              *uint64             `json:"maxItems,omitempty" yaml:"maxItems,omitempty"`
+	MinItems              *uint64             `json:"minItems,omitempty" yaml:"minItems,omitempty"`
+	UniqueItems           bool                `json:"uniqueItems,omitempty" yaml:"uniqueItems,omitempty"`
+	MaxContains           *uint64             `json:"maxContains,omitempty" yaml:"maxContains,omitempty"`
+	MinContains           *uint64             `json:"minContains,omitempty" yaml:"minContains,omitempty"`
+	Contains              *Schema             `json:"contains,omitempty" yaml:"contains,omitempty"`
+	PrefixItems           []*Schema           `json:"prefixItems,omitempty" yaml:"prefixItems,omitempty"`
+	Items                 *Schema             `json:"items,omitempty" yaml:"items,omitempty"`
+	AdditionalItems       *Schema             `json:"additionalItems,omitempty" yaml:"additionalItems,omitempty"`
+	UnevaluatedItems      *Schema             `json:"unevaluatedItems,omitempty" yaml:"unevaluatedItems,omitempty"`
+	Required              []string            `json:"required,omitempty" yaml:"required,omitempty"`
+	MaxProperties         *uint64             `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
+	MinProperties         *uint64             `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
+	PropertyNames         *Schema             `json:"propertyNames,omitempty" yaml:"propertyNames,omitempty"`
+	Properties            map[string]*Schema  `json:"properties,omitempty" yaml:"properties,omitempty"`
+	PatternProperties     map[string]*Schema  `json:"patternProperties,omitempty" yaml:"patternProperties,omitempty"`
+	AdditionalProperties  *Schema             `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	UnevaluatedProperties *Schema             `json:"unevaluatedProperties,omitempty" yaml:"unevaluatedProperties,omitempty"`
+	DependentRequired     map[string][]string `json:"dependentRequired,omitempty" yaml:"dependentRequired,omitempty"`
+	Dependencies          any                 `json:"dependencies,omitempty" yaml:"dependencies,omitempty"` // Deprecated. Replaced by "dependentSchemas" and "dependentRequired"
+	DependentSchemas      map[string]*Schema  `json:"dependentSchemas,omitempty" yaml:"dependentSchemas,omitempty"`
 
 	Defs map[string]*Schema `json:"$defs,omitempty" yaml:"$defs,omitempty"`
 	// Deprecated: This field was renamed to "$defs" in draft 2019-09,
@@ -134,40 +161,66 @@ func (s *Schema) IsZero() bool {
 	case s.kind != 0,
 		len(s.Schema) > 0,
 		len(s.ID) > 0,
+		len(s.Vocabulary) > 0,
+		len(s.Anchor) > 0,
+		len(s.DynamicAnchor) > 0,
+		len(s.RecursiveAnchor) > 0,
 		len(s.Title) > 0,
 		len(s.Description) > 0,
 		len(s.Comment) > 0,
 		len(s.Examples) > 0,
+		s.Deprecated,
 		s.ReadOnly,
+		s.WriteOnly,
 		s.Default != nil,
 		len(s.Ref) > 0,
+		len(s.DynamicRef) > 0,
+		len(s.RecursiveRef) > 0,
 		s.Type != nil,
+		s.Const != nil,
 		len(s.Enum) > 0,
 		len(s.AllOf) > 0,
 		len(s.AnyOf) > 0,
 		len(s.OneOf) > 0,
 		s.Not != nil,
+		s.If != nil,
+		s.Then != nil,
+		s.Else != nil,
+		s.ExclusiveMaximum != nil,
 		s.Maximum != nil,
+		s.ExclusiveMinimum != nil,
 		s.Minimum != nil,
 		s.MultipleOf != nil,
 		len(s.Pattern) > 0,
+		len(s.Format) > 0,
 		s.MaxLength != nil,
 		s.MinLength != nil,
+		len(s.ContentEncoding) > 0,
+		len(s.ContentMediaType) > 0,
+		s.ContentSchema != nil,
 		s.MaxItems != nil,
 		s.MinItems != nil,
 		s.UniqueItems,
+		s.MaxContains != nil,
+		s.MinContains != nil,
+		s.Contains != nil,
+		len(s.PrefixItems) > 0,
 		s.Items != nil,
 		s.AdditionalItems != nil,
+		s.UnevaluatedItems != nil,
 		len(s.Required) > 0,
 		s.MaxProperties != nil,
 		s.MinProperties != nil,
+		s.PropertyNames != nil,
 		len(s.Properties) > 0,
 		len(s.PatternProperties) > 0,
 		s.AdditionalProperties != nil,
 		s.UnevaluatedProperties != nil,
 		len(s.Defs) > 0,
 		len(s.Definitions) > 0,
-		s.Const != nil:
+		len(s.DependentRequired) > 0,
+		s.Dependencies != nil,
+		len(s.DependentSchemas) > 0:
 		return false
 	default:
 		return true
@@ -402,41 +455,6 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 
 func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 	return func(yield func(Ptr, *Schema) bool) {
-		for key, subSchema := range iterMapOrdered(schema.Properties) {
-			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("properties", key), subSchema) {
-				return
-			}
-		}
-		if schema.AdditionalProperties != nil && schema.AdditionalProperties.Kind() == SchemaKindObject {
-			if !yield(NewPtr("additionalProperties"), schema.AdditionalProperties) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
-			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("patternProperties", key), subSchema) {
-				return
-			}
-		}
-		if schema.Items != nil && schema.Items.Kind() == SchemaKindObject {
-			if !yield(NewPtr("items"), schema.Items) {
-				return
-			}
-		}
-		if schema.AdditionalItems != nil && schema.AdditionalItems.Kind() == SchemaKindObject {
-			if !yield(NewPtr("additionalItems"), schema.AdditionalItems) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Defs) {
-			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("$defs", key), subSchema) {
-				return
-			}
-		}
-		for key, subSchema := range iterMapOrdered(schema.Definitions) {
-			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("definitions", key), subSchema) {
-				return
-			}
-		}
 		for index, subSchema := range schema.AllOf {
 			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("allOf").Item(index), subSchema) {
 				return
@@ -454,6 +472,91 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 		}
 		if schema.Not != nil {
 			if schema.Not.Kind() == SchemaKindObject && !yield(NewPtr("not"), schema.Not) {
+				return
+			}
+		}
+		if schema.If != nil {
+			if schema.If.Kind() == SchemaKindObject && !yield(NewPtr("if"), schema.If) {
+				return
+			}
+		}
+		if schema.Then != nil {
+			if schema.Then.Kind() == SchemaKindObject && !yield(NewPtr("then"), schema.Then) {
+				return
+			}
+		}
+		if schema.Else != nil {
+			if schema.Else.Kind() == SchemaKindObject && !yield(NewPtr("else"), schema.Else) {
+				return
+			}
+		}
+		if schema.ContentSchema != nil {
+			if schema.ContentSchema.Kind() == SchemaKindObject && !yield(NewPtr("contentSchema"), schema.ContentSchema) {
+				return
+			}
+		}
+		if schema.Contains != nil {
+			if schema.Contains.Kind() == SchemaKindObject && !yield(NewPtr("contains"), schema.Contains) {
+				return
+			}
+		}
+		for index, subSchema := range schema.PrefixItems {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("prefixItems").Item(index), subSchema) {
+				return
+			}
+		}
+		if schema.Items != nil {
+			if schema.Items.Kind() == SchemaKindObject && !yield(NewPtr("items"), schema.Items) {
+				return
+			}
+		}
+		if schema.AdditionalItems != nil {
+			if schema.AdditionalItems.Kind() == SchemaKindObject && !yield(NewPtr("additionalItems"), schema.AdditionalItems) {
+				return
+			}
+		}
+		if schema.UnevaluatedItems != nil {
+			if schema.UnevaluatedItems.Kind() == SchemaKindObject && !yield(NewPtr("unevaluatedItems"), schema.UnevaluatedItems) {
+				return
+			}
+		}
+		if schema.PropertyNames != nil {
+			if schema.PropertyNames.Kind() == SchemaKindObject && !yield(NewPtr("propertyNames"), schema.PropertyNames) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.Properties) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("properties", key), subSchema) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.PatternProperties) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("patternProperties", key), subSchema) {
+				return
+			}
+		}
+		if schema.AdditionalProperties != nil {
+			if schema.AdditionalProperties.Kind() == SchemaKindObject && !yield(NewPtr("additionalProperties"), schema.AdditionalProperties) {
+				return
+			}
+		}
+		if schema.UnevaluatedProperties != nil {
+			if schema.UnevaluatedProperties.Kind() == SchemaKindObject && !yield(NewPtr("unevaluatedProperties"), schema.UnevaluatedProperties) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.DependentSchemas) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("dependentSchemas", key), subSchema) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.Defs) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("$defs", key), subSchema) {
+				return
+			}
+		}
+		for key, subSchema := range iterMapOrdered(schema.Definitions) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("definitions", key), subSchema) {
 				return
 			}
 		}
@@ -491,6 +594,9 @@ func (s *Schema) SetReferrer(ref Referrer) {
 	}
 	if s.Ref != "" {
 		s.RefReferrer = ref
+	}
+	if s.DynamicRef != "" {
+		s.DynamicRefReferrer = ref
 	}
 }
 

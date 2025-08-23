@@ -2,7 +2,9 @@ package pkg
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -19,80 +21,37 @@ func mergeSchemas(dest, src *Schema) *Schema {
 
 	dest.SetKind(src.Kind())
 
-	// Resolve simple fields by favoring the fields from 'src' if they're provided
-	if src.Type != nil {
-		dest.Type = src.Type
+	dest.Schema = cmp.Or(src.Schema, dest.Schema)
+	dest.ID = cmp.Or(src.ID, dest.ID)
+	dest.Vocabulary = mergeMap(dest.Vocabulary, src.Vocabulary)
+	dest.Anchor = cmp.Or(src.Anchor, dest.Anchor)
+	dest.DynamicAnchor = cmp.Or(src.DynamicAnchor, dest.DynamicAnchor)
+	dest.RecursiveAnchor = cmp.Or(src.RecursiveAnchor, dest.RecursiveAnchor)
+	dest.Title = cmp.Or(src.Title, dest.Title)
+	dest.Description = cmp.Or(src.Description, dest.Description)
+	dest.Comment = cmp.Or(src.Comment, dest.Comment)
+	if src.Examples != nil {
+		dest.Examples = src.Examples
 	}
-	if src.MultipleOf != nil {
-		dest.MultipleOf = src.MultipleOf
-	}
-	if src.Maximum != nil {
-		dest.Maximum = src.Maximum
-	}
-	if src.Minimum != nil {
-		dest.Minimum = src.Minimum
-	}
-	if src.MaxLength != nil {
-		dest.MaxLength = src.MaxLength
-	}
-	if src.MinLength != nil {
-		dest.MinLength = src.MinLength
-	}
-	if src.Pattern != "" {
-		dest.Pattern = src.Pattern
-	}
-	if src.MaxItems != nil {
-		dest.MaxItems = src.MaxItems
-	}
-	if src.MinItems != nil {
-		dest.MinItems = src.MinItems
-	}
-	if src.UniqueItems {
-		dest.UniqueItems = src.UniqueItems
-	}
-	if src.MaxProperties != nil {
-		dest.MaxProperties = src.MaxProperties
-	}
-	if src.MinProperties != nil {
-		dest.MinProperties = src.MinProperties
-	}
-	if src.PatternProperties != nil {
-		dest.PatternProperties = src.PatternProperties
-	}
-	if src.Title != "" {
-		dest.Title = src.Title
-	}
-	if src.Description != "" {
-		dest.Description = src.Description
-	}
-	if src.ReadOnly {
-		dest.ReadOnly = src.ReadOnly
-	}
+	dest.Deprecated = dest.Deprecated || src.Deprecated
+	dest.ReadOnly = dest.ReadOnly || src.ReadOnly
+	dest.WriteOnly = dest.WriteOnly || src.WriteOnly
 	if src.Default != nil {
 		dest.Default = src.Default
-	}
-	if src.AdditionalProperties != nil {
-		dest.AdditionalProperties = mergeSchemas(dest.AdditionalProperties, src.AdditionalProperties)
-	}
-	if src.UnevaluatedProperties != nil {
-		dest.UnevaluatedProperties = src.UnevaluatedProperties
-	}
-	if src.ID != "" {
-		dest.ID = src.ID
 	}
 	if src.Ref != "" {
 		dest.Ref = src.Ref
 		dest.RefReferrer = src.RefReferrer
 	}
-	if src.Schema != "" {
-		dest.Schema = src.Schema
+	if src.DynamicRef != "" {
+		dest.DynamicRef = src.DynamicRef
+		dest.DynamicRefReferrer = src.DynamicRefReferrer
 	}
-	if src.Comment != "" {
-		dest.Comment = src.Comment
-	}
-	if src.Examples != nil {
-		dest.Examples = src.Examples
-	}
+	dest.RecursiveRef = cmp.Or(src.RecursiveRef, dest.RecursiveRef)
+	dest.Type = cmp.Or(src.Type, dest.Type)
+	dest.Const = cmp.Or(src.Const, dest.Const)
+	// Merge 'enum' field (assuming that maintaining order doesn't matter)
+	dest.Enum = append(dest.Enum, src.Enum...)
 	if src.AllOf != nil {
 		dest.AllOf = src.AllOf
 	}
@@ -102,35 +61,60 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	if src.OneOf != nil {
 		dest.OneOf = src.OneOf
 	}
-	if src.Not != nil {
-		dest.Not = src.Not
+	dest.Not = cmp.Or(src.Not, dest.Not)
+	dest.If = cmp.Or(src.If, dest.If)
+	dest.Then = cmp.Or(src.Then, dest.Then)
+	dest.Else = cmp.Or(src.Else, dest.Else)
+	dest.ExclusiveMaximum = cmp.Or(src.ExclusiveMaximum, dest.ExclusiveMaximum)
+	dest.Maximum = cmp.Or(src.Maximum, dest.Maximum)
+	dest.ExclusiveMinimum = cmp.Or(src.ExclusiveMinimum, dest.ExclusiveMinimum)
+	dest.Minimum = cmp.Or(src.Minimum, dest.Minimum)
+	dest.MultipleOf = cmp.Or(src.MultipleOf, dest.MultipleOf)
+	dest.Pattern = cmp.Or(src.Pattern, dest.Pattern)
+	dest.Format = cmp.Or(src.Format, dest.Format)
+	dest.MaxLength = cmp.Or(src.MaxLength, dest.MaxLength)
+	dest.MinLength = cmp.Or(src.MinLength, dest.MinLength)
+	dest.ContentEncoding = cmp.Or(src.ContentEncoding, dest.ContentEncoding)
+	dest.ContentMediaType = cmp.Or(src.ContentMediaType, dest.ContentMediaType)
+	dest.ContentSchema = cmp.Or(src.ContentSchema, dest.ContentSchema)
+	dest.MaxItems = cmp.Or(src.MaxItems, dest.MaxItems)
+	dest.MinItems = cmp.Or(src.MinItems, dest.MinItems)
+	dest.UniqueItems = dest.UniqueItems || src.UniqueItems
+	dest.MaxContains = cmp.Or(src.MaxContains, dest.MaxContains)
+	dest.MinContains = cmp.Or(src.MinContains, dest.MinContains)
+	dest.Contains = cmp.Or(src.Contains, dest.Contains)
+	if src.PrefixItems != nil {
+		dest.PrefixItems = src.PrefixItems
 	}
-	if src.Const != nil {
-		dest.Const = src.Const
-	}
-
-	// Merge 'enum' field (assuming that maintaining order doesn't matter)
-	dest.Enum = append(dest.Enum, src.Enum...)
-
-	// Recursive calls for nested structures
+	dest.Items = mergeSchemas(dest.Items, src.Items)
+	dest.AdditionalItems = mergeSchemas(dest.AdditionalItems, src.AdditionalItems)
+	dest.UnevaluatedItems = mergeSchemas(dest.UnevaluatedItems, src.UnevaluatedItems)
+	dest.Required = uniqueStringAppend(dest.Required, src.Required)
+	dest.MaxProperties = cmp.Or(src.MaxProperties, dest.MaxProperties)
+	dest.MinProperties = cmp.Or(src.MinProperties, dest.MinProperties)
+	dest.PropertyNames = cmp.Or(src.PropertyNames, dest.PropertyNames)
 	dest.Properties = mergeSchemasMap(dest.Properties, src.Properties)
+	dest.PatternProperties = mergeSchemasMap(dest.PatternProperties, src.PatternProperties)
+	dest.AdditionalProperties = mergeSchemas(dest.AdditionalProperties, src.AdditionalProperties)
+	dest.UnevaluatedProperties = mergeSchemas(dest.UnevaluatedProperties, src.UnevaluatedProperties)
+	dest.DependentRequired = mergeMap(dest.DependentRequired, src.DependentRequired)
+	dest.Dependencies = cmp.Or(src.Dependencies, dest.Dependencies)
+	dest.DependentSchemas = mergeSchemasMap(dest.DependentSchemas, src.DependentSchemas)
 	dest.Defs = mergeSchemasMap(dest.Defs, src.Defs)
 	dest.Definitions = mergeSchemasMap(dest.Definitions, src.Definitions)
 
-	// 'required' array is combined uniquely
-	dest.Required = uniqueStringAppend(dest.Required, src.Required...)
-	if src.RequiredByParent {
-		dest.RequiredByParent = src.RequiredByParent
-	}
+	dest.RequiredByParent = dest.RequiredByParent || src.RequiredByParent
+	return dest
+}
 
-	// Merge 'items' if they exist (assuming they're not arrays)
-	if src.Items != nil {
-		dest.Items = mergeSchemas(dest.Items, src.Items)
+func mergeMap[K comparable, V any](dest, src map[K]V) map[K]V {
+	if src == nil {
+		return dest
 	}
-	if src.AdditionalItems != nil {
-		dest.AdditionalItems = mergeSchemas(dest.AdditionalItems, src.AdditionalItems)
+	if dest == nil {
+		dest = make(map[K]V)
 	}
-
+	maps.Copy(dest, src)
 	return dest
 }
 
