@@ -1,12 +1,17 @@
 package testutil
 
 import (
+	"bytes"
 	"cmp"
+	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
+
+	gocmp "github.com/google/go-cmp/cmp"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,4 +105,91 @@ func (err PerGOOS) String() string {
 	default:
 		return err.Default
 	}
+}
+
+// List of structs to allow unexported values in when diffing with [github.com/google/go-cmp/cmp.Diff]
+var ExtraDiffAllowUnexported []any
+
+func diff(want, got any) string {
+	s := gocmp.Diff(want, got, gocmp.AllowUnexported(ExtraDiffAllowUnexported...))
+	if s != "" {
+		s = "(-want, +got):\n" + s
+	}
+	return colorizeDiff(s)
+}
+
+var diffCommentRegex = regexp.MustCompile(`\t*\.\.\. // .*`)
+
+func colorizeDiff(diff string) string {
+	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
+		return diff
+	}
+	var buf bytes.Buffer
+	for line := range strings.Lines(diff) {
+		if buf.Len() == 0 && line == "(-want, +got):\n" {
+			buf.WriteString("(\033[31m-want\033[0m, \033[32m+got\033[0m):\n")
+			continue
+		}
+		switch line[0] {
+		case '-':
+			buf.WriteString("\033[31m") // red
+		case '+':
+			buf.WriteString("\033[32m") // green
+		case '~':
+			buf.WriteString("\033[33m") // yellow
+		default:
+			if !diffCommentRegex.MatchString(line) {
+				buf.WriteString(line)
+				continue
+			}
+			buf.WriteString("\033[90m") // bright black
+		}
+
+		withoutLF, hasLF := strings.CutSuffix(line, "\n")
+		buf.WriteString(withoutLF)
+		buf.WriteString("\033[0m")
+		if hasLF {
+			buf.WriteByte('\n')
+		}
+	}
+	return buf.String()
+}
+
+func Equal(t T, want, got any, arg ...any) bool {
+	t.Helper()
+	if diff := diff(want, got); diff != "" {
+		t.Errorf("%s%s", addSpace(fmt.Sprint(arg...)), diff)
+		return false
+	}
+	return true
+}
+
+func Equalf(t T, want, got any, format string, arg ...any) bool {
+	t.Helper()
+	if diff := diff(want, got); diff != "" {
+		t.Errorf("%s%s", addSpace(fmt.Sprintf(format, arg...)), diff)
+		return false
+	}
+	return true
+}
+
+func MustEqual(t T, want, got any, arg ...any) {
+	t.Helper()
+	if diff := diff(want, got); diff != "" {
+		t.Fatalf("%s%s", addSpace(fmt.Sprint(arg...)), diff)
+	}
+}
+
+func MustEqualf(t T, want, got any, format string, arg ...any) {
+	t.Helper()
+	if diff := diff(want, got); diff != "" {
+		t.Fatalf("%s%s", addSpace(fmt.Sprintf(format, arg...)), diff)
+	}
+}
+
+func addSpace(s string) string {
+	if s == "" || strings.HasSuffix(s, " ") {
+		return s
+	}
+	return s + " "
 }

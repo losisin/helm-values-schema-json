@@ -5,8 +5,16 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	testutil.ExtraDiffAllowUnexported = append(testutil.ExtraDiffAllowUnexported,
+		Schema{},
+		Referrer{},
+	)
+}
 
 func TestUniqueStringAppend(t *testing.T) {
 	tests := []struct {

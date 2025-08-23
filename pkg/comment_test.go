@@ -3,6 +3,7 @@ package pkg
 import (
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -180,8 +181,8 @@ func TestGetComment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			comments, helmDocs := getComments(tt.keyNode, tt.valNode, tt.useHelmDocs)
-			assert.Equal(t, tt.wantComment, comments, "schema comments")
-			assert.Equal(t, tt.wantHelmDocs, helmDocs, "helm-docs comments")
+			testutil.Equal(t, tt.wantComment, comments, "schema comments")
+			testutil.Equal(t, tt.wantHelmDocs, helmDocs, "helm-docs comments")
 		})
 	}
 }
@@ -293,7 +294,7 @@ func TestSplitCommentByParts(t *testing.T) {
 			for key, value := range splitCommentsByParts(tt.comments) {
 				pairs = append(pairs, Pair{key, value})
 			}
-			assert.Equal(t, tt.want, pairs)
+			testutil.Equal(t, tt.want, pairs)
 		})
 	}
 }
@@ -314,7 +315,7 @@ func TestSplitCommentsByParts_break(t *testing.T) {
 	}
 
 	want := []Pair{{"foo", "bar"}, {"moo", "doo"}}
-	assert.Equal(t, want, pairs)
+	testutil.Equal(t, want, pairs)
 }
 
 func TestProcessList(t *testing.T) {
@@ -431,7 +432,7 @@ func TestProcessList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			list := processList(tt.comment, tt.stringsOnly)
-			assert.Equal(t, tt.expectedList, list)
+			testutil.Equal(t, tt.expectedList, list)
 		})
 	}
 }
@@ -645,7 +646,7 @@ func TestProcessComment(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := processComment(tt.schema, []string{tt.comment})
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantSchema, tt.schema)
+			testutil.Equal(t, tt.wantSchema, tt.schema)
 		})
 	}
 }
@@ -724,7 +725,7 @@ func TestProcessObjectComment(t *testing.T) {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.want, got)
+				testutil.Equal(t, tt.want, got)
 			}
 		})
 	}
@@ -740,7 +741,7 @@ func TestProcessObjectComment(t *testing.T) {
 			Type: "string",
 			// we don't want "Minimum" to stick around
 		}
-		require.Equal(t, want, schema)
+		testutil.Equal(t, want, schema)
 	})
 }
 
@@ -771,7 +772,7 @@ func TestProcessBoolComment(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.want, got)
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -812,7 +813,7 @@ func TestProcessUint64PtrComment(t *testing.T) {
 						require.ErrorContains(t, err, tt.wantErr)
 					} else {
 						require.NoError(t, err)
-						require.Equal(t, tt.want, got)
+						testutil.Equal(t, tt.want, got)
 					}
 				})
 			}

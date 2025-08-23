@@ -161,7 +161,7 @@ func TestLoadCache(t *testing.T) {
 			default:
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tt.want, cached)
+			testutil.Equal(t, tt.want, cached)
 		})
 	}
 }
@@ -244,13 +244,13 @@ func TestSaveCache(t *testing.T) {
 
 			cached, err := cache.SaveCache(req, tt.resp, tt.body)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, cached)
+			testutil.Equal(t, tt.want, cached)
 
 			loaded, err := cache.LoadCache(req)
 			if !os.IsNotExist(err) {
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tt.want, loaded)
+			testutil.Equal(t, tt.want, loaded)
 		})
 	}
 }
@@ -477,7 +477,7 @@ func TestCachedSchema_Expiry(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cached := CachedResponse{CachedAt: tt.time, MaxAge: tt.maxAge}
-			assert.Equal(t, tt.want, cached.Expired())
+			testutil.Equal(t, tt.want, cached.Expired())
 			assert.WithinDuration(t, tt.time.Add(tt.maxAge), cached.Expiry(), time.Second)
 		})
 	}
