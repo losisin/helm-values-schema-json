@@ -113,3 +113,10 @@ func countOccurrencesSlice[T comparable](slice []T, item T) int {
 	}
 	return count
 }
+
+func tryIndex[T any](slice []*T, index int) *T {
+	if index < 0 || index >= len(slice) {
+		return nil
+	}
+	return slice[index]
+}

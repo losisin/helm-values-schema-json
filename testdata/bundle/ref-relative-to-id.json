@@ -1,0 +1,11 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "definitions": {
+        "bar": {
+            "$id": "hello",
+            "items": {
+                "description": "hello world"
+            }
+        }
+    }
+}

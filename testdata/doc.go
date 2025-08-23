@@ -25,6 +25,8 @@ package testdata
 //go:generate go run .. --bundle=true --values bundle/namecollision.yaml --output bundle/namecollision.schema.json
 //go:generate go run .. --bundle=true --values bundle/nested.yaml --output bundle/nested-without-id.schema.json --bundle-without-id=true
 //go:generate go run .. --bundle=true --values bundle/nested.yaml --output bundle/nested.schema.json
+//go:generate go run .. --bundle=true --values bundle/ref-relative-to-id.yaml --output bundle/ref-relative-to-id-without-id.schema.json --bundle-without-id=true
+//go:generate go run .. --bundle=true --values bundle/ref-relative-to-id.yaml --output bundle/ref-relative-to-id.schema.json
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-absolute-root.schema.json --bundle-root=/
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-root-ref.schema.json --schema-root.ref ./bundle/simple-subschema.schema.json
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-without-id.schema.json --bundle-without-id=true

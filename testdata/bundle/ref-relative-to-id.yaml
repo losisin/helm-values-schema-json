@@ -1,0 +1,7 @@
+# Tries to replicate issue https://github.com/losisin/helm-values-schema-json/issues/210
+
+# What's going on here is that the $ref below targets a section of "ref-relative-to-id.json"
+# that uses an $id, and so the "foo: 1"'s $ref should be updated to be relative
+# to that $id instead of relative to the root schema.
+
+foo: 1 # @schema $ref: ./ref-relative-to-id.json#/definitions/bar/items
