@@ -576,56 +576,36 @@ func TestParseNode(t *testing.T) {
 	}{
 		{
 			name: "parse object node",
-			valNode: &yaml.Node{
-				Kind: yaml.MappingNode,
-				Content: []*yaml.Node{
-					{Kind: yaml.ScalarNode, Value: "key"},
-					{Kind: yaml.ScalarNode, Value: "value"},
-				},
-			},
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.String("value"),
+			),
 			expectedType:  "object",
 			expectedProps: map[string]*Schema{"key": {Type: "string"}},
 			expectedReq:   nil,
 		},
 		{
 			name: "parse array node",
-			valNode: &yaml.Node{
-				Kind: yaml.SequenceNode,
-				Content: []*yaml.Node{
-					{Kind: yaml.ScalarNode, Value: "value"},
-				},
-			},
+			valNode: yamlutil.Seq(
+				yamlutil.String("value"),
+			),
 			expectedType:  "array",
 			expectedItems: &Schema{Type: "string"},
 		},
 		{
-			name: "parse scalar node",
-			valNode: &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Value: "value",
-				Style: yaml.DoubleQuotedStyle,
-			},
+			name:         "parse scalar node",
+			valNode:      yamlutil.String("value"),
 			expectedType: "string",
 		},
 		{
 			name: "parse object node with skipProperties:true",
-			valNode: &yaml.Node{
-				Kind: yaml.MappingNode,
-				Content: []*yaml.Node{
-					{
-						Kind:  yaml.ScalarNode,
-						Value: "key",
-					},
-					{
-						Kind: yaml.MappingNode,
-						Content: []*yaml.Node{
-							{Kind: yaml.ScalarNode, Value: "nestedKey"},
-							{Kind: yaml.ScalarNode, Value: "nestedValue"},
-						},
-						LineComment: "# @schema skipProperties:true",
-					},
-				},
-			},
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema skipProperties:true", yamlutil.Map(
+					yamlutil.String("nestedKey"),
+					yamlutil.String("nestedValue"),
+				)),
+			),
 			expectedType:  "object",
 			expectedProps: map[string]*Schema{"key": {Type: "object", Properties: nil, SkipProperties: true}},
 			expectedReq:   nil,
@@ -688,55 +668,34 @@ func TestParseNode_Error(t *testing.T) {
 	}{
 		{
 			name: "invalid comment",
-			valNode: &yaml.Node{
-				Kind: yaml.MappingNode,
-				Content: []*yaml.Node{
-					{
-						Kind: yaml.ScalarNode, Value: "key",
-						HeadComment: "# @schema hidden: foo",
-					},
-					{Kind: yaml.ScalarNode, Value: "value"},
-				},
-			},
+			valNode: yamlutil.Map(
+				yamlutil.WithHeadComment("# @schema hidden: foo", yamlutil.String("key")),
+				yamlutil.String("value"),
+			),
 			useHelmDocs: true,
 			wantErr:     "/key: parse @schema comments: hidden: invalid boolean",
 		},
 		{
 			name: "helm-docs map",
-			valNode: &yaml.Node{
-				Kind: yaml.MappingNode,
-				Content: []*yaml.Node{
-					{
-						Kind: yaml.ScalarNode, Value: "key",
-						HeadComment: "" +
-							"# -- Desc\n" +
-							"# @schema this should not be here",
-					},
-					{Kind: yaml.ScalarNode, Value: "value"},
-				},
-			},
+			valNode: yamlutil.Map(
+				yamlutil.WithHeadComment(
+					"# -- Desc\n# @schema this should not be here",
+					yamlutil.String("key")),
+				yamlutil.String("value"),
+			),
 			useHelmDocs: true,
 			wantErr:     "/key: parse helm-docs comment",
 		},
 		{
 			name: "helm-docs seq",
-			valNode: &yaml.Node{
-				Kind: yaml.SequenceNode,
-				Content: []*yaml.Node{
-					{
-						Kind: yaml.MappingNode,
-						Content: []*yaml.Node{
-							{
-								Kind: yaml.ScalarNode, Value: "key",
-								HeadComment: "" +
-									"# -- Desc\n" +
-									"# @schema this should not be here",
-							},
-							{Kind: yaml.ScalarNode, Value: "value"},
-						},
-					},
-				},
-			},
+			valNode: yamlutil.Seq(
+				yamlutil.Map(
+					yamlutil.WithHeadComment(
+						"# -- Desc\n# @schema this should not be here",
+						yamlutil.String("key")),
+					yamlutil.String("value"),
+				),
+			),
 			useHelmDocs: true,
 			wantErr:     "/key: parse helm-docs comment",
 		},
