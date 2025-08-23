@@ -74,7 +74,7 @@ func TestUniqueStringAppend(t *testing.T) {
 			copy(destCopy, tt.dest)
 
 			// Call the function with the copy.
-			got := uniqueStringAppend(destCopy, tt.src...)
+			got := uniqueStringAppend(destCopy, tt.src)
 
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("uniqueStringAppend() = %v, want %v", got, tt.want)

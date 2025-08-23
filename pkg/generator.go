@@ -107,7 +107,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 		// Merge with existing data
 		mergedSchema = mergeSchemas(mergedSchema, tempSchema)
-		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required...)
+		mergedSchema.Required = uniqueStringAppend(mergedSchema.Required, required)
 	}
 
 	if config.Bundle {

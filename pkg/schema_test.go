@@ -104,40 +104,65 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "Kind", schema: &Schema{kind: SchemaKindTrue}},
 		{name: "Schema", schema: &Schema{Schema: exampleString}},
 		{name: "ID", schema: &Schema{ID: exampleString}},
+		{name: "Vocabulary", schema: &Schema{Vocabulary: map[string]bool{exampleString: exampleBool}}},
+		{name: "Anchor", schema: &Schema{Anchor: exampleString}},
+		{name: "DynamicAnchor", schema: &Schema{DynamicAnchor: exampleString}},
+		{name: "RecursiveAnchor", schema: &Schema{RecursiveAnchor: exampleString}},
 		{name: "Title", schema: &Schema{Title: exampleString}},
 		{name: "Description", schema: &Schema{Description: exampleString}},
 		{name: "Comment", schema: &Schema{Comment: exampleString}},
 		{name: "Examples", schema: &Schema{Examples: exampleAnySlice}},
+		{name: "Deprecated", schema: &Schema{Deprecated: exampleBool}},
 		{name: "ReadOnly", schema: &Schema{ReadOnly: exampleBool}},
+		{name: "WriteOnly", schema: &Schema{WriteOnly: exampleBool}},
 		{name: "Default", schema: &Schema{Default: exampleString}},
 		{name: "Ref", schema: &Schema{Ref: exampleString}},
+		{name: "DynamicRef", schema: &Schema{DynamicRef: exampleString}},
+		{name: "RecursiveRef", schema: &Schema{RecursiveRef: exampleString}},
 		{name: "Type", schema: &Schema{Type: exampleString}},
+		{name: "Const", schema: &Schema{Const: exampleString}},
 		{name: "Enum", schema: &Schema{Enum: exampleAnySlice}},
 		{name: "AllOf", schema: &Schema{AllOf: exampleSchemaSlice}},
 		{name: "AnyOf", schema: &Schema{AnyOf: exampleSchemaSlice}},
 		{name: "OneOf", schema: &Schema{OneOf: exampleSchemaSlice}},
 		{name: "Not", schema: &Schema{Not: &Schema{ID: exampleString}}},
+		{name: "If", schema: &Schema{If: exampleSchema}},
+		{name: "Then", schema: &Schema{Then: exampleSchema}},
+		{name: "Else", schema: &Schema{Else: exampleSchema}},
+		{name: "ExclusiveMaximum", schema: &Schema{ExclusiveMaximum: &exampleFloat64}},
 		{name: "Maximum", schema: &Schema{Maximum: &exampleFloat64}},
+		{name: "ExclusiveMinimum", schema: &Schema{ExclusiveMinimum: &exampleFloat64}},
 		{name: "Minimum", schema: &Schema{Minimum: &exampleFloat64}},
 		{name: "MultipleOf", schema: &Schema{MultipleOf: &exampleFloat64}},
 		{name: "Pattern", schema: &Schema{Pattern: exampleString}},
+		{name: "Format", schema: &Schema{Format: exampleString}},
 		{name: "MaxLength", schema: &Schema{MaxLength: &exampleUint64}},
 		{name: "MinLength", schema: &Schema{MinLength: &exampleUint64}},
+		{name: "ContentEncoding", schema: &Schema{ContentEncoding: exampleString}},
+		{name: "ContentMediaType", schema: &Schema{ContentMediaType: exampleString}},
+		{name: "ContentSchema", schema: &Schema{ContentSchema: exampleSchema}},
 		{name: "MaxItems", schema: &Schema{MaxItems: &exampleUint64}},
 		{name: "MinItems", schema: &Schema{MinItems: &exampleUint64}},
 		{name: "UniqueItems", schema: &Schema{UniqueItems: exampleBool}},
+		{name: "MaxContains", schema: &Schema{MaxContains: &exampleUint64}},
+		{name: "MinContains", schema: &Schema{MinContains: &exampleUint64}},
+		{name: "Contains", schema: &Schema{Contains: exampleSchema}},
+		{name: "PrefixItems", schema: &Schema{PrefixItems: exampleSchemaSlice}},
 		{name: "Items", schema: &Schema{Items: &Schema{ID: exampleString}}},
 		{name: "AdditionalItems", schema: &Schema{AdditionalItems: &Schema{ID: exampleString}}},
 		{name: "Required", schema: &Schema{Required: []string{exampleString}}},
 		{name: "MaxProperties", schema: &Schema{MaxProperties: &exampleUint64}},
 		{name: "MinProperties", schema: &Schema{MinProperties: &exampleUint64}},
+		{name: "UnevaluatedItems", schema: &Schema{UnevaluatedItems: exampleSchema}},
 		{name: "Properties", schema: &Schema{Properties: exampleMap}},
 		{name: "PatternProperties", schema: &Schema{PatternProperties: exampleMap}},
 		{name: "AdditionalProperties", schema: &Schema{AdditionalProperties: exampleSchema}},
-		{name: "UnevaluatedProperties", schema: &Schema{UnevaluatedProperties: &exampleBool}},
+		{name: "UnevaluatedProperties", schema: &Schema{UnevaluatedProperties: exampleSchema}},
+		{name: "DependentRequired", schema: &Schema{DependentRequired: map[string][]string{exampleString: {exampleString}}}},
+		{name: "Dependencies", schema: &Schema{Dependencies: exampleAnySlice}},
+		{name: "DependentSchemas", schema: &Schema{DependentSchemas: exampleMap}},
 		{name: "Defs", schema: &Schema{Defs: exampleMap}},
 		{name: "Definitions", schema: &Schema{Definitions: exampleMap}},
-		{name: "Const", schema: &Schema{Const: exampleString}},
 	}
 
 	for _, tt := range tests {
@@ -717,15 +742,29 @@ func TestSchemaSubschemas_order(t *testing.T) {
 		{
 			name: "items",
 			schema: &Schema{
-				Properties: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
-				Items:      &Schema{ID: "c"},
+				Items:      &Schema{ID: "a"},
+				Properties: map[string]*Schema{"b": {ID: "b"}, "c": {ID: "c"}},
+			},
+		},
+		{
+			name: "unevaluatedItems",
+			schema: &Schema{
+				AllOf:            []*Schema{{ID: "a"}, {ID: "b"}},
+				UnevaluatedItems: &Schema{ID: "c"},
 			},
 		},
 		{
 			name: "additionalItems",
 			schema: &Schema{
-				Properties:      map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				AllOf:           []*Schema{{ID: "a"}, {ID: "b"}},
 				AdditionalItems: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "propertyNames",
+			schema: &Schema{
+				AllOf:         []*Schema{{ID: "a"}, {ID: "b"}},
+				PropertyNames: &Schema{ID: "c"},
 			},
 		},
 		{
@@ -739,6 +778,19 @@ func TestSchemaSubschemas_order(t *testing.T) {
 			schema: &Schema{
 				Properties:           map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
 				AdditionalProperties: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "unevaluatedProperties",
+			schema: &Schema{
+				Properties:            map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}},
+				UnevaluatedProperties: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "dependentSchemas",
+			schema: &Schema{
+				DependentSchemas: map[string]*Schema{"a": {ID: "a"}, "b": {ID: "b"}, "c": {ID: "c"}},
 			},
 		},
 		{
@@ -784,6 +836,49 @@ func TestSchemaSubschemas_order(t *testing.T) {
 				Not:   &Schema{ID: "c"},
 			},
 		},
+		{
+			name: "if",
+			schema: &Schema{
+				AllOf: []*Schema{{ID: "a"}, {ID: "b"}},
+				If:    &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "if-then",
+			schema: &Schema{
+				AllOf: []*Schema{{ID: "a"}},
+				If:    &Schema{ID: "b"},
+				Then:  &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "if-then-else",
+			schema: &Schema{
+				If:   &Schema{ID: "a"},
+				Then: &Schema{ID: "b"},
+				Else: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "contentSchema",
+			schema: &Schema{
+				AllOf:         []*Schema{{ID: "a"}, {ID: "b"}},
+				ContentSchema: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "contains",
+			schema: &Schema{
+				AllOf:    []*Schema{{ID: "a"}, {ID: "b"}},
+				Contains: &Schema{ID: "c"},
+			},
+		},
+		{
+			name: "prefixItems",
+			schema: &Schema{
+				PrefixItems: []*Schema{{ID: "a"}, {ID: "b"}, {ID: "c"}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -797,7 +892,7 @@ func TestSchemaSubschemas_order(t *testing.T) {
 						break
 					}
 				}
-				require.Equal(t, "abc", strings.Join(ids, ""))
+				testutil.MustEqual(t, "abc", strings.Join(ids, ""))
 			}
 		})
 	}
@@ -1043,6 +1138,36 @@ func TestSchemaSetReferrer(t *testing.T) {
 					Not: &Schema{
 						Ref:         "foo",
 						RefReferrer: ReferrerDir("referrer"),
+					},
+				},
+			},
+		},
+		{
+			name: "root dynamicRef",
+			schema: &Schema{
+				DynamicRef: "foo",
+			},
+			referrer: ReferrerDir("referrer"),
+			want: &Schema{
+				DynamicRef:         "foo",
+				DynamicRefReferrer: ReferrerDir("referrer"),
+			},
+		},
+		{
+			name: "deeply nested dynamicRef",
+			schema: &Schema{
+				Items: &Schema{
+					Not: &Schema{
+						DynamicRef: "foo",
+					},
+				},
+			},
+			referrer: ReferrerDir("referrer"),
+			want: &Schema{
+				Items: &Schema{
+					Not: &Schema{
+						DynamicRef:         "foo",
+						DynamicRefReferrer: ReferrerDir("referrer"),
 					},
 				},
 			},

@@ -9,19 +9,12 @@ import (
 	"slices"
 )
 
-func uniqueStringAppend(dest []string, src ...string) []string {
-	existingItems := make(map[string]bool)
-	for _, item := range dest {
-		existingItems[item] = true
-	}
-
+func uniqueStringAppend(dest, src []string) []string {
 	for _, item := range src {
-		if _, exists := existingItems[item]; !exists {
+		if !slices.Contains(dest, item) {
 			dest = append(dest, item)
-			existingItems[item] = true
 		}
 	}
-
 	return dest
 }
 

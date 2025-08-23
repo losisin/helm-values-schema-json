@@ -262,11 +262,11 @@ func processComment(schema *Schema, commentLines []string) error {
 				return fmt.Errorf("additionalProperties: %w", err)
 			}
 		case "unevaluatedProperties":
-			var b bool
-			if err := processBoolComment(&b, value); err != nil {
+			if strings.TrimSpace(value) == "" {
+				schema.UnevaluatedProperties = SchemaTrue()
+			} else if err := processObjectComment(&schema.UnevaluatedProperties, value); err != nil {
 				return fmt.Errorf("unevaluatedProperties: %w", err)
 			}
-			schema.UnevaluatedProperties = &b
 		case "$id":
 			schema.ID = value
 		case "$ref":
