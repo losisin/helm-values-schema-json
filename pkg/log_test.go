@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,14 +16,14 @@ func TestWriterLogger(t *testing.T) {
 		var buf bytes.Buffer
 		logger := NewLogger(&buf)
 		logger.Log("hello", "there")
-		assert.Equal(t, "hello there\n", buf.String())
+		testutil.Equal(t, "hello there\n", buf.String())
 	})
 
 	t.Run("logf", func(t *testing.T) {
 		var buf bytes.Buffer
 		logger := NewLogger(&buf)
 		logger.Logf("hello %q", "there")
-		assert.Equal(t, "hello \"there\"\n", buf.String())
+		testutil.Equal(t, "hello \"there\"\n", buf.String())
 	})
 
 	t.Run("default logger from empty context", func(t *testing.T) {

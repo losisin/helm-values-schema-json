@@ -370,7 +370,10 @@ func TestGenerateJsonSchema(t *testing.T) {
 
 			// t.Logf("Generated output:\n%s\n", generatedBytes)
 
-			assert.JSONEqf(t, string(templateBytes), string(generatedBytes), "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
+			var generatedSchema, templateSchema Schema
+			require.NoError(t, json.Unmarshal(generatedBytes, &generatedSchema))
+			require.NoError(t, json.Unmarshal(templateBytes, &templateSchema))
+			testutil.Equalf(t, templateSchema, generatedSchema, "Generated JSON schema %q does not match the template", tt.templateSchemaFile)
 		})
 	}
 }
@@ -691,7 +694,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 				_, exists := generatedSchema["additionalProperties"]
 				assert.False(t, exists, "additionalProperties should not be present in the generated schema")
 			} else {
-				assert.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
+				testutil.Equal(t, tt.expected, generatedSchema["additionalProperties"], "additionalProperties value mismatch")
 			}
 
 			if err := os.Remove(config.Output); err != nil && !os.IsNotExist(err) {
@@ -709,7 +712,7 @@ func TestReadInputFile_ReadFile(t *testing.T) {
 	referrer, content, err := readInputFile(stdin, "generator_test.go")
 	require.NoError(t, err)
 
-	assert.Equal(t, cwd, referrer.dir, "Referrer")
+	testutil.Equal(t, cwd, referrer.dir, "Referrer")
 	assert.NotEmpty(t, content)
 }
 
@@ -728,8 +731,8 @@ func TestReadInputFile_Stdin(t *testing.T) {
 	referrer, content, err := readInputFile(stdin, "-")
 	require.NoError(t, err)
 
-	assert.Equal(t, "hello this is text from stdin\n", string(content), "Stdin content should equal")
-	assert.Equal(t, cwd, referrer.dir, "Referrer")
+	testutil.Equal(t, "hello this is text from stdin\n", string(content), "Stdin content should equal")
+	testutil.Equal(t, cwd, referrer.dir, "Referrer")
 }
 
 type ReaderWriterWithError struct {
@@ -773,7 +776,7 @@ func TestWriteOutputFile_WriteToFile(t *testing.T) {
 	require.FileExists(t, "some_example_output.txt")
 	content, err := os.ReadFile("some_example_output.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "some content\n", string(content))
+	testutil.Equal(t, "some content\n", string(content))
 
 	defer func() {
 		_ = os.Remove("some_example_output.txt")
@@ -784,7 +787,7 @@ func TestWriteOutputFile_WriteToStdout(t *testing.T) {
 	var stdout bytes.Buffer
 	err := writeOutputFile(&stdout, "-", []byte("some stdout content\n"))
 	require.NoError(t, err)
-	assert.Equal(t, "some stdout content\n", stdout.String())
+	testutil.Equal(t, "some stdout content\n", stdout.String())
 	assert.NoFileExists(t, "-")
 
 	defer func() {

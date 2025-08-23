@@ -63,7 +63,7 @@ func TestExecute(t *testing.T) {
 			default:
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tt.wantOut, buf.String())
+			testutil.Equal(t, tt.wantOut, buf.String())
 		})
 	}
 }
@@ -218,7 +218,7 @@ func TestParseFlagsPass(t *testing.T) {
 			require.NoError(t, cmd.ParseFlags(tt.args))
 			conf, err := LoadConfig(cmd)
 			assert.NoError(t, err)
-			assert.Equal(t, &tt.conf, conf, "conf")
+			testutil.Equal(t, &tt.conf, conf, "conf")
 		})
 	}
 }
@@ -317,8 +317,8 @@ schemaRoot:
 			conf, err := LoadConfig(cmd)
 
 			require.NoError(t, err)
-			assert.NotNil(t, conf)
-			assert.Equal(t, tt.want, *conf)
+			require.NotNil(t, conf)
+			testutil.Equal(t, tt.want, *conf, "conf")
 		})
 	}
 }
@@ -610,7 +610,7 @@ schemaRoot:
 			conf, err := LoadConfig(cmd)
 			require.NoError(t, err)
 
-			assert.Equal(t, tt.want, conf)
+			testutil.Equal(t, tt.want, conf, "conf")
 		})
 	}
 }

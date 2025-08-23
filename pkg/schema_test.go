@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/losisin/helm-values-schema-json/v2/internal/yamlutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,8 +29,8 @@ func TestSchemaKindString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.kind.String(), "SchemaKind.String()")
-			assert.Equal(t, tt.want, tt.kind.GoString(), "SchemaKind.GoString()")
+			testutil.Equal(t, tt.want, tt.kind.String(), "SchemaKind.String()")
+			testutil.Equal(t, tt.want, tt.kind.GoString(), "SchemaKind.GoString()")
 		})
 	}
 }
@@ -49,7 +50,7 @@ func TestSchemaKindIsBool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, tt.kind.IsBool())
+			testutil.Equal(t, tt.want, tt.kind.IsBool())
 		})
 	}
 }
@@ -66,7 +67,7 @@ func TestSchemaBool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema1 := SchemaBool(tt.value)
-			assert.Equal(t, true, schema1.Kind().IsBool(), "Schema.Kind().IsBool()")
+			testutil.Equal(t, true, schema1.Kind().IsBool(), "Schema.Kind().IsBool()")
 
 			schema2 := SchemaBool(tt.value)
 			// Must not be the same pointer.
@@ -192,8 +193,8 @@ func TestSchemaJSONUnmarshal(t *testing.T) {
 			}
 			err := json.Unmarshal([]byte(`{"schema":`+tt.json+`}`), &result)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, result.Schema)
-			assert.Equal(t, tt.wantKind, result.Schema.Kind())
+			testutil.Equal(t, tt.want, result.Schema)
+			testutil.Equal(t, tt.wantKind, result.Schema.Kind())
 		})
 	}
 }
@@ -281,7 +282,7 @@ func TestSchemaYAMLUnmarshal(t *testing.T) {
 			}
 			err := yaml.Unmarshal([]byte(`{"schema":`+tt.yaml+`}`), &result)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, result.Schema)
+			testutil.Equal(t, tt.want, result.Schema)
 		})
 	}
 }
@@ -385,7 +386,7 @@ func TestSchemaSetKind(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.schema.SetKind(tt.kind)
-			assert.Equal(t, tt.schema, tt.want)
+			testutil.Equal(t, tt.schema, tt.want)
 		})
 	}
 }
@@ -474,7 +475,7 @@ func TestGetYAMLKind(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getYAMLKind(tt.value)
-			assert.Equal(t, tt.expected, result)
+			testutil.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -496,7 +497,7 @@ func TestSchemaIsType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.schema.IsType(tt.isType)
-			assert.Equalf(t, tt.want, got, "Type: %#v", tt.schema.Type)
+			testutil.Equalf(t, tt.want, got, "Type: %#v", tt.schema.Type)
 		})
 	}
 }
@@ -648,11 +649,11 @@ func TestParseNode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			schema, err := parseNode(NewPtr(), tt.keyNode, tt.valNode, false)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedType, schema.Type)
-			assert.Equal(t, tt.expectedProps, schema.Properties)
-			assert.Equal(t, tt.expectedItems, schema.Items)
-			assert.Equal(t, tt.expectedReq, schema.Required)
-			assert.Equal(t, tt.expectedReqByParent, schema.RequiredByParent)
+			testutil.Equal(t, tt.expectedType, schema.Type, "Schema.Type")
+			testutil.Equal(t, tt.expectedProps, schema.Properties, "Schema.Properties")
+			testutil.Equal(t, tt.expectedItems, schema.Items, "Schema.Items")
+			testutil.Equal(t, tt.expectedReq, schema.Required, "Schema.Required")
+			testutil.Equal(t, tt.expectedReqByParent, schema.RequiredByParent, "Schema.RequiredByParent")
 		})
 	}
 }
@@ -1051,7 +1052,7 @@ func TestSchemaSetReferrer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.schema.SetReferrer(tt.referrer)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
@@ -1103,7 +1104,7 @@ func TestParseRefFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ParseRefFile(tt.ref)
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+			testutil.Equal(t, tt.want, got)
 		})
 	}
 }

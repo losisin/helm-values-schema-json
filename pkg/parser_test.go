@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -389,7 +390,7 @@ func TestEnsureCompliant(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
@@ -544,7 +545,7 @@ func TestUpdateRefK8sAlias(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
@@ -640,7 +641,7 @@ func TestAddMissingGlobalProperty(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			addMissingGlobalProperty(tt.schema)
-			assert.Equal(t, tt.want, tt.schema)
+			testutil.Equal(t, tt.want, tt.schema)
 		})
 	}
 }
