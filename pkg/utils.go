@@ -29,6 +29,15 @@ func closeIgnoreError(closer io.Closer) {
 	_ = closer.Close()
 }
 
+// hasKey returns true when a map contains the given key.
+// This utility function allows checking that a key exists in boolean switch statements.
+//
+// Will always return false if the map is nil.
+func hasKey[K comparable, V any](m map[K]V, k K) bool {
+	_, ok := m[k]
+	return ok
+}
+
 func iterMapOrdered[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		for _, k := range slices.Sorted(maps.Keys(m)) {
@@ -103,4 +112,11 @@ func countOccurrencesSlice[T comparable](slice []T, item T) int {
 		}
 	}
 	return count
+}
+
+func tryIndex[T any](slice []*T, index int) *T {
+	if index < 0 || index >= len(slice) {
+		return nil
+	}
+	return slice[index]
 }

@@ -300,6 +300,38 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 
 		{
+			// https://github.com/losisin/helm-values-schema-json/issues/210
+			name: "bundle/ref-relative-to-id",
+			config: &Config{
+				Draft:      2020,
+				Indent:     4,
+				Bundle:     true,
+				BundleRoot: "..",
+				Values: []string{
+					"../testdata/bundle/ref-relative-to-id.yaml",
+				},
+				Output: "../testdata/bundle/ref-relative-to-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/ref-relative-to-id.schema.json",
+		},
+		{
+			// https://github.com/losisin/helm-values-schema-json/issues/210
+			name: "bundle/ref-relative-to-id-without-id",
+			config: &Config{
+				Draft:           2020,
+				Indent:          4,
+				Bundle:          true,
+				BundleRoot:      "..",
+				BundleWithoutID: true, // <!>
+				Values: []string{
+					"../testdata/bundle/ref-relative-to-id.yaml",
+				},
+				Output: "../testdata/bundle/ref-relative-to-id-without-id_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/ref-relative-to-id-without-id.schema.json",
+		},
+
+		{
 			name: "helm-docs",
 			config: &Config{
 				Draft:       2020,

@@ -49,10 +49,10 @@ func bundleWithLoader(ctx context.Context, loader Loader, schema *Schema, absOut
 		if err := BundleRemoveIDs(schema); err != nil {
 			return fmt.Errorf("remove bundled $id: %w", err)
 		}
-
-		// Cleanup unused $defs after all other bundling tasks
-		RemoveUnusedDefs(schema)
 	}
+
+	// Cleanup unused $defs after all other bundling tasks
+	RemoveUnusedDefs(schema)
 	return nil
 }
 
@@ -117,6 +117,10 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 		root.Defs = map[string]*Schema{}
 	}
 
+	if newRef, ok := refRelativeToNearestID(ParsePtr(ref.Fragment), loaded); ok {
+		schema.Ref = newRef
+	}
+
 	// Copy over $defs
 	moveDefToRoot(root, &loaded.Defs)
 	moveDefToRoot(root, &loaded.Definitions)
@@ -125,6 +129,39 @@ func bundleSchemaRec(ctx context.Context, ptr Ptr, loader Loader, root, schema *
 	root.Defs[generateBundledName(loaded.ID, root.Defs)] = loaded
 
 	return bundleSchemaRec(ctx, ptr, loader, root, loaded, basePathForIDs)
+}
+
+// refRelativeToNearestID takes in a [Ptr], tries to resolve it on the target schema,
+// and outputs a $ref that points to the same target but from the nearest subschema
+// that has an $id.
+//
+// Example:
+//
+//	refRelativeToNearestID(ParsePtr("foo.json#/definitions/bar/items"), &Schema{...})
+//	// (where "/definitions/bar" has "$id": "hello")
+//	// => "hello#/items"
+func refRelativeToNearestID(ptr Ptr, loaded *Schema) (string, bool) {
+	matches := ptr.Resolve(loaded)
+
+	var newRootUsingID *Schema
+	var suffix Ptr
+	for _, match := range matches {
+		if match.Schema.ID != "" {
+			newRootUsingID = match.Schema
+			// ignoring "ok" return because we already used this ptr when resolving
+			// the matches, so it's guaranteed that [ptr] starts with
+			suffix = ptr[len(match.Ptr):]
+		}
+	}
+
+	if newRootUsingID == nil {
+		return "", false
+	}
+
+	if len(suffix) == 0 {
+		return newRootUsingID.ID, true
+	}
+	return fmt.Sprintf("%s#%s", newRootUsingID.ID, suffix), true
 }
 
 func refRelativeToBasePath(ref *url.URL, basePathForIDs string) *url.URL {
@@ -334,8 +371,8 @@ func findUnusedDefs(ptr Ptr, root, schema *Schema, refCounts map[*Schema]int) {
 			// E.g "#/$defs/foo.json/properties/moo" has $ref to "#/$defs/foo.json"
 			return
 		}
-		for _, def := range resolvePtr(root, refPtr) {
-			refCounts[def]++
+		for _, match := range refPtr.Resolve(root) {
+			refCounts[match.Schema]++
 		}
 		return
 	}
@@ -347,26 +384,6 @@ func findUnusedDefs(ptr Ptr, root, schema *Schema, refCounts map[*Schema]int) {
 
 	if name, ok := findDefNameByRef(root.Defs, ref); ok {
 		refCounts[root.Defs[name]]++
-	}
-}
-
-func resolvePtr(schema *Schema, ptr Ptr) []*Schema {
-	if schema == nil {
-		return nil
-	}
-	if len(ptr) == 0 {
-		return []*Schema{schema}
-	}
-	if len(ptr) < 2 {
-		return []*Schema{schema}
-	}
-	switch ptr[0] {
-	case "$defs":
-		return append([]*Schema{schema}, resolvePtr(schema.Defs[ptr[1]], ptr[2:])...)
-	case "definitions":
-		return append([]*Schema{schema}, resolvePtr(schema.Definitions[ptr[1]], ptr[2:])...)
-	default:
-		return []*Schema{schema}
 	}
 }
 
