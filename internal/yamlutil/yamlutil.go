@@ -62,3 +62,13 @@ func WithLineComment(comment string, node *yaml.Node) *yaml.Node {
 	node.LineComment = comment
 	return node
 }
+
+func WithHeadComment(comment string, node *yaml.Node) *yaml.Node {
+	node.HeadComment = comment
+	return node
+}
+
+func WithFootComment(comment string, node *yaml.Node) *yaml.Node {
+	node.FootComment = comment
+	return node
+}
