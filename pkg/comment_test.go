@@ -580,6 +580,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{SkipProperties: true, UnevaluatedProperties: boolPtr(false)},
 		},
 		{
+			name:       "Set mergeProperties",
+			schema:     &Schema{},
+			comment:    "# @schema mergeProperties:true",
+			wantSchema: &Schema{MergeProperties: true},
+		},
+		{
 			name:       "Set hidden",
 			schema:     &Schema{},
 			comment:    "# @schema hidden:true",
@@ -658,6 +664,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "required invalid bool", comment: "# @schema required: foo", wantErr: "required: invalid boolean"},
 		{name: "uniqueItems invalid bool", comment: "# @schema uniqueItems: foo", wantErr: "uniqueItems: invalid boolean"},
 		{name: "skipProperties invalid bool", comment: "# @schema skipProperties: foo", wantErr: "skipProperties: invalid boolean"},
+		{name: "mergeProperties invalid bool", comment: "# @schema mergeProperties: foo", wantErr: "mergeProperties: invalid boolean"},
 		{name: "unevaluatedProperties invalid bool", comment: "# @schema unevaluatedProperties: foo", wantErr: "unevaluatedProperties: invalid boolean"},
 
 		{name: "maxLength invalid uint64", comment: "# @schema maxLength: foo", wantErr: "maxLength: invalid integer"},

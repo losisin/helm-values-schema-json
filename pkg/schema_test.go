@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/losisin/helm-values-schema-json/v2/internal/yamlutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -95,6 +96,7 @@ func TestSchemaIsZero(t *testing.T) {
 		{name: "nil", schema: nil, want: true},
 		{name: "empty", schema: &Schema{}, want: true},
 		{name: "SkipProperties", schema: &Schema{SkipProperties: true}, want: true},
+		{name: "MergeProperties", schema: &Schema{MergeProperties: true}, want: true},
 		{name: "Hidden", schema: &Schema{Hidden: true}, want: true},
 		{name: "RequiredByParent", schema: &Schema{RequiredByParent: true}, want: true},
 
@@ -626,6 +628,39 @@ func TestParseNode(t *testing.T) {
 			expectedType:  "object",
 			expectedProps: map[string]*Schema{"key": {Type: "object", Properties: nil, SkipProperties: true}},
 			expectedReq:   nil,
+		},
+		{
+			name: "merge child properties with mergeProperties:true",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema mergeProperties:true", yamlutil.Map(
+					yamlutil.String("config-A"),
+					yamlutil.Map(
+						yamlutil.String("foo"),
+						yamlutil.Bool(true),
+					),
+					yamlutil.String("config-B"),
+					yamlutil.Map(
+						yamlutil.String("bar"),
+						yamlutil.Int(123),
+					),
+				)),
+			),
+			expectedType: "object",
+			expectedProps: map[string]*Schema{
+				"key": {
+					Type: "object",
+					AdditionalProperties: &Schema{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"foo": {Type: "boolean"},
+							"bar": {Type: "integer"},
+						},
+					},
+					MergeProperties: true,
+				},
+			},
+			expectedReq: nil,
 		},
 	}
 
