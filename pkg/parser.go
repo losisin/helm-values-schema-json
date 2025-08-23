@@ -151,7 +151,12 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 }
 
 func ensureCompliant(schema *Schema, noAdditionalProperties bool, draft int) error {
-	return ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft)
+	if err := ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft); err != nil {
+		return err
+	}
+
+	addMissingGlobalProperty(schema) // only apply to schema root
+	return nil
 }
 
 func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool, draft int) error {
@@ -160,7 +165,7 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 	}
 
 	// If we've already visited this schema, we've found a circular reference
-	if _, ok := visited[schema]; ok {
+	if hasKey(visited, schema) {
 		return fmt.Errorf("%s: circular reference detected in schema", ptr)
 	}
 
@@ -297,4 +302,39 @@ func updateRefK8sAliasRec(ptr Ptr, schema *Schema, urlFunc func() (string, error
 
 	schema.Ref = fmt.Sprintf("%s/%s", strings.TrimSuffix(urlPrefix, "/"), withoutAlias)
 	return nil
+}
+
+// addMissingGlobalProperty adds /properties/global in case
+// the resulting does not allow additional object properties
+func addMissingGlobalProperty(schema *Schema) {
+	switch {
+	case
+		// ignore invalid argument
+		schema == nil,
+		// "global" property already set
+		hasKey(schema.Properties, "global"),
+		// `"additionalProperties": null`
+		schema.AdditionalProperties == nil,
+		// `"additionalProperties": true`
+		schema.AdditionalProperties.Kind() == SchemaKindTrue,
+		// `"additionalProperties": {"type": ["object", ...]}`
+		schema.AdditionalProperties.Kind() != SchemaKindFalse && schema.AdditionalProperties.IsType("object"),
+		// `"additionalProperties": {"type": null}` (aka "allow any type")
+		schema.AdditionalProperties.Kind() != SchemaKindFalse && schema.AdditionalProperties.Type == nil:
+		return
+	}
+
+	if schema.Properties == nil {
+		schema.Properties = map[string]*Schema{}
+	}
+	schema.Properties["global"] = defaultGlobal()
+}
+
+// defaultGlobal returns the default "global" property subschema used by [addMissingGlobalProperty].
+func defaultGlobal() *Schema {
+	return &Schema{
+		Type:        []any{"object", "null"},
+		Comment:     "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+		Description: "Global values shared between all subcharts",
+	}
 }

@@ -300,6 +300,9 @@ func TestEnsureCompliant(t *testing.T) {
 			want: &Schema{
 				Type:                 "object",
 				AdditionalProperties: SchemaFalse(),
+
+				// accidentally testing the "add default global" code here too
+				Properties: map[string]*Schema{"global": defaultGlobal()},
 			},
 		},
 
@@ -541,6 +544,102 @@ func TestUpdateRefK8sAlias(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			assert.Equal(t, tt.want, tt.schema)
+		})
+	}
+}
+
+func TestAddMissingGlobalProperty(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema *Schema
+		want   *Schema
+	}{
+		{name: "nil", schema: nil, want: nil},
+		{name: "empty", schema: &Schema{}, want: &Schema{}},
+		{name: "bool/true", schema: SchemaTrue(), want: SchemaTrue()},
+		{name: "bool/false", schema: SchemaTrue(), want: SchemaTrue()},
+
+		{
+			name:   "add when no additional properties",
+			schema: &Schema{AdditionalProperties: SchemaFalse()},
+			want: &Schema{
+				AdditionalProperties: SchemaFalse(),
+				Properties: map[string]*Schema{
+					"global": defaultGlobal(),
+				},
+			},
+		},
+		{
+			name:   "dont add when allowing additional properties",
+			schema: &Schema{AdditionalProperties: SchemaTrue()},
+			want:   &Schema{AdditionalProperties: SchemaTrue()},
+		},
+		{
+			name:   "add when additional properties doesnt allow objects",
+			schema: &Schema{AdditionalProperties: &Schema{Type: "string"}},
+			want: &Schema{
+				AdditionalProperties: &Schema{Type: "string"},
+				Properties: map[string]*Schema{
+					"global": defaultGlobal(),
+				},
+			},
+		},
+		{
+			name:   "dont add additional properties allows objects",
+			schema: &Schema{AdditionalProperties: &Schema{Type: []any{"string", "object"}}},
+			want:   &Schema{AdditionalProperties: &Schema{Type: []any{"string", "object"}}},
+		},
+		{
+			name:   "dont add additional properties allows any type",
+			schema: &Schema{AdditionalProperties: &Schema{Type: nil}},
+			want:   &Schema{AdditionalProperties: &Schema{Type: nil}},
+		},
+
+		{
+			name: "dont add when global is already set",
+			schema: &Schema{
+				AdditionalProperties: SchemaFalse(),
+				Properties: map[string]*Schema{
+					"global": {Description: "foobar"},
+				},
+			},
+			want: &Schema{
+				AdditionalProperties: SchemaFalse(),
+				Properties: map[string]*Schema{
+					"global": {Description: "foobar"},
+				},
+			},
+		},
+
+		{
+			// We practically ignore $ref here. It might allow/disallow "global",
+			// but that's too convoluted to check for.
+			name:   "dont add even though ref might disallow additional properties",
+			schema: &Schema{Ref: "foobar.json"},
+			want:   &Schema{Ref: "foobar.json"},
+		},
+		{
+			// We practically ignore $ref here. It might allow/disallow "global",
+			// but that's too convoluted to check for.
+			name: "add even though ref might add global property",
+			schema: &Schema{
+				Ref:                  "foobar.json",
+				AdditionalProperties: SchemaFalse(),
+			},
+			want: &Schema{
+				Ref:                  "foobar.json",
+				AdditionalProperties: SchemaFalse(),
+				Properties: map[string]*Schema{
+					"global": defaultGlobal(),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addMissingGlobalProperty(tt.schema)
 			assert.Equal(t, tt.want, tt.schema)
 		})
 	}

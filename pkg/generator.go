@@ -116,18 +116,18 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 		}
 	}
 
+	if config.SchemaRoot.AdditionalProperties != nil {
+		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
+	} else if config.NoAdditionalProperties {
+		mergedSchema.AdditionalProperties = SchemaFalse()
+	}
+
 	// Ensure merged Schema is JSON Schema compliant
 	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.Draft); err != nil {
 		return err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version
 	mergedSchema.Type = "object"
-
-	if config.SchemaRoot.AdditionalProperties != nil {
-		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
-	} else if config.NoAdditionalProperties {
-		mergedSchema.AdditionalProperties = SchemaFalse()
-	}
 
 	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
 }
