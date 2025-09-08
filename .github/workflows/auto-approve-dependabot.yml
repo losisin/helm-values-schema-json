@@ -1,0 +1,33 @@
+name: Dependabot auto-approve
+on:
+  pull_request:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Based on officially documented implementation
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions#approve-a-pull-request
+jobs:
+  dependabot-auto-approve:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == github.event.pull_request.head.repo.full_name
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@08eff52bf64351f401fb50d4972fa95b9f2c2d1b # v2
+        with:
+          github-token: '${{ github.token }}'
+          # Dependabot doesn't use commit signing on our GitHub Enterprise.
+          skip-commit-verification: true
+
+      - name: Approve PR and enable auto-merge
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+          || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
