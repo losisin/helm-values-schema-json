@@ -16,7 +16,7 @@ jobs:
           ref: ${{ github.ref_name }}
           persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: false # avoid cache poisoning
