@@ -87,6 +87,8 @@ The following annotations are supported:
     * [mergeProperties](#mergeproperties)
 * [Unevaluated Locations](#unevaluated-locations)
     * [unevaluatedProperties](#unevaluatedproperties)
+* [Hidden Instances](#hidden-instances)
+    * [hidden](#hidden)
 * [Base URI, Anchors, and Dereferencing](#base-uri-anchors-and-dereferencing)
     * [$id](#id)
     * [$ref](#ref)
@@ -645,6 +647,31 @@ secrets: # @schema unevaluatedProperties
             "type": "string"
         }
     },
+    "type": "object"
+}
+```
+
+## Hidden Instances
+
+### hidden
+
+This is a special annotation that removes the field from the generated schema. The `:true` part of `hidden:true` is optional.
+
+```yaml
+# @schema $ref: $k8s/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements
+resources:
+  # @schema hidden: true
+  limits:
+    memory: 4Gi
+  # @schema hidden
+  requests:
+    cpu: 100m
+    memory: 256Mi
+```
+
+```json
+"resources": {
+    "$ref": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.33.1/_definitions.json#/definitions/io.k8s.api.core.v1.ResourceRequirements",
     "type": "object"
 }
 ```
