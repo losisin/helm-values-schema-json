@@ -32,7 +32,7 @@
                             "type": "object"
                         },
                         {
-                            "$ref": "#/properties/image"
+                            "$ref": "#/allOf/0/properties/image"
                         }
                     ]
                 }
