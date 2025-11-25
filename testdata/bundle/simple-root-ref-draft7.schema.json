@@ -1,0 +1,76 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "pullPolicy": {
+                                    "type": "string"
+                                },
+                                "repository": {
+                                    "type": "string"
+                                },
+                                "tag": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        {
+                            "$ref": "simple-subschema.schema.json"
+                        }
+                    ]
+                },
+                "imageToo": {
+                    "allOf": [
+                        {
+                            "type": "object"
+                        },
+                        {
+                            "$ref": "#/properties/image"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "$ref": "simple-subschema.schema.json"
+        }
+    ],
+    "$defs": {
+        "simple-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "simple-subschema.schema.json",
+            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
+            "type": "object",
+            "properties": {
+                "pullPolicy": {
+                    "description": "This sets the pull policy for images.",
+                    "type": "string",
+                    "enum": [
+                        "IfNotPresent",
+                        "Always",
+                        "Never"
+                    ]
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "tag": {
+                    "description": "Overrides the image tag whose default is the chart appVersion.",
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "additionalProperties": false
+        }
+    }
+}
+

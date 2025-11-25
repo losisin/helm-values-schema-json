@@ -192,11 +192,19 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		schemaClone := *schema
 		schemaClone.Ref = ""
 		if !schemaClone.IsZero() {
+			// Preserve $defs and definitions at root level
+			defs := schema.Defs
+			definitions := schema.Definitions
+			schemaClone.Defs = nil
+			schemaClone.Definitions = nil
+
 			*schema = Schema{
 				AllOf: []*Schema{
 					&schemaClone,
 					{Ref: schema.Ref},
 				},
+				Defs:        defs,
+				Definitions: definitions,
 			}
 		}
 	}

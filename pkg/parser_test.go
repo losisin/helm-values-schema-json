@@ -379,6 +379,82 @@ func TestEnsureCompliant(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "preserve $defs at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "#",
+				Type: "object",
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+					"bar": {Type: "integer"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{Type: "object"},
+					{Ref: "#"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+					"bar": {Type: "integer"},
+				},
+			},
+		},
+		{
+			name: "preserve definitions at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "foo.json",
+				Type: "object",
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{Type: "object"},
+					{Ref: "foo.json"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+		},
+		{
+			name: "preserve both $defs and definitions at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "bar.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"name": {Type: "string"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"name": {Type: "string"},
+						},
+					},
+					{Ref: "bar.json"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
