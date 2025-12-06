@@ -225,17 +225,12 @@ func updateInternalRefsForDraft7(schema *Schema, newRootPath Ptr) {
 
 	// Only update internal references (those starting with "#/")
 	// Skip references to $defs/$definitions as they stay at root
-	if schema.Ref != "" && strings.HasPrefix(schema.Ref, "#/") {
-		ref := schema.Ref
-		fragment := strings.TrimPrefix(ref, "#")
-
-		// Skip $defs and $definitions - they remain at root level
-		if strings.HasPrefix(fragment, "/$defs/") || strings.HasPrefix(fragment, "/definitions/") {
-			return
-		}
+	if strings.HasPrefix(schema.Ref, "#/") &&
+		!strings.HasPrefix(schema.Ref, "#/$defs/") &&
+		!strings.HasPrefix(schema.Ref, "#/definitions/") {
 
 		// Update the reference to point to the new location
-		schema.Ref = "#" + newRootPath.String() + fragment
+		schema.Ref = "#" + newRootPath.String() + strings.TrimPrefix(schema.Ref, "#")
 	}
 }
 
