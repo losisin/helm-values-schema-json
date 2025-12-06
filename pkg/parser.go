@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -50,8 +51,7 @@ func mergeSchemas(dest, src *Schema) *Schema {
 	dest.RecursiveRef = cmp.Or(src.RecursiveRef, dest.RecursiveRef)
 	dest.Type = cmp.Or(src.Type, dest.Type)
 	dest.Const = cmp.Or(src.Const, dest.Const)
-	// Merge 'enum' field (assuming that maintaining order doesn't matter)
-	dest.Enum = append(dest.Enum, src.Enum...)
+	dest.Enum = mergeEnum(dest.Enum, src.Enum)
 	if src.AllOf != nil {
 		dest.AllOf = src.AllOf
 	}
@@ -105,6 +105,25 @@ func mergeSchemas(dest, src *Schema) *Schema {
 
 	dest.RequiredByParent = dest.RequiredByParent || src.RequiredByParent
 	return dest
+}
+
+func mergeEnum(dest, src []any) []any {
+	for _, value := range src {
+		if enumContains(dest, value) {
+			continue
+		}
+		dest = append(dest, value)
+	}
+	return dest
+}
+
+func enumContains(enums []any, elem any) bool {
+	for _, value := range enums {
+		if reflect.DeepEqual(value, elem) {
+			return true
+		}
+	}
+	return false
 }
 
 func mergeMap[K comparable, V any](dest, src map[K]V) map[K]V {

@@ -156,6 +156,27 @@
         "nameOverride": {
             "type": "string"
         },
+        "ports": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "protocol": {
+                        "type": "string",
+                        "enum": [
+                            "tcp",
+                            "udp"
+                        ]
+                    }
+                }
+            }
+        },
         "replicas": {
             "type": "integer",
             "maximum": 10,

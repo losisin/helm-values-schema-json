@@ -237,6 +237,46 @@ func TestMergeSchemas(t *testing.T) {
 			src:  &Schema{RequiredByParent: true},
 			want: &Schema{RequiredByParent: true},
 		},
+		{
+			name: "merge enum no collisions",
+			dest: &Schema{Enum: []any{1, 2, 3}},
+			src:  &Schema{Enum: []any{4, 5, 6}},
+			want: &Schema{Enum: []any{1, 2, 3, 4, 5, 6}},
+		},
+		{
+			name: "merge enum merge collisions",
+			dest: &Schema{Enum: []any{1, 2, 3}},
+			src:  &Schema{Enum: []any{2, 3, 4}},
+			want: &Schema{Enum: []any{1, 2, 3, 4}},
+		},
+		{
+			name: "merge enum maps",
+			dest: &Schema{Enum: []any{
+				map[string]any{"dest": 1},
+				map[string]any{"foo": "bar"},
+			}},
+			src: &Schema{Enum: []any{
+				map[string]any{"src": 1},
+				map[string]any{"foo": "bar"},
+			}},
+			want: &Schema{Enum: []any{
+				map[string]any{"dest": 1},
+				map[string]any{"foo": "bar"},
+				map[string]any{"src": 1},
+			}},
+		},
+		{
+			name: "merge enum slices",
+			dest: &Schema{Enum: []any{
+				[]any{"dest"}, []any{"foo", "bar"},
+			}},
+			src: &Schema{Enum: []any{
+				[]any{"src"}, []any{"foo", "bar"},
+			}},
+			want: &Schema{Enum: []any{
+				[]any{"dest"}, []any{"foo", "bar"}, []any{"src"},
+			}},
+		},
 	}
 
 	for _, tt := range tests {
