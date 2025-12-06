@@ -243,6 +243,25 @@ func TestGenerateJsonSchema(t *testing.T) {
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
 		},
 		{
+			// https://github.com/losisin/helm-values-schema-json/issues/286
+			name: "bundle/root-ref-draft7",
+			config: &Config{
+				Draft:      7,
+				Indent:     4,
+				Bundle:     true,
+				BundleRoot: "..",
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/simple-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				Output: "../testdata/bundle/simple-root-ref-draft7_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/simple-root-ref-draft7.schema.json",
+		},
+		{
 			name: "bundle/absolute path",
 			config: &Config{
 				Draft:      2020,

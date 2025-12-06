@@ -211,16 +211,46 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		schemaClone := *schema
 		schemaClone.Ref = ""
 		if !schemaClone.IsZero() {
+			// Preserve $defs and definitions at root level
+			defs := schema.Defs
+			definitions := schema.Definitions
+			schemaClone.Defs = nil
+			schemaClone.Definitions = nil
+
+			// Update internal references in the clone to point to the new location
+			updateInternalRefsForDraft7(&schemaClone, NewPtr("allOf", "0"))
+
 			*schema = Schema{
 				AllOf: []*Schema{
 					&schemaClone,
 					{Ref: schema.Ref},
 				},
+				Defs:        defs,
+				Definitions: definitions,
 			}
 		}
 	}
 
 	return nil
+}
+
+// updateInternalRefsForDraft7 updates internal JSON pointer references after
+// restructuring a schema for draft-07 compatibility. When a schema is wrapped
+// in allOf, references like "#/properties/foo" need to become "#/allOf/0/properties/foo".
+func updateInternalRefsForDraft7(schema *Schema, newRootPath Ptr) {
+	for _, subSchema := range schema.Subschemas() {
+		updateInternalRefsForDraft7(subSchema, newRootPath)
+	}
+
+	// Only update internal references (those starting with "#/")
+	// Skip references to $defs/$definitions as they stay at root
+	if strings.HasPrefix(schema.Ref, "#/") &&
+		!strings.HasPrefix(schema.Ref, "#/$defs/") &&
+		!strings.HasPrefix(schema.Ref, "#/definitions/") {
+
+		// Update the reference to point to the new location
+		schema.Ref = "#" + newRootPath.String() + strings.TrimPrefix(schema.Ref, "#")
+	}
 }
 
 func validateType(ptr Ptr, v any) error {
