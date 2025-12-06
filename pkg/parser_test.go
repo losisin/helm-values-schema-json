@@ -480,6 +480,44 @@ func TestEnsureCompliant(t *testing.T) {
 			},
 		},
 		{
+			name: "update deeper nested internal references when wrapping for draft 7",
+			schema: &Schema{
+				Ref:  "external.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"foo": {
+						Type: "object",
+						Properties: map[string]*Schema{
+							"lorem": {Type: "string"},
+						},
+					},
+					"bar": {
+						Items: &Schema{Ref: "#/properties/foo/properties/lorem"},
+					},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"foo": {
+								Type: "object",
+								Properties: map[string]*Schema{
+									"lorem": {Type: "string"},
+								},
+							},
+							"bar": {
+								Items: &Schema{Ref: "#/allOf/0/properties/foo/properties/lorem"},
+							},
+						},
+					},
+					{Ref: "external.json"},
+				},
+			},
+		},
+		{
 			name: "keep $defs references at root when wrapping for draft 7",
 			schema: &Schema{
 				Ref:  "external.json",
