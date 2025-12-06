@@ -66,3 +66,13 @@ subchart:
 
 monitoring: # @schema hidden: true
   enabled: true
+
+ports: # @schema mergeProperties
+  foo:
+    enabled: true
+    port: 123
+    protocol: tcp # @schema enum: [tcp, udp]
+  bar:
+    enabled: true
+    port: 456
+    protocol: udp # @schema enum: [tcp, udp]
