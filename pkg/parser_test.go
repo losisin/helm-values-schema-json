@@ -379,6 +379,172 @@ func TestEnsureCompliant(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "preserve $defs at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "#",
+				Type: "object",
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+					"bar": {Type: "integer"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{Type: "object"},
+					{Ref: "#"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+					"bar": {Type: "integer"},
+				},
+			},
+		},
+		{
+			name: "preserve definitions at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "foo.json",
+				Type: "object",
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{Type: "object"},
+					{Ref: "foo.json"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+		},
+		{
+			name: "preserve both $defs and definitions at root when wrapping ref with allOf for draft 7",
+			schema: &Schema{
+				Ref:  "bar.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"name": {Type: "string"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"name": {Type: "string"},
+						},
+					},
+					{Ref: "bar.json"},
+				},
+				Defs: map[string]*Schema{
+					"foo": {Type: "string"},
+				},
+				Definitions: map[string]*Schema{
+					"myDef": {Type: "boolean"},
+				},
+			},
+		},
+		{
+			name: "update internal references when wrapping for draft 7",
+			schema: &Schema{
+				Ref:  "external.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"foo": {Type: "string"},
+					"bar": {Ref: "#/properties/foo"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"foo": {Type: "string"},
+							"bar": {Ref: "#/allOf/0/properties/foo"},
+						},
+					},
+					{Ref: "external.json"},
+				},
+			},
+		},
+		{
+			name: "update deeper nested internal references when wrapping for draft 7",
+			schema: &Schema{
+				Ref:  "external.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"foo": {
+						Type: "object",
+						Properties: map[string]*Schema{
+							"lorem": {Type: "string"},
+						},
+					},
+					"bar": {
+						Items: &Schema{Ref: "#/properties/foo/properties/lorem"},
+					},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"foo": {
+								Type: "object",
+								Properties: map[string]*Schema{
+									"lorem": {Type: "string"},
+								},
+							},
+							"bar": {
+								Items: &Schema{Ref: "#/allOf/0/properties/foo/properties/lorem"},
+							},
+						},
+					},
+					{Ref: "external.json"},
+				},
+			},
+		},
+		{
+			name: "keep $defs references at root when wrapping for draft 7",
+			schema: &Schema{
+				Ref:  "external.json",
+				Type: "object",
+				Properties: map[string]*Schema{
+					"foo": {Ref: "#/$defs/myDef"},
+				},
+				Defs: map[string]*Schema{
+					"myDef": {Type: "string"},
+				},
+			},
+			draft: 7,
+			want: &Schema{
+				AllOf: []*Schema{
+					{
+						Type: "object",
+						Properties: map[string]*Schema{
+							"foo": {Ref: "#/$defs/myDef"}, // Should NOT be updated
+						},
+					},
+					{Ref: "external.json"},
+				},
+				Defs: map[string]*Schema{
+					"myDef": {Type: "string"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
