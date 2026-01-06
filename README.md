@@ -120,7 +120,7 @@ schema-check:
 ## Usage
 
 ```bash
-$ helm schema -help
+$ helm schema --help
 Usage:
   helm schema [flags]
 
