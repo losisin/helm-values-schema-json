@@ -2,15 +2,20 @@ package pkg
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
-	"github.com/losisin/helm-values-schema-json/v2/internal/yamlfile"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"go.yaml.in/yaml/v3"
 )
 
 func NewCmd() *cobra.Command {
@@ -54,21 +59,20 @@ func NewCmd() *cobra.Command {
   # https://github.com/norwoodj/helm-docs
   helm schema --use-helm-docs`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := LoadConfig(cmd)
+			cb, err := NewInitializedConfigBuilder(cmd)
 			if err != nil {
 				return err
 			}
-			root, err := os.OpenRoot(".")
+			config, err := cb.Build()
 			if err != nil {
 				return err
 			}
-			parsedArgs, err := ParseArgs(cmd.Context(), root.FS().(FS), args, config)
+			dirs, err := ParseArgs(cmd.Context(), args, config)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("parsed args: %#v\n", parsedArgs)
-			return nil
-			return GenerateJsonSchema(cmd.Context(), config)
+			httpLoader := NewCacheLoader(NewHTTPLoader(http.DefaultClient, NewHTTPCache()))
+			return GenerateForCharts(cmd.Context(), cmd, httpLoader, dirs, cb)
 		},
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -128,70 +132,123 @@ var (
 	failConfigFlagLoad             bool
 	failConfigUnmarshal            bool
 	failConfigConfigRefReferrerAbs bool
+	failConfigStructsLoad          bool
+	failConfigMerge                bool
 )
 
-func LoadConfig(cmd *cobra.Command) (*Config, error) {
-	k := koanf.New(".")
+type ConfigBuilder struct {
+	fileRefReferrer  Referrer
+	fileConfig       Config
+	flags            *koanf.Koanf
+	flagsRefReferrer Referrer
+}
+
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{
+		flags:      koanf.New("."),
+		fileConfig: DefaultConfig.Clone(),
+	}
+}
+
+func NewInitializedConfigBuilder(cmd *cobra.Command) (*ConfigBuilder, error) {
+	cb := NewConfigBuilder()
 
 	configFlag := cmd.Flag("config")
-	configPath := configFlag.Value.String()
-	if err := k.Load(yamlfile.Provider(DefaultConfig, configPath, "koanf"), nil); err != nil {
-		// ignore "not exists" errors, unless user specified the "--config" flag
-		if !os.IsNotExist(err) || configFlag.Changed {
-			return nil, fmt.Errorf("load config file %s: %w", configPath, err)
-		}
+	if err := cb.LoadFile(configFlag.Value.String(), configFlag.Changed); err != nil {
+		return nil, err
 	}
-
-	refReferrer, err := getConfigRefReferrer(k, configPath)
-	if err != nil {
+	if err := cb.LoadFlags(cmd); err != nil {
 		return nil, err
 	}
 
-	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, any) {
-		if !f.Changed && f.Value.Type() == "bool" {
-			// ignore boolean flags that are not explicitly set
-			// this allows "schemaRoot.additionalProperties" to stay as null when unset
+	return cb, nil
+}
+
+func (b *ConfigBuilder) Clone() *ConfigBuilder {
+	clone := *b
+	clone.fileConfig = b.fileConfig.Clone()
+	clone.flags = b.flags.Copy()
+	return &clone
+}
+
+func (b *ConfigBuilder) LoadFile(configPath string, isConfigRequired bool) error {
+	if err := decodeYAMLFile(configPath, &b.fileConfig); err != nil {
+		if (!os.IsNotExist(err) || isConfigRequired) && !errors.Is(err, io.EOF) {
+			return fmt.Errorf("load config file %s: parsing config: %w", configPath, err)
+		}
+	}
+
+	// TODO: add test for
+	// 1. ConfigBuilder.Config already has some data
+	// 2. load file that doesnt exist
+	// 3. refReferrer should still be set
+	refReferrer, err := getConfigRefReferrer(&b.fileConfig, configPath)
+	if err != nil {
+		return fmt.Errorf("load config file %s: %w", configPath, err)
+	}
+	b.fileRefReferrer = refReferrer
+	return nil
+}
+
+func decodeYAMLFile(path string, v any) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	decoder := yaml.NewDecoder(file)
+	return decoder.Decode(v)
+}
+
+func (b *ConfigBuilder) LoadFlags(cmd *cobra.Command) error {
+	if err := b.flags.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", b.flags, func(f *pflag.Flag) (string, any) {
+		if !f.Changed {
+			// ignore flags that are not explicitly set
+			// this allows fields to override the file configs properly
 			return "", nil
 		}
 
 		return f.Name, posflag.FlagVal(cmd.Flags(), f)
 	}), nil); err != nil || failConfigFlagLoad {
 		// The [posflag] provider can't fail, so we have to induce a fake failure via [failConfigFlagLoad]
-		return nil, fmt.Errorf("load flags: %w", err)
+		return fmt.Errorf("load flags: %w", err)
 	}
 
 	if cmd.Flag(schemaRootRefKey).Changed {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, fmt.Errorf("resolve current working directory: %w", err)
+			return fmt.Errorf("resolve current working directory: %w", err)
 		}
-		refReferrer = ReferrerDir(cwd)
+		b.flagsRefReferrer = ReferrerDir(cwd)
 	}
 
-	return unmarshalKoanfConfig(k, refReferrer)
+	return nil
 }
 
-func LoadFileConfigOverwrite(base *Config, configPath string) (*Config, error) {
+func (b *ConfigBuilder) Build() (*Config, error) {
 	k := koanf.New(".")
 
-	if err := k.Load(yamlfile.Provider(base, configPath, "koanf"), nil); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("load config file %s: %w", configPath, err)
-		}
+	if err := k.Load(structs.Provider(b.fileConfig, "koanf"), nil); err != nil || failConfigStructsLoad {
+		// This "structs.Provider" will never fail, so we have to induce a fake failure via [failConfigStructsLoad]
+		return nil, fmt.Errorf("apply config file: %w", err)
+	}
+	if err := k.Merge(b.flags); err != nil || failConfigMerge {
+		// This "k.Merge" will never fail, so we have to induce a fake failure via [failConfigMerge]
+		return nil, fmt.Errorf("apply config from flags: %w", err)
 	}
 
-	refReferrer, err := getConfigRefReferrer(k, configPath)
-	if err != nil {
-		return nil, err
+	refReferrer := b.fileRefReferrer
+	if b.flagsRefReferrer != (Referrer{}) {
+		refReferrer = b.flagsRefReferrer
 	}
-
 	return unmarshalKoanfConfig(k, refReferrer)
 }
 
-func getConfigRefReferrer(k *koanf.Koanf, configPath string) (Referrer, error) {
+func getConfigRefReferrer(config *Config, configPath string) (Referrer, error) {
 	// Only set referrer if the ref was also set.
 	// No need to specify the referrer otherwise
-	if k.String(schemaRootRefKey) != "" {
+	if config.SchemaRoot.Ref != "" {
 		configAbsPath, err := filepath.Abs(configPath)
 		if err != nil || failConfigConfigRefReferrerAbs {
 			// [filepath.Abs] can't fail here because we already loaded the config file,
@@ -207,9 +264,7 @@ func getConfigRefReferrer(k *koanf.Koanf, configPath string) (Referrer, error) {
 func unmarshalKoanfConfig(k *koanf.Koanf, referrer Referrer) (*Config, error) {
 	var config Config
 	if err := k.Unmarshal("", &config); err != nil || failConfigUnmarshal {
-		// Now that we use our internal [yamlfile] package, then the parsing of field types are done
-		// in that "k.Load" step.
-		// Meaning, this "k.Unmarshal" will never fail, so we have to induce a fake failure via [failConfigUnmarshal]
+		// This "k.Unmarshal" will never fail, so we have to induce a fake failure via [failConfigUnmarshal]
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 	config.SchemaRoot.RefReferrer = referrer
@@ -254,6 +309,13 @@ type Config struct {
 	SchemaRoot SchemaRoot `yaml:"schemaRoot" koanf:"schema-root"`
 }
 
+func (c Config) Clone() Config {
+	c.Values = slices.Clone(c.Values)
+	c.RecursiveNeeds = slices.Clone(c.RecursiveNeeds)
+	c.SchemaRoot = c.SchemaRoot.Clone()
+	return c
+}
+
 const schemaRootRefKey = "schema-root.ref"
 
 // SchemaRoot struct defines root object of schema
@@ -264,4 +326,11 @@ type SchemaRoot struct {
 	Title                string   `yaml:"title" koanf:"title"`
 	Description          string   `yaml:"description" koanf:"description"`
 	AdditionalProperties *bool    `yaml:"additionalProperties" koanf:"additional-properties"`
+}
+
+func (s SchemaRoot) Clone() SchemaRoot {
+	if s.AdditionalProperties != nil {
+		s.AdditionalProperties = boolPtr(*s.AdditionalProperties)
+	}
+	return s
 }

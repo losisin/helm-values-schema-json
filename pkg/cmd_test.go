@@ -243,7 +243,11 @@ func TestParseFlagsPass(t *testing.T) {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags(tt.args))
-			conf, err := LoadConfig(cmd)
+
+			cb, err := NewInitializedConfigBuilder(cmd)
+			require.NoError(t, err)
+
+			conf, err := cb.Build()
 			assert.NoError(t, err)
 			testutil.Equal(t, &tt.conf, conf, "conf")
 		})
@@ -354,9 +358,13 @@ schemaRoot:
 
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + tmpFile.Name()}))
-			conf, err := LoadConfig(cmd)
 
+			cb, err := NewInitializedConfigBuilder(cmd)
 			require.NoError(t, err)
+
+			conf, err := cb.Build()
+			require.NoError(t, err)
+
 			require.NotNil(t, conf)
 			testutil.Equal(t, tt.want, *conf, "conf")
 		})
@@ -400,14 +408,14 @@ values:
 			}
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFilePath}))
-			conf, err := LoadConfig(cmd)
+
+			_, err := NewInitializedConfigBuilder(cmd)
 
 			if tt.wantErrIs != nil {
 				require.ErrorIs(t, err, tt.wantErrIs)
 			} else {
 				require.ErrorContains(t, err, tt.wantErr)
 			}
-			assert.Nil(t, conf)
 		})
 	}
 }
@@ -417,7 +425,7 @@ func TestLoadConfig_LoadFlagError(t *testing.T) {
 	defer func() { failConfigFlagLoad = false }()
 
 	cmd := NewCmd()
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "load flags: ")
 }
 
@@ -426,8 +434,35 @@ func TestLoadConfig_UnmarshalError(t *testing.T) {
 	defer func() { failConfigUnmarshal = false }()
 
 	cmd := NewCmd()
-	_, err := LoadConfig(cmd)
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
 	assert.ErrorContains(t, err, "parsing config: ")
+}
+
+func TestLoadConfig_StructsLoad(t *testing.T) {
+	failConfigStructsLoad = true
+	defer func() { failConfigStructsLoad = false }()
+
+	cmd := NewCmd()
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
+	assert.ErrorContains(t, err, "apply config file: ")
+}
+
+func TestLoadConfig_MergeError(t *testing.T) {
+	failConfigMerge = true
+	defer func() { failConfigMerge = false }()
+
+	cmd := NewCmd()
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
+	assert.ErrorContains(t, err, "apply config from flags: ")
 }
 
 func TestLoadConfig_SchemaRootRefReferrerConfigError(t *testing.T) {
@@ -441,7 +476,7 @@ schemaRoot:
 
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile.Name()}))
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
 }
 
@@ -450,7 +485,7 @@ func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
 
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "resolve current working directory: ")
 }
 
@@ -692,7 +727,10 @@ schemaRoot:
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+tmpFile.Name())))
 
-			conf, err := LoadConfig(cmd)
+			cb, err := NewInitializedConfigBuilder(cmd)
+			require.NoError(t, err)
+
+			conf, err := cb.Build()
 			require.NoError(t, err)
 
 			testutil.Equal(t, tt.want, conf, "conf")
@@ -700,138 +738,18 @@ schemaRoot:
 	}
 }
 
-func TestLoadFileConfigOverwrite(t *testing.T) {
-	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
-
-	tests := []struct {
-		name string
-		base *Config
-		file string
-		want *Config
-	}{
-		{
-			name: "override empty with empty",
-			base: &Config{},
-			file: ``,
-			want: &Config{},
-		},
-		{
-			name: "override defaults with empty",
-			base: &DefaultConfig,
-			file: ``,
-			want: &Config{
-				Values:         []string{"values.yaml"},
-				Output:         "values.schema.json",
-				Draft:          2020,
-				Indent:         4,
-				RecursiveNeeds: []string{"Chart.yaml"},
-				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
-			},
-		},
-		{
-			name: "override every field",
-			base: &Config{
-				Values:                 []string{"baseInput.yaml"},
-				Output:                 "baseOutput.json",
-				Draft:                  2020,
-				Indent:                 4,
-				NoAdditionalProperties: true,
-				NoDefaultGlobal:        true,
-				Recursive:              true,
-				RecursiveNeeds:         []string{"baseNeeds"},
-				NoRecursiveNeeds:       true,
-				Hidden:                 true,
-				NoGitIgnore:            true,
-				K8sSchemaURL:           "baseURL",
-				K8sSchemaVersion:       "baseVersion",
-				UseHelmDocs:            true,
-				SchemaRoot: SchemaRoot{
-					ID:                   "baseID",
-					Ref:                  "baseRef",
-					RefReferrer:          ReferrerDir("/tmp"),
-					Title:                "baseTitle",
-					Description:          "baseDescription",
-					AdditionalProperties: boolPtr(true),
-				},
-			},
-			file: `
-values: [fileInput.yaml]
-output: fileOutput.json
-draft: 7
-indent: 2
-noAdditionalProperties: false
-noDefaultGlobal: false
-recursive: false
-recursiveNeeds: [fileNeeds]
-noRecursiveNeeds: false
-hidden: false
-noGitIgnore: false
-k8sSchemaURL: fileURL
-k8sSchemaVersion: fileVersion
-useHelmDocs: false
-schemaRoot:
-  id: fileID
-  ref: fileRef
-  title: fileTitle
-  description: fileDescription
-  additionalProperties: false
-`,
-			want: &Config{
-				Values:                 []string{"fileInput.yaml"},
-				Output:                 "fileOutput.json",
-				Draft:                  7,
-				Indent:                 2,
-				NoAdditionalProperties: false,
-				NoDefaultGlobal:        false,
-				Recursive:              false,
-				RecursiveNeeds:         []string{"fileNeeds"},
-				NoRecursiveNeeds:       false,
-				Hidden:                 false,
-				NoGitIgnore:            false,
-				K8sSchemaURL:           "fileURL",
-				K8sSchemaVersion:       "fileVersion",
-				UseHelmDocs:            false,
-				SchemaRoot: SchemaRoot{
-					ID:                   "fileID",
-					Ref:                  "fileRef",
-					Title:                "fileTitle",
-					Description:          "fileDescription",
-					AdditionalProperties: boolPtr(false),
-					RefReferrer:          ReferrerDir("/tmp"),
-				},
-			},
+func TestConfigClone(t *testing.T) {
+	before := &Config{
+		Values:         []string{"foo"},
+		RecursiveNeeds: []string{"bar"},
+		SchemaRoot: SchemaRoot{
+			AdditionalProperties: boolPtr(true),
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			testutil.ResetFile(t, tmpFile, []byte(tt.file))
+	after := before.Clone()
 
-			conf, err := LoadFileConfigOverwrite(tt.base, tmpFile.Name())
-			require.NoError(t, err)
-
-			testutil.Equal(t, tt.want, conf, "conf")
-		})
-	}
-}
-
-func TestLoadFileConfigOverwrite_NoFileExists(t *testing.T) {
-	conf, err := LoadFileConfigOverwrite(&Config{}, "/file-that-does-not-exist")
-	require.NoError(t, err)
-
-	want := &Config{}
-	testutil.Equal(t, want, conf, "conf")
-}
-
-func TestLoadFileConfigOverwrite_SchemaRootRefReferrerConfigError(t *testing.T) {
-	failConfigConfigRefReferrerAbs = true
-	defer func() { failConfigConfigRefReferrerAbs = false }()
-
-	configFile := testutil.WriteTempFile(t, "config-*.yaml", []byte(`
-schemaRoot:
-  ref: foo/bar
-`))
-
-	_, err := LoadFileConfigOverwrite(&Config{}, configFile.Name())
-	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
+	assert.NotSame(t, &before.Values[0], &after.Values[0], "values")
+	assert.NotSame(t, &before.RecursiveNeeds[0], &after.RecursiveNeeds[0], "recursiveNeeds")
+	assert.NotSame(t, before.SchemaRoot.AdditionalProperties, after.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties")
 }

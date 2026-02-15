@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -21,10 +22,18 @@ type FS interface {
 	fs.ReadDirFS
 }
 
-// ParseArgs takes the input CLI arguments and returns a list of directories.
+func ParseArgs(ctx context.Context, args []string, config *Config) ([]string, error) {
+	root, err := os.OpenRoot(".")
+	if err != nil {
+		return nil, err
+	}
+	return ParseArgsFS(ctx, root.FS().(FS), args, config)
+}
+
+// ParseArgsFS takes the input CLI arguments and returns a list of directories.
 //
 // The inputs may use glob patterns (with double-star support).
-func ParseArgs(ctx context.Context, fsys FS, args []string, config *Config) ([]string, error) {
+func ParseArgsFS(ctx context.Context, fsys FS, args []string, config *Config) ([]string, error) {
 	if !config.Recursive {
 		if len(args) == 0 {
 			return []string{"."}, nil
