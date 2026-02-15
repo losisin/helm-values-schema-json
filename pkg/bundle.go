@@ -1,12 +1,9 @@
 package pkg
 
 import (
-	"cmp"
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -19,24 +16,16 @@ import (
 //
 // The paths, outputDir & bundleRoot, are only used to change absolute paths
 // into relative paths in a solely cosmetic way.
-func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
+func Bundle(ctx context.Context, httpLoader Loader, schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
 	absOutputDir, err := filepath.Abs(filepath.Dir(filepath.FromSlash(outputDir)))
 	if err != nil {
 		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
 	}
-
-	bundleRootAbs, err := filepath.Abs(cmp.Or(filepath.FromSlash(bundleRoot), "."))
+	loader, root, err := NewDefaultLoader(bundleRoot, httpLoader)
 	if err != nil {
-		return fmt.Errorf("bundle root %s: get absolute path: %w", bundleRoot, err)
+		return err
 	}
-
-	root, err := os.OpenRoot(bundleRootAbs)
-	if err != nil {
-		return fmt.Errorf("bundle root %s: %w", bundleRoot, err)
-	}
-	defer closeIgnoreError(root)
-
-	loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
+	defer root.Close()
 	return bundleWithLoader(ctx, loader, schema, absOutputDir, withoutIDs)
 }
 

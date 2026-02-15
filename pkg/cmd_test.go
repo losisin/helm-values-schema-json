@@ -79,65 +79,71 @@ func TestParseFlagsPass(t *testing.T) {
 		{
 			[]string{"--values", "values.yaml"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Output:       "values.schema.json",
-				Draft:        2020,
-				Indent:       4,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 		{
 			[]string{"-f", "values.yaml"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Output:       "values.schema.json",
-				Draft:        2020,
-				Indent:       4,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
 			[]string{"--values", "values1.yaml values2.yaml", "--indent", "2"},
 			Config{
-				Values:       []string{"values1.yaml values2.yaml"},
-				Output:       "values.schema.json",
-				Draft:        2020,
-				Indent:       2,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values1.yaml values2.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         2,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
 			[]string{"--values", "values.yaml", "--output", "my.schema.json", "--draft", "2019", "--indent", "2"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Output:       "my.schema.json",
-				Draft:        2019,
-				Indent:       2,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values.yaml"},
+				Output:         "my.schema.json",
+				Draft:          2019,
+				Indent:         2,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 
 		{
 			[]string{"--values", "values.yaml", "--output", "my.schema.json", "--draft", "2019", "--k8s-schema-url", "foobar"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Output:       "my.schema.json",
-				Draft:        2019,
-				Indent:       4,
-				K8sSchemaURL: "foobar",
+				Values:         []string{"values.yaml"},
+				Output:         "my.schema.json",
+				Draft:          2019,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "foobar",
 			},
 		},
 
 		{
 			[]string{"--values", "values.yaml", "--schema-root.id", "http://example.com/schema", "--schema-root.ref", "schema/product.json", "--schema-root.title", "MySchema", "--schema-root.description", "My schema description"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Output:       "values.schema.json",
-				Draft:        2020,
-				Indent:       4,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					ID:          "http://example.com/schema",
 					Ref:         "schema/product.json",
@@ -149,12 +155,29 @@ func TestParseFlagsPass(t *testing.T) {
 		},
 
 		{
+			[]string{"--recursive", "--recursive-needs", "foo-bar", "--no-recursive-needs", "--hidden", "--no-gitignore"},
+			Config{
+				Values:           []string{"values.yaml"},
+				Indent:           4,
+				Output:           "values.schema.json",
+				Draft:            2020,
+				Recursive:        true,
+				RecursiveNeeds:   []string{"foo-bar"},
+				NoRecursiveNeeds: true,
+				Hidden:           true,
+				NoGitIgnore:      true,
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+			},
+		},
+
+		{
 			[]string{"--bundle", "--bundle-root", "/foo/bar", "--bundle-without-id"},
 			Config{
 				Values:          []string{"values.yaml"},
 				Indent:          4,
 				Output:          "values.schema.json",
 				Draft:           2020,
+				RecursiveNeeds:  []string{"Chart.yaml"},
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				Bundle:          true,
 				BundleRoot:      "/foo/bar",
@@ -168,6 +191,7 @@ func TestParseFlagsPass(t *testing.T) {
 				Indent:          4,
 				Output:          "values.schema.json",
 				Draft:           2020,
+				RecursiveNeeds:  []string{"Chart.yaml"},
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				Bundle:          true,
 				BundleRoot:      "/foo/bar",
@@ -181,6 +205,7 @@ func TestParseFlagsPass(t *testing.T) {
 				Indent:          4,
 				Output:          "values.schema.json",
 				Draft:           2020,
+				RecursiveNeeds:  []string{"Chart.yaml"},
 				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				Bundle:          false,
 				BundleRoot:      "",
@@ -191,23 +216,25 @@ func TestParseFlagsPass(t *testing.T) {
 		{
 			[]string{"--use-helm-docs"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Indent:       4,
-				Output:       "values.schema.json",
-				Draft:        2020,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
-				UseHelmDocs:  true,
+				Values:         []string{"values.yaml"},
+				Indent:         4,
+				Output:         "values.schema.json",
+				Draft:          2020,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:    true,
 			},
 		},
 		{
 			[]string{"--use-helm-docs=false"},
 			Config{
-				Values:       []string{"values.yaml"},
-				Indent:       4,
-				Output:       "values.schema.json",
-				Draft:        2020,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
-				UseHelmDocs:  false,
+				Values:         []string{"values.yaml"},
+				Indent:         4,
+				Output:         "values.schema.json",
+				Draft:          2020,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				UseHelmDocs:    false,
 			},
 		},
 	}
@@ -216,7 +243,11 @@ func TestParseFlagsPass(t *testing.T) {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags(tt.args))
-			conf, err := LoadConfig(cmd)
+
+			cb, err := NewInitializedConfigBuilder(cmd)
+			require.NoError(t, err)
+
+			conf, err := cb.Build()
 			assert.NoError(t, err)
 			testutil.Equal(t, &tt.conf, conf, "conf")
 		})
@@ -235,6 +266,8 @@ func TestParseFlagsFail(t *testing.T) {
 		{[]string{"--bundle=123"}, "invalid syntax"},
 		{[]string{"--bundle-without-id=123"}, "invalid syntax"},
 		{[]string{"--use-helm-docs=123"}, "invalid syntax"},
+		{[]string{"--recursive=yes"}, "invalid syntax"},
+		{[]string{"--hidden=yes"}, "invalid syntax"},
 	}
 
 	for _, tt := range tests {
@@ -263,6 +296,11 @@ values:
 output: values.schema.json
 draft: 2020
 indent: 2
+recursive: true
+recursiveNeeds: [fileNeeds]
+noRecursiveNeeds: true
+hidden: true
+noGitIgnore: true
 bundle: true
 bundleRoot: ./
 bundleWithoutID: true
@@ -275,15 +313,20 @@ schemaRoot:
   additionalProperties: true
 `,
 			want: Config{
-				Values:          []string{"testdata/empty.yaml", "testdata/meta.yaml"},
-				Output:          "values.schema.json",
-				Draft:           2020,
-				Indent:          2,
-				Bundle:          true,
-				BundleRoot:      "./",
-				BundleWithoutID: true,
-				UseHelmDocs:     true,
-				K8sSchemaURL:    "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:           []string{"testdata/empty.yaml", "testdata/meta.yaml"},
+				Output:           "values.schema.json",
+				Draft:            2020,
+				Indent:           2,
+				Recursive:        true,
+				RecursiveNeeds:   []string{"fileNeeds"},
+				NoRecursiveNeeds: true,
+				Hidden:           true,
+				NoGitIgnore:      true,
+				Bundle:           true,
+				BundleRoot:       "./",
+				BundleWithoutID:  true,
+				UseHelmDocs:      true,
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 				SchemaRoot: SchemaRoot{
 					Title:                "Helm Values Schema",
 					ID:                   "https://example.com/schema",
@@ -298,11 +341,12 @@ schemaRoot:
 			name:   "EmptyConfig",
 			config: `# just a comment`,
 			want: Config{
-				Values:       []string{"values.yaml"},
-				Output:       "values.schema.json",
-				Draft:        2020,
-				Indent:       4,
-				K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+				Values:         []string{"values.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 			},
 		},
 	}
@@ -314,9 +358,13 @@ schemaRoot:
 
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + tmpFile.Name()}))
-			conf, err := LoadConfig(cmd)
 
+			cb, err := NewInitializedConfigBuilder(cmd)
 			require.NoError(t, err)
+
+			conf, err := cb.Build()
+			require.NoError(t, err)
+
 			require.NotNil(t, conf)
 			testutil.Equal(t, tt.want, *conf, "conf")
 		})
@@ -360,14 +408,14 @@ values:
 			}
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFilePath}))
-			conf, err := LoadConfig(cmd)
+
+			_, err := NewInitializedConfigBuilder(cmd)
 
 			if tt.wantErrIs != nil {
 				require.ErrorIs(t, err, tt.wantErrIs)
 			} else {
 				require.ErrorContains(t, err, tt.wantErr)
 			}
-			assert.Nil(t, conf)
 		})
 	}
 }
@@ -377,7 +425,7 @@ func TestLoadConfig_LoadFlagError(t *testing.T) {
 	defer func() { failConfigFlagLoad = false }()
 
 	cmd := NewCmd()
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "load flags: ")
 }
 
@@ -386,8 +434,35 @@ func TestLoadConfig_UnmarshalError(t *testing.T) {
 	defer func() { failConfigUnmarshal = false }()
 
 	cmd := NewCmd()
-	_, err := LoadConfig(cmd)
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
 	assert.ErrorContains(t, err, "parsing config: ")
+}
+
+func TestLoadConfig_StructsLoad(t *testing.T) {
+	failConfigStructsLoad = true
+	defer func() { failConfigStructsLoad = false }()
+
+	cmd := NewCmd()
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
+	assert.ErrorContains(t, err, "apply config file: ")
+}
+
+func TestLoadConfig_MergeError(t *testing.T) {
+	failConfigMerge = true
+	defer func() { failConfigMerge = false }()
+
+	cmd := NewCmd()
+	cb, err := NewInitializedConfigBuilder(cmd)
+	require.NoError(t, err)
+
+	_, err = cb.Build()
+	assert.ErrorContains(t, err, "apply config from flags: ")
 }
 
 func TestLoadConfig_SchemaRootRefReferrerConfigError(t *testing.T) {
@@ -401,7 +476,7 @@ schemaRoot:
 
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--config=" + configFile.Name()}))
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
 }
 
@@ -410,7 +485,7 @@ func TestLoadConfig_SchemaRootRefReferrerFlagError(t *testing.T) {
 
 	cmd := NewCmd()
 	require.NoError(t, cmd.ParseFlags([]string{"--schema-root.ref=foo/bar"}))
-	_, err := LoadConfig(cmd)
+	_, err := NewInitializedConfigBuilder(cmd)
 	assert.ErrorContains(t, err, "resolve current working directory: ")
 }
 
@@ -434,6 +509,11 @@ draft: 2020
 indent: 4
 noAdditionalProperties: true
 noDefaultGlobal: true
+recursive: true
+recursiveNeeds: [fileNeeds]
+noRecursiveNeeds: true
+hidden: true
+noGitIgnore: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -451,6 +531,11 @@ schemaRoot:
 				"--indent=2",
 				"--no-additional-properties=false",
 				"--no-default-global=false",
+				"--recursive=false",
+				"--recursive-needs=flagNeeds",
+				"--no-recursive-needs=false",
+				"--hidden=false",
+				"--no-gitignore=false",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
 				"--use-helm-docs=false",
@@ -469,6 +554,11 @@ schemaRoot:
 				K8sSchemaURL:           "flagURL",
 				K8sSchemaVersion:       "flagVersion",
 				UseHelmDocs:            false,
+				Recursive:              false,
+				RecursiveNeeds:         []string{"flagNeeds"},
+				NoRecursiveNeeds:       false,
+				Hidden:                 false,
+				NoGitIgnore:            false,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
@@ -488,6 +578,11 @@ draft: 2020
 indent: 4
 noAdditionalProperties: true
 noDefaultGlobal: true
+recursive: true
+recursiveNeeds: [fileNeeds]
+noRecursiveNeeds: true
+hidden: true
+noGitIgnore: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -508,6 +603,11 @@ schemaRoot:
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
 				NoDefaultGlobal:        true,
+				Recursive:              true,
+				RecursiveNeeds:         []string{"fileNeeds"},
+				NoRecursiveNeeds:       true,
+				Hidden:                 true,
+				NoGitIgnore:            true,
 				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
@@ -528,6 +628,11 @@ draft: 2020
 indent: 4
 noAdditionalProperties: true
 noDefaultGlobal: true
+recursive: true
+recursiveNeeds: [fileNeeds]
+noRecursiveNeeds: true
+hidden: true
+noGitIgnore: true
 k8sSchemaURL: fileURL
 k8sSchemaVersion: fileVersion
 useHelmDocs: true
@@ -550,6 +655,11 @@ schemaRoot:
 				K8sSchemaVersion:       "fileVersion",
 				NoAdditionalProperties: true,
 				NoDefaultGlobal:        true,
+				Recursive:              true,
+				RecursiveNeeds:         []string{"fileNeeds"},
+				NoRecursiveNeeds:       true,
+				Hidden:                 true,
+				NoGitIgnore:            true,
 				UseHelmDocs:            true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "fileID",
@@ -571,6 +681,11 @@ schemaRoot:
 				"--indent=2",
 				"--no-additional-properties=false",
 				"--no-default-global=false",
+				"--recursive=true",
+				"--recursive-needs=flagNeeds",
+				"--no-recursive-needs=true",
+				"--hidden=true",
+				"--no-gitignore=true",
 				"--k8s-schema-url=flagURL",
 				"--k8s-schema-version=flagVersion",
 				"--use-helm-docs=true",
@@ -588,6 +703,11 @@ schemaRoot:
 				K8sSchemaURL:     "flagURL",
 				K8sSchemaVersion: "flagVersion",
 				UseHelmDocs:      true,
+				Recursive:        true,
+				RecursiveNeeds:   []string{"flagNeeds"},
+				NoRecursiveNeeds: true,
+				Hidden:           true,
+				NoGitIgnore:      true,
 				SchemaRoot: SchemaRoot{
 					ID:                   "flagID",
 					Ref:                  "flagRef",
@@ -607,10 +727,29 @@ schemaRoot:
 			cmd := NewCmd()
 			require.NoError(t, cmd.ParseFlags(append(tt.flags, "--config="+tmpFile.Name())))
 
-			conf, err := LoadConfig(cmd)
+			cb, err := NewInitializedConfigBuilder(cmd)
+			require.NoError(t, err)
+
+			conf, err := cb.Build()
 			require.NoError(t, err)
 
 			testutil.Equal(t, tt.want, conf, "conf")
 		})
 	}
+}
+
+func TestConfigClone(t *testing.T) {
+	before := &Config{
+		Values:         []string{"foo"},
+		RecursiveNeeds: []string{"bar"},
+		SchemaRoot: SchemaRoot{
+			AdditionalProperties: boolPtr(true),
+		},
+	}
+
+	after := before.Clone()
+
+	assert.NotSame(t, &before.Values[0], &after.Values[0], "values")
+	assert.NotSame(t, &before.RecursiveNeeds[0], &after.RecursiveNeeds[0], "recursiveNeeds")
+	assert.NotSame(t, before.SchemaRoot.AdditionalProperties, after.SchemaRoot.AdditionalProperties, "schemaRoot.additionalProperties")
 }
