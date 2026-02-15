@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/knadh/koanf/providers/posflag"
-	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 	"github.com/losisin/helm-values-schema-json/v2/internal/yamlfile"
 	"github.com/spf13/cobra"
@@ -133,7 +132,6 @@ var (
 
 func LoadConfig(cmd *cobra.Command) (*Config, error) {
 	k := koanf.New(".")
-	var refReferrer Referrer
 
 	configFlag := cmd.Flag("config")
 	configPath := configFlag.Value.String()
@@ -144,15 +142,9 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 
-	if k.String(schemaRootRefKey) != "" {
-		configAbsPath, err := filepath.Abs(configPath)
-		if err != nil || failConfigConfigRefReferrerAbs {
-			// [filepath.Abs] can't fail here because we already loaded the config file,
-			// so resolving its absolute position is guaranteed to also work
-			// (except for a race condition, but that's super tricky to test for)
-			return nil, fmt.Errorf("resolve absolute path of config file: %w", err)
-		}
-		refReferrer = ReferrerDir(filepath.Dir(configAbsPath))
+	refReferrer, err := getConfigRefReferrer(k, configPath)
+	if err != nil {
+		return nil, err
 	}
 
 	if err := k.Load(posflag.ProviderWithFlag(cmd.Flags(), ".", k, func(f *pflag.Flag) (string, any) {
@@ -176,46 +168,43 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		refReferrer = ReferrerDir(cwd)
 	}
 
-	config, err := unmarshalKoanfConfig(k)
-	if err != nil {
-		return nil, err
-	}
-
-	config.SchemaRoot.RefReferrer = refReferrer
-	return config, nil
+	return unmarshalKoanfConfig(k, refReferrer)
 }
 
 func LoadFileConfigOverwrite(base *Config, configPath string) (*Config, error) {
 	k := koanf.New(".")
 
-	if err := k.Load(structs.Provider(base, "koanf"), nil); err != nil {
-		return nil, fmt.Errorf("reintepret config: %w", err)
-	}
-
-	if err := k.Load(yamlfile.Provider(DefaultConfig, configPath, "koanf"), nil); err != nil {
+	if err := k.Load(yamlfile.Provider(base, configPath, "koanf"), nil); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("load config file %s: %w", configPath, err)
 		}
 	}
 
-	configAbsPath, err := filepath.Abs(configPath)
-	if err != nil || failConfigConfigRefReferrerAbs {
-		// [filepath.Abs] can't fail here because we already loaded the config file,
-		// so resolving its absolute position is guaranteed to also work
-		// (except for a race condition, but that's super tricky to test for)
-		return nil, fmt.Errorf("resolve absolute path of config file: %w", err)
-	}
-
-	config, err := unmarshalKoanfConfig(k)
+	refReferrer, err := getConfigRefReferrer(k, configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	config.SchemaRoot.RefReferrer = ReferrerDir(filepath.Dir(configAbsPath))
-	return config, nil
+	return unmarshalKoanfConfig(k, refReferrer)
 }
 
-func unmarshalKoanfConfig(k *koanf.Koanf) (*Config, error) {
+func getConfigRefReferrer(k *koanf.Koanf, configPath string) (Referrer, error) {
+	// Only set referrer if the ref was also set.
+	// No need to specify the referrer otherwise
+	if k.String(schemaRootRefKey) != "" {
+		configAbsPath, err := filepath.Abs(configPath)
+		if err != nil || failConfigConfigRefReferrerAbs {
+			// [filepath.Abs] can't fail here because we already loaded the config file,
+			// so resolving its absolute position is guaranteed to also work
+			// (except for a race condition, but that's super tricky to test for)
+			return Referrer{}, fmt.Errorf("resolve absolute path of config file: %w", err)
+		}
+		return ReferrerDir(filepath.Dir(configAbsPath)), nil
+	}
+	return Referrer{}, nil
+}
+
+func unmarshalKoanfConfig(k *koanf.Koanf, referrer Referrer) (*Config, error) {
 	var config Config
 	if err := k.Unmarshal("", &config); err != nil || failConfigUnmarshal {
 		// Now that we use our internal [yamlfile] package, then the parsing of field types are done
@@ -223,6 +212,7 @@ func unmarshalKoanfConfig(k *koanf.Koanf) (*Config, error) {
 		// Meaning, this "k.Unmarshal" will never fail, so we have to induce a fake failure via [failConfigUnmarshal]
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
+	config.SchemaRoot.RefReferrer = referrer
 	return &config, nil
 }
 

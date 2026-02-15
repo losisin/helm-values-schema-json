@@ -699,3 +699,139 @@ schemaRoot:
 		})
 	}
 }
+
+func TestLoadFileConfigOverwrite(t *testing.T) {
+	tmpFile := testutil.CreateTempFile(t, "config-*.yaml")
+
+	tests := []struct {
+		name string
+		base *Config
+		file string
+		want *Config
+	}{
+		{
+			name: "override empty with empty",
+			base: &Config{},
+			file: ``,
+			want: &Config{},
+		},
+		{
+			name: "override defaults with empty",
+			base: &DefaultConfig,
+			file: ``,
+			want: &Config{
+				Values:         []string{"values.yaml"},
+				Output:         "values.schema.json",
+				Draft:          2020,
+				Indent:         4,
+				RecursiveNeeds: []string{"Chart.yaml"},
+				K8sSchemaURL:   "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
+			},
+		},
+		{
+			name: "override every field",
+			base: &Config{
+				Values:                 []string{"baseInput.yaml"},
+				Output:                 "baseOutput.json",
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: true,
+				NoDefaultGlobal:        true,
+				Recursive:              true,
+				RecursiveNeeds:         []string{"baseNeeds"},
+				NoRecursiveNeeds:       true,
+				Hidden:                 true,
+				NoGitIgnore:            true,
+				K8sSchemaURL:           "baseURL",
+				K8sSchemaVersion:       "baseVersion",
+				UseHelmDocs:            true,
+				SchemaRoot: SchemaRoot{
+					ID:                   "baseID",
+					Ref:                  "baseRef",
+					RefReferrer:          ReferrerDir("/tmp"),
+					Title:                "baseTitle",
+					Description:          "baseDescription",
+					AdditionalProperties: boolPtr(true),
+				},
+			},
+			file: `
+values: [fileInput.yaml]
+output: fileOutput.json
+draft: 7
+indent: 2
+noAdditionalProperties: false
+noDefaultGlobal: false
+recursive: false
+recursiveNeeds: [fileNeeds]
+noRecursiveNeeds: false
+hidden: false
+noGitIgnore: false
+k8sSchemaURL: fileURL
+k8sSchemaVersion: fileVersion
+useHelmDocs: false
+schemaRoot:
+  id: fileID
+  ref: fileRef
+  title: fileTitle
+  description: fileDescription
+  additionalProperties: false
+`,
+			want: &Config{
+				Values:                 []string{"fileInput.yaml"},
+				Output:                 "fileOutput.json",
+				Draft:                  7,
+				Indent:                 2,
+				NoAdditionalProperties: false,
+				NoDefaultGlobal:        false,
+				Recursive:              false,
+				RecursiveNeeds:         []string{"fileNeeds"},
+				NoRecursiveNeeds:       false,
+				Hidden:                 false,
+				NoGitIgnore:            false,
+				K8sSchemaURL:           "fileURL",
+				K8sSchemaVersion:       "fileVersion",
+				UseHelmDocs:            false,
+				SchemaRoot: SchemaRoot{
+					ID:                   "fileID",
+					Ref:                  "fileRef",
+					Title:                "fileTitle",
+					Description:          "fileDescription",
+					AdditionalProperties: boolPtr(false),
+					RefReferrer:          ReferrerDir("/tmp"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.ResetFile(t, tmpFile, []byte(tt.file))
+
+			conf, err := LoadFileConfigOverwrite(tt.base, tmpFile.Name())
+			require.NoError(t, err)
+
+			testutil.Equal(t, tt.want, conf, "conf")
+		})
+	}
+}
+
+func TestLoadFileConfigOverwrite_NoFileExists(t *testing.T) {
+	conf, err := LoadFileConfigOverwrite(&Config{}, "/file-that-does-not-exist")
+	require.NoError(t, err)
+
+	want := &Config{}
+	testutil.Equal(t, want, conf, "conf")
+}
+
+func TestLoadFileConfigOverwrite_SchemaRootRefReferrerConfigError(t *testing.T) {
+	failConfigConfigRefReferrerAbs = true
+	defer func() { failConfigConfigRefReferrerAbs = false }()
+
+	configFile := testutil.WriteTempFile(t, "config-*.yaml", []byte(`
+schemaRoot:
+  ref: foo/bar
+`))
+
+	_, err := LoadFileConfigOverwrite(&Config{}, configFile.Name())
+	assert.ErrorContains(t, err, "resolve absolute path of config file: ")
+}
