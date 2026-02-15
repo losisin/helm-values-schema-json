@@ -3,6 +3,7 @@ module github.com/losisin/helm-values-schema-json/v2
 go 1.24.2
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/google/go-cmp v0.7.0
 	github.com/knadh/koanf/providers/file v1.2.1

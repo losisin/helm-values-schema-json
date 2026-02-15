@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/knadh/koanf/providers/structs"
 	"github.com/knadh/koanf/v2"
 	"github.com/losisin/helm-values-schema-json/v2/internal/yamlfile"
 	"github.com/spf13/cobra"
@@ -15,17 +16,34 @@ import (
 
 func NewCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:  "helm",
-		Args: cobra.NoArgs,
+		Use:  "helm [directory]",
+		Args: cobra.ArbitraryArgs,
 		Example: `  # Reads values.yaml and outputs to values.schema.json
   helm schema
+
+  # Reads ./my-chart/values.yaml and outputs to ./my-chart/values.schema.json
+  helm schema ./my-chart
+
+  # Run on multiple chart directories
+  helm schema ./my-first-chart ./my-second-chart
 
   # Reads from other-values.yaml (only) and outputs to values.schema.json
   helm schema -f other-values.yaml
 
+  # Reads from ./my-chart/other-values.yaml (only) and outputs to ./my-chart/values.schema.json
+  helm schema ./my-chart -f other-values.yaml
+
   # Reads from multiple files, either comma-separated or use flag multiple times
   helm schema -f values_1.yaml,values_2.yaml
   helm schema -f values_1.yaml -f values_2.yaml
+
+  # Run in all subdirectories containing a Chart.yaml file
+  helm schema --recursive ./my-charts
+  helm schema -r ./my-charts
+
+  # Glob patterns are supported when using '--recursive'
+  helm schema --recursive "charts/prod-*/*"
+  helm schema -r "charts/prod-*/*"
 
   # Bundle schemas mentioned by one of these comment formats:
   #   myField: {} # @schema $ref: file://some/file/relative/to/values/file
@@ -41,6 +59,16 @@ func NewCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			root, err := os.OpenRoot(".")
+			if err != nil {
+				return err
+			}
+			parsedArgs, err := ParseArgs(cmd.Context(), root.FS().(FS), args, config)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("parsed args: %#v\n", parsedArgs)
+			return nil
 			return GenerateJsonSchema(cmd.Context(), config)
 		},
 		SilenceErrors: true,
@@ -70,6 +98,12 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().Int("indent", DefaultConfig.Indent, "Indentation spaces (even number)")
 	cmd.Flags().Bool("no-additional-properties", false, "Default additionalProperties to false for all objects in the schema")
 	cmd.Flags().Bool("no-default-global", false, "Disable automatic injection of 'global' property when schema root does not allow it")
+
+	cmd.Flags().BoolP("recursive", "r", false, "Look for chart directories recursively.\nArguments are then glob patterns to find directories that contain one of the '--recursive-needs' files.\nUsing '--recursive' with no arguments implies the glob pattern '**/'")
+	cmd.Flags().StringSlice("recursive-needs", DefaultConfig.RecursiveNeeds, "List of files used to filter the directories found with the glob patterns.")
+	cmd.Flags().Bool("no-recursive-needs", false, "Disables the '--recursive-needs' filter, meaning all directories that match the glob patterns are used.\nOnly applies if '--recursive' is enabled.")
+	cmd.Flags().BoolP("hidden", "H", false, "Include hidden directories (dirs that start with a dot, e.g '.my-hidden-dir/') when using --recursive.")
+	cmd.Flags().Bool("no-gitignore", false, "Disable Git integration when using '--recursive', meaning '.gitignore' files will not be respected.")
 
 	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
 	cmd.Flags().Bool("bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
@@ -110,7 +144,7 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 
-	if k.String(schemaRootRefKey) != "" {
+	if k.String(schemaRootRefKey) == "" {
 		configAbsPath, err := filepath.Abs(configPath)
 		if err != nil || failConfigConfigRefReferrerAbs {
 			// [filepath.Abs] can't fail here because we already loaded the config file,
@@ -142,6 +176,46 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		refReferrer = ReferrerDir(cwd)
 	}
 
+	config, err := unmarshalKoanfConfig(k)
+	if err != nil {
+		return nil, err
+	}
+
+	config.SchemaRoot.RefReferrer = refReferrer
+	return config, nil
+}
+
+func LoadFileConfigOverwrite(base *Config, configPath string) (*Config, error) {
+	k := koanf.New(".")
+
+	if err := k.Load(structs.Provider(base, "koanf"), nil); err != nil {
+		return nil, fmt.Errorf("reintepret config: %w", err)
+	}
+
+	if err := k.Load(yamlfile.Provider(DefaultConfig, configPath, "koanf"), nil); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("load config file %s: %w", configPath, err)
+		}
+	}
+
+	configAbsPath, err := filepath.Abs(configPath)
+	if err != nil || failConfigConfigRefReferrerAbs {
+		// [filepath.Abs] can't fail here because we already loaded the config file,
+		// so resolving its absolute position is guaranteed to also work
+		// (except for a race condition, but that's super tricky to test for)
+		return nil, fmt.Errorf("resolve absolute path of config file: %w", err)
+	}
+
+	config, err := unmarshalKoanfConfig(k)
+	if err != nil {
+		return nil, err
+	}
+
+	config.SchemaRoot.RefReferrer = ReferrerDir(filepath.Dir(configAbsPath))
+	return config, nil
+}
+
+func unmarshalKoanfConfig(k *koanf.Koanf) (*Config, error) {
 	var config Config
 	if err := k.Unmarshal("", &config); err != nil || failConfigUnmarshal {
 		// Now that we use our internal [yamlfile] package, then the parsing of field types are done
@@ -149,9 +223,6 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		// Meaning, this "k.Unmarshal" will never fail, so we have to induce a fake failure via [failConfigUnmarshal]
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
-
-	config.SchemaRoot.RefReferrer = refReferrer
-
 	return &config, nil
 }
 
@@ -160,6 +231,8 @@ var DefaultConfig = Config{
 	Output: "values.schema.json",
 	Draft:  2020,
 	Indent: 4,
+
+	RecursiveNeeds: []string{"Chart.yaml"},
 
 	K8sSchemaURL: "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/",
 }
@@ -172,9 +245,16 @@ type Config struct {
 	Indent                 int      `yaml:"indent" koanf:"indent"`
 	NoAdditionalProperties bool     `yaml:"noAdditionalProperties" koanf:"no-additional-properties"`
 	NoDefaultGlobal        bool     `yaml:"noDefaultGlobal" koanf:"no-default-global"`
-	Bundle                 bool     `yaml:"bundle" koanf:"bundle"`
-	BundleRoot             string   `yaml:"bundleRoot" koanf:"bundle-root"`
-	BundleWithoutID        bool     `yaml:"bundleWithoutID" koanf:"bundle-without-id"`
+
+	Recursive        bool     `yaml:"recursive" koanf:"recursive"`
+	RecursiveNeeds   []string `yaml:"recursiveNeeds" koanf:"recursive-needs"`
+	NoRecursiveNeeds bool     `yaml:"noRecursiveNeeds" koanf:"no-recursive-needs"`
+	Hidden           bool     `yaml:"hidden" koanf:"hidden"`
+	NoGitIgnore      bool     `yaml:"noGitIgnore" koanf:"no-gitignore"`
+
+	Bundle          bool   `yaml:"bundle" koanf:"bundle"`
+	BundleRoot      string `yaml:"bundleRoot" koanf:"bundle-root"`
+	BundleWithoutID bool   `yaml:"bundleWithoutID" koanf:"bundle-without-id"`
 
 	K8sSchemaURL     string `yaml:"k8sSchemaURL" koanf:"k8s-schema-url"`
 	K8sSchemaVersion string `yaml:"k8sSchemaVersion" koanf:"k8s-schema-version"`
