@@ -144,7 +144,7 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		}
 	}
 
-	if k.String(schemaRootRefKey) == "" {
+	if k.String(schemaRootRefKey) != "" {
 		configAbsPath, err := filepath.Abs(configPath)
 		if err != nil || failConfigConfigRefReferrerAbs {
 			// [filepath.Abs] can't fail here because we already loaded the config file,
