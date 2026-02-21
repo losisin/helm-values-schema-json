@@ -7,6 +7,8 @@ updates:
       - actions
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: gomod
     directory: /
@@ -15,3 +17,5 @@ updates:
       - go
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
