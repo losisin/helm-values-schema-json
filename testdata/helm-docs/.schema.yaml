@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=../../config.schema.json
+
+# Must explicitly set these as ../../.schema.yaml overrides them.
+values: [values.yaml]
+output: values.schema.json
+noAdditionalProperties: false
+schemaRoot:
+  additionalProperties: null
+  title: ""
+  description: ""

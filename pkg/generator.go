@@ -11,11 +11,44 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 )
 
-// Generate JSON schema
-func GenerateJsonSchema(ctx context.Context, config *Config) error {
+// Generate JSON schema for multiple chart directories
+func GenerateForCharts(ctx context.Context, cmd *cobra.Command, httpLoader Loader, dirs []string, cb *ConfigBuilder) error {
+	previousWorkingDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get current working directory: %w", err)
+	}
+	for _, dir := range dirs {
+		cb := cb.Clone()
+		if err := cb.LoadFile(filepath.Join(dir, ".schema.yaml"), false); err != nil {
+			// User might've supplied '--config=other-config.yaml'
+			// and that config is still used for the base config values,
+			// but when doing '--recursive' then we require the file name to be '.schema.yaml'
+			// for the per-chart settings.
+			return fmt.Errorf("load \".schema.yaml\" config in chart %q: %w", dir, err)
+		}
+		nestedConfig, err := cb.Build()
+		if err != nil {
+			return fmt.Errorf("load .schema.yaml config in chart %q: %w", dir, err)
+		}
+		if err := os.Chdir(dir); err != nil {
+			return fmt.Errorf("chdir into chart %q: %w", dir, err)
+		}
+		if err := GenerateJsonSchema(ctx, httpLoader, nestedConfig); err != nil {
+			return fmt.Errorf("generate schema for %q: %w", dir, err)
+		}
+		if err := os.Chdir(previousWorkingDir); err != nil {
+			return fmt.Errorf("chdir back to previous working directory: %w", err)
+		}
+	}
+	return nil
+}
+
+// Generate JSON schema for a single chart directory
+func GenerateJsonSchema(ctx context.Context, httpLoader Loader, config *Config) error {
 	// Check if the values flag is set
 	if len(config.Values) == 0 {
 		return errors.New("values flag is required")
@@ -111,7 +144,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	}
 
 	if config.Bundle {
-		if err := Bundle(ctx, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
+		if err := Bundle(ctx, httpLoader, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID); err != nil {
 			return err
 		}
 	}

@@ -1,9 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://example.com/schema",
-    "title": "Helm Values Schema",
-    "description": "Schema for Helm values",
-    "$ref": "#/$defs/simple-subschema.schema.json",
+    "title": "Helm Schema config file",
+    "description": "JSON Schema for the \"helm schema\" plugin, allowing you to set configs using a config file instead of using command-line flags. The default file name used by \"helm schema\" is \".schema.yaml\".",
     "type": "object",
     "properties": {
         "empty": {
@@ -18,7 +16,8 @@
                 "pullPolicy": {
                     "type": "string"
                 }
-            }
+            },
+            "additionalProperties": false
         },
         "imagePullSecrets": {
             "type": "array"
@@ -29,7 +28,8 @@
                 "enabled": {
                     "type": "boolean"
                 }
-            }
+            },
+            "additionalProperties": false
         },
         "nameOverride": {
             "type": "string"
@@ -38,7 +38,8 @@
             "type": "integer"
         },
         "resources": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false
         },
         "tolerations": {
             "type": "array",
@@ -57,38 +58,10 @@
                     "value": {
                         "type": "string"
                     }
-                }
+                },
+                "additionalProperties": false
             }
         }
     },
-    "additionalProperties": true,
-    "$defs": {
-        "simple-subschema.schema.json": {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$comment": "Sample schema referenced by other schemas. This file is meant to be manually created and not automatically generated",
-            "type": "object",
-            "properties": {
-                "pullPolicy": {
-                    "description": "This sets the pull policy for images.",
-                    "type": "string",
-                    "enum": [
-                        "IfNotPresent",
-                        "Always",
-                        "Never"
-                    ]
-                },
-                "repository": {
-                    "type": "string"
-                },
-                "tag": {
-                    "description": "Overrides the image tag whose default is the chart appVersion.",
-                    "type": [
-                        "string",
-                        "null"
-                    ]
-                }
-            },
-            "additionalProperties": false
-        }
-    }
+    "additionalProperties": false
 }

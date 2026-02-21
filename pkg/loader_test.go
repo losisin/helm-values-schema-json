@@ -19,6 +19,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewDefaultLoader_AbsBundleRootError(t *testing.T) {
+	testutil.MakeGetwdFail(t)
+
+	_, root, err := NewDefaultLoader("foo", nil)
+	require.ErrorContains(t, err, "bundle root foo: get absolute path: ")
+	if root != nil {
+		root.Close()
+	}
+}
+
 func TestLoad_Errors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

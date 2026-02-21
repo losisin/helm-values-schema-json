@@ -378,7 +378,7 @@ func TestGenerateJsonSchema(t *testing.T) {
 			tt.config.SchemaRoot.RefReferrer = ReferrerDir(cwd)
 
 			ctx := ContextWithLogger(t.Context(), t)
-			err = GenerateJsonSchema(ctx, tt.config)
+			err = GenerateJsonSchema(ctx, nil, tt.config)
 			require.NoError(t, err, "Error from pkg.GenerateJsonSchema")
 
 			generatedBytes, err := os.ReadFile(tt.config.Output)
@@ -579,6 +579,12 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 					t.Errorf("failed to remove values.schema.json: %v", err)
 				}
 			})
+			if tt.cleanupFunc != nil {
+				t.Cleanup(func() {
+					err := tt.cleanupFunc()
+					assert.NoError(t, err)
+				})
+			}
 
 			if tt.setupFunc != nil {
 				err := tt.setupFunc()
@@ -586,15 +592,10 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			}
 
 			ctx := ContextWithLogger(t.Context(), t)
-			err := GenerateJsonSchema(ctx, tt.config)
+			err = GenerateJsonSchema(ctx, nil, tt.config)
 			assert.Error(t, err)
 			if err != nil {
 				assert.Contains(t, err.Error(), tt.expectedErr.Error())
-			}
-
-			if tt.cleanupFunc != nil {
-				err := tt.cleanupFunc()
-				assert.NoError(t, err)
 			}
 		})
 	}
@@ -604,7 +605,7 @@ func TestGenerateJsonSchema_AbsInputError(t *testing.T) {
 	testutil.MakeGetwdFail(t)
 
 	ctx := ContextWithLogger(t.Context(), t)
-	err := GenerateJsonSchema(ctx, &Config{
+	err := GenerateJsonSchema(ctx, nil, &Config{
 		Values: []string{"foo/bar.yaml"},
 		Draft:  2020,
 		Indent: 4,
@@ -618,7 +619,7 @@ func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
 	testutil.MakeGetwdFail(t)
 
 	ctx := ContextWithLogger(t.Context(), t)
-	err := GenerateJsonSchema(ctx, &Config{
+	err := GenerateJsonSchema(ctx, nil, &Config{
 		Values: []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
 		Output: "foo.json",
 		Draft:  2020,
@@ -626,23 +627,6 @@ func TestGenerateJsonSchema_AbsOutputError(t *testing.T) {
 		Bundle: true,
 	})
 	require.ErrorContains(t, err, "output foo.json: get absolute path: ")
-	require.ErrorIs(t, err, os.ErrNotExist)
-}
-
-func TestGenerateJsonSchema_AbsBundleRootError(t *testing.T) {
-	input := testutil.WriteTempFile(t, "values-*.yaml", []byte(""))
-	testutil.MakeGetwdFail(t)
-
-	ctx := ContextWithLogger(t.Context(), t)
-	err := GenerateJsonSchema(ctx, &Config{
-		Values:     []string{input.Name()}, // unaffected by failing [os.Getwd] because it is an absolute path
-		Output:     "/tmp/foo.json",        // unaffected by failing [os.Getwd] because it is an absolute path
-		Draft:      2020,
-		Indent:     4,
-		Bundle:     true,
-		BundleRoot: "foo",
-	})
-	require.ErrorContains(t, err, "bundle root foo: get absolute path: ")
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
@@ -699,7 +683,7 @@ func TestGenerateJsonSchema_AdditionalProperties(t *testing.T) {
 			}
 
 			ctx := ContextWithLogger(t.Context(), t)
-			err := GenerateJsonSchema(ctx, config)
+			err := GenerateJsonSchema(ctx, nil, config)
 			assert.NoError(t, err)
 
 			generatedBytes, err := os.ReadFile(config.Output)
