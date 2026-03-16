@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -62,15 +61,8 @@ func expandRefsRec(root, schema *Schema, ancestors []string) error {
 	}
 	target := matches[len(matches)-1].Schema
 
-	// Deep-copy the target via JSON to avoid mutating shared $defs entries.
-	b, err := json.Marshal(target)
-	if err != nil {
-		return fmt.Errorf("expand $ref %q: marshal: %w", schema.Ref, err)
-	}
-	var expanded Schema
-	if err := json.Unmarshal(b, &expanded); err != nil {
-		return fmt.Errorf("expand $ref %q: unmarshal: %w", schema.Ref, err)
-	}
+	// Deep-copy the target to avoid mutating shared $defs entries.
+	expanded := target.DeepCopy()
 	// Clear identity fields that must not be duplicated inline.
 	expanded.ID = ""
 	expanded.Anchor = ""

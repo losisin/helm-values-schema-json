@@ -156,7 +156,7 @@ func TestExpandRefs_RefNotFound(t *testing.T) {
 
 func TestExpandRefs_ErrorInExpandedCopy(t *testing.T) {
 	// When A is expanded, its deep-copy contains a $ref that doesn't exist —
-	// the error from the recursive expansion should propagate (covers line 80-82).
+	// the error from the recursive expansion should propagate.
 	schema := &Schema{
 		Properties: map[string]*Schema{
 			"x": {Ref: "#/$defs/A"},
@@ -187,21 +187,3 @@ func TestExpandRefs_ClearsDefsAndDefinitions(t *testing.T) {
 	assert.Nil(t, schema.Definitions)
 }
 
-func TestExpandRefs_MarshalError(t *testing.T) {
-	// Referenced def contains a value that cannot be JSON-encoded (channel),
-	// so the deep-copy marshal step fails without any test mocking.
-	refTarget := &Schema{Type: "string"}
-	refTarget.Default = make(chan int)
-
-	schema := &Schema{
-		Properties: map[string]*Schema{
-			"foo": {Ref: "#/$defs/Foo"},
-		},
-		Defs: map[string]*Schema{
-			"Foo": refTarget,
-		},
-	}
-	err := ExpandRefs(schema)
-	assert.ErrorContains(t, err, `expand $ref "#/$defs/Foo": marshal:`)
-	assert.ErrorContains(t, err, "unsupported type")
-}

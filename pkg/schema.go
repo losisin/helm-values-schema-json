@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"net/url"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -676,6 +678,127 @@ func ParseRefFileURL(u *url.URL) (RefFile, error) {
 
 	return refFile, err
 }
+
+// DeepCopy returns a deep copy of the schema.
+func (s *Schema) DeepCopy() Schema {
+	if s == nil {
+		return Schema{}
+	}
+	cp := *s // shallow-copy all scalar/string fields and the unexported kind field
+
+	// Deep-copy Referrer fields (contain a *url.URL).
+	cp.RefReferrer = s.RefReferrer.deepCopy()
+	cp.DynamicRefReferrer = s.DynamicRefReferrer.deepCopy()
+
+	// Deep-copy any-typed fields (JSON-origin values: nil/bool/float64/string/[]any/map[string]any).
+	cp.Default = deepCopyAny(s.Default)
+	cp.Type = deepCopyAny(s.Type)
+	cp.Const = deepCopyAny(s.Const)
+	cp.Dependencies = deepCopyAny(s.Dependencies)
+
+	// Deep-copy []any slices.
+	cp.Examples = deepCopyAnySlice(s.Examples)
+	cp.Enum = deepCopyAnySlice(s.Enum)
+
+	// Deep-copy []string slices.
+	cp.Required = slices.Clone(s.Required)
+
+	// Deep-copy map[string]bool.
+	cp.Vocabulary = maps.Clone(s.Vocabulary)
+
+	// Deep-copy map[string][]string.
+	cp.DependentRequired = maps.Clone(s.DependentRequired)
+	for k, v := range cp.DependentRequired {
+		cp.DependentRequired[k] = slices.Clone(v)
+	}
+
+	// Deep-copy *Schema fields.
+	cp.Not = deepCopySchemaPtr(s.Not)
+	cp.If = deepCopySchemaPtr(s.If)
+	cp.Then = deepCopySchemaPtr(s.Then)
+	cp.Else = deepCopySchemaPtr(s.Else)
+	cp.ContentSchema = deepCopySchemaPtr(s.ContentSchema)
+	cp.Contains = deepCopySchemaPtr(s.Contains)
+	cp.Items = deepCopySchemaPtr(s.Items)
+	cp.AdditionalItems = deepCopySchemaPtr(s.AdditionalItems)
+	cp.UnevaluatedItems = deepCopySchemaPtr(s.UnevaluatedItems)
+	cp.PropertyNames = deepCopySchemaPtr(s.PropertyNames)
+	cp.AdditionalProperties = deepCopySchemaPtr(s.AdditionalProperties)
+	cp.UnevaluatedProperties = deepCopySchemaPtr(s.UnevaluatedProperties)
+
+	// Deep-copy []*Schema slices.
+	cp.AllOf = deepCopySchemaPtrSlice(s.AllOf)
+	cp.AnyOf = deepCopySchemaPtrSlice(s.AnyOf)
+	cp.OneOf = deepCopySchemaPtrSlice(s.OneOf)
+	cp.PrefixItems = deepCopySchemaPtrSlice(s.PrefixItems)
+
+	// Deep-copy map[string]*Schema maps.
+	cp.Properties = deepCopySchemaMap(s.Properties)
+	cp.PatternProperties = deepCopySchemaMap(s.PatternProperties)
+	cp.DependentSchemas = deepCopySchemaMap(s.DependentSchemas)
+	cp.Defs = deepCopySchemaMap(s.Defs)
+	cp.Definitions = deepCopySchemaMap(s.Definitions)
+
+	return cp
+}
+
+func (r Referrer) deepCopy() Referrer {
+	if r.url == nil {
+		return r
+	}
+	clone := *r.url
+	return Referrer{dir: r.dir, url: &clone}
+}
+
+func deepCopySchemaPtr(s *Schema) *Schema {
+	if s == nil {
+		return nil
+	}
+	cp := s.DeepCopy()
+	return &cp
+}
+
+func deepCopySchemaPtrSlice(ss []*Schema) []*Schema {
+	cp := slices.Clone(ss)
+	for i, s := range cp {
+		cp[i] = deepCopySchemaPtr(s)
+	}
+	return cp
+}
+
+func deepCopySchemaMap(m map[string]*Schema) map[string]*Schema {
+	cp := maps.Clone(m)
+	for k, v := range cp {
+		cp[k] = deepCopySchemaPtr(v)
+	}
+	return cp
+}
+
+func deepCopyAny(v any) any {
+	switch v := v.(type) {
+	case nil, bool, float64, string:
+		return v
+	case []any:
+		return deepCopyAnySlice(v)
+	case map[string]any:
+		cp := maps.Clone(v)
+		for k, val := range cp {
+			cp[k] = deepCopyAny(val)
+		}
+		return cp
+	default:
+		return v
+	}
+}
+
+func deepCopyAnySlice(s []any) []any {
+	cp := slices.Clone(s)
+	for i, v := range cp {
+		cp[i] = deepCopyAny(v)
+	}
+	return cp
+}
+
 
 func ParseRefFileURLAllowAbs(u *url.URL) (RefFile, error) {
 	switch {
