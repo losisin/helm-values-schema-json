@@ -74,6 +74,7 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
 	cmd.Flags().Bool("bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
 	cmd.Flags().String("bundle-root", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
+	cmd.Flags().Bool("expand-refs", false, "Inline all local $ref (#/...) values by replacing them with the referenced schema content. Combine with --bundle --bundle-without-id to also expand external $ref. Circular references are left in place.")
 
 	cmd.Flags().String("k8s-schema-url", DefaultConfig.K8sSchemaURL, "URL template used in $ref: $k8s/... alias")
 	cmd.Flags().String("k8s-schema-version", "", "Version used in the --k8s-schema-url template for $ref: $k8s/... alias")
@@ -175,6 +176,7 @@ type Config struct {
 	Bundle                 bool     `yaml:"bundle" koanf:"bundle"`
 	BundleRoot             string   `yaml:"bundleRoot" koanf:"bundle-root"`
 	BundleWithoutID        bool     `yaml:"bundleWithoutID" koanf:"bundle-without-id"`
+	ExpandRefs             bool     `yaml:"expandRefs" koanf:"expand-refs"`
 
 	K8sSchemaURL     string `yaml:"k8sSchemaURL" koanf:"k8s-schema-url"`
 	K8sSchemaVersion string `yaml:"k8sSchemaVersion" koanf:"k8s-schema-version"`

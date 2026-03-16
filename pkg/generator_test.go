@@ -397,6 +397,64 @@ func TestGenerateJsonSchema(t *testing.T) {
 	}
 }
 
+func TestGenerateJsonSchema_BundleExpand_Drafts(t *testing.T) {
+	t.Parallel()
+
+	drafts := []struct {
+		draft     int
+		schemaURL string
+	}{
+		{4, "http://json-schema.org/draft-04/schema#"},
+		{6, "http://json-schema.org/draft-06/schema#"},
+		{7, "http://json-schema.org/draft-07/schema#"},
+		{2019, "https://json-schema.org/draft/2019-09/schema"},
+		{2020, "https://json-schema.org/draft/2020-12/schema"},
+	}
+	for _, d := range drafts {
+		t.Run(filepath.Join("draft", strings.ReplaceAll(filepath.Base(d.schemaURL), "#", "")), func(t *testing.T) {
+			t.Parallel()
+
+			output := filepath.Join(t.TempDir(), "output.json")
+			config := &Config{
+				Draft:           d.draft,
+				Indent:          4,
+				Bundle:          true,
+				BundleWithoutID: true,
+				BundleRoot:      "..",
+				ExpandRefs:      true,
+				Values:          []string{"../testdata/bundle/simple.yaml"},
+				Output:          output,
+			}
+
+			ctx := ContextWithLogger(t.Context(), t)
+			require.NoError(t, GenerateJsonSchema(ctx, config))
+
+			outputBytes, err := os.ReadFile(output)
+			require.NoError(t, err)
+
+			var result Schema
+			require.NoError(t, json.Unmarshal(outputBytes, &result))
+
+			assert.Equal(t, d.schemaURL, result.Schema, "wrong $schema URL")
+			assert.Nil(t, result.Defs, "$defs should be absent after bundle-expand")
+			assert.Nil(t, result.Definitions, "definitions should be absent after bundle-expand")
+			assertNoRefs(t, &result)
+		})
+	}
+}
+
+// assertNoRefs recursively verifies that no schema in the tree has a $ref value.
+func assertNoRefs(t *testing.T, schema *Schema) {
+	t.Helper()
+	if schema == nil {
+		return
+	}
+	assert.Empty(t, schema.Ref, "unexpected $ref %q found after bundle-expand", schema.Ref)
+	for _, sub := range schema.Subschemas() {
+		assertNoRefs(t, sub)
+	}
+}
+
 func TestGenerateJsonSchema_Errors(t *testing.T) {
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
@@ -813,6 +871,26 @@ func TestWriteOutputFile_WriteToStdout(t *testing.T) {
 		// Just in case it creates a file
 		_ = os.Remove("-")
 	}()
+}
+
+func TestGenerateJsonSchema_ExpandRefsError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	valuesFile := filepath.Join(dir, "values.yaml")
+	require.NoError(t, os.WriteFile(valuesFile, []byte("foo: bar # @schema $ref: #/$defs/Missing\n"), 0600))
+
+	config := &Config{
+		Draft:      2020,
+		Indent:     4,
+		ExpandRefs: true,
+		Values:     []string{valuesFile},
+		Output:     filepath.Join(dir, "output.json"),
+	}
+
+	ctx := ContextWithLogger(t.Context(), t)
+	err := GenerateJsonSchema(ctx, config)
+	assert.ErrorContains(t, err, `expand $ref "#/$defs/Missing": not found in schema`)
 }
 
 func TestWriteOutputFile_WriteToStdoutError(t *testing.T) {
