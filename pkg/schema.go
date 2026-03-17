@@ -799,7 +799,6 @@ func deepCopyAnySlice(s []any) []any {
 	return cp
 }
 
-
 func ParseRefFileURLAllowAbs(u *url.URL) (RefFile, error) {
 	switch {
 	case u.Scheme != "" && u.Scheme != "file":

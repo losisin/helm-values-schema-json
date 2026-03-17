@@ -186,4 +186,3 @@ func TestExpandRefs_ClearsDefsAndDefinitions(t *testing.T) {
 	assert.Nil(t, schema.Defs)
 	assert.Nil(t, schema.Definitions)
 }
-

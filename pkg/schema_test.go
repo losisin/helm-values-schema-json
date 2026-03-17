@@ -1322,3 +1322,66 @@ func TestRefFileString(t *testing.T) {
 		})
 	}
 }
+
+func TestDeepCopy(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var s *Schema
+		cp := s.DeepCopy()
+		assert.Equal(t, Schema{}, cp)
+	})
+
+	t.Run("DependentRequired is deep copied", func(t *testing.T) {
+		s := &Schema{
+			DependentRequired: map[string][]string{
+				"foo": {"bar", "baz"},
+			},
+		}
+		cp := s.DeepCopy()
+		require.Equal(t, s.DependentRequired, cp.DependentRequired)
+		// Mutate the copy; original must not change.
+		cp.DependentRequired["foo"][0] = "changed"
+		assert.Equal(t, "bar", s.DependentRequired["foo"][0])
+	})
+
+	t.Run("RefReferrer URL is deep copied", func(t *testing.T) {
+		s := &Schema{
+			RefReferrer: ReferrerURL(mustParseURL("http://example.com/")),
+		}
+		cp := s.DeepCopy()
+		assert.Equal(t, s.RefReferrer, cp.RefReferrer)
+	})
+
+	t.Run("DynamicRefReferrer URL is deep copied", func(t *testing.T) {
+		s := &Schema{
+			DynamicRefReferrer: ReferrerURL(mustParseURL("http://example.com/")),
+		}
+		cp := s.DeepCopy()
+		assert.Equal(t, s.DynamicRefReferrer, cp.DynamicRefReferrer)
+	})
+
+	t.Run("AllOf slice is deep copied", func(t *testing.T) {
+		s := &Schema{
+			AllOf: []*Schema{{Type: "string"}, {Type: "integer"}},
+		}
+		cp := s.DeepCopy()
+		require.Equal(t, s.AllOf, cp.AllOf)
+		// Mutate the copy; original must not change.
+		cp.AllOf[0].Type = "changed"
+		assert.Equal(t, "string", s.AllOf[0].Type)
+	})
+
+	t.Run("Default map[string]any is deep copied", func(t *testing.T) {
+		s := &Schema{
+			Default: map[string]any{"key": "value", "nested": map[string]any{"x": float64(1)}},
+		}
+		cp := s.DeepCopy()
+		assert.Equal(t, s.Default, cp.Default)
+	})
+
+	t.Run("Default unknown type is returned as-is", func(t *testing.T) {
+		type custom struct{ v int }
+		s := &Schema{Default: custom{42}}
+		cp := s.DeepCopy()
+		assert.Equal(t, custom{42}, cp.Default)
+	})
+}
