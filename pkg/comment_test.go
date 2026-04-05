@@ -581,6 +581,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Title: "My Title", Description: "some description", ReadOnly: false, Default: "foo", Const: "foo"},
 		},
 		{
+			name:       "Set deprecated",
+			schema:     &Schema{},
+			comment:    "# @schema deprecated:true",
+			wantSchema: &Schema{Deprecated: true},
+		},
+		{
 			name:       "Set skipProperties",
 			schema:     &Schema{},
 			comment:    "# @schema skipProperties:true;unevaluatedProperties:false",
@@ -667,6 +673,7 @@ func TestProcessComment_Error(t *testing.T) {
 
 		{name: "required invalid bool", comment: "# @schema required: foo", wantErr: "required: invalid boolean"},
 		{name: "readOnly invalid bool", comment: "# @schema readOnly: foo", wantErr: "readOnly: invalid boolean"},
+		{name: "deprecated invalid bool", comment: "# @schema deprecated: foo", wantErr: "deprecated: invalid boolean"},
 		{name: "hidden invalid bool", comment: "# @schema hidden: foo", wantErr: "hidden: invalid boolean"},
 		{name: "required invalid bool", comment: "# @schema required: foo", wantErr: "required: invalid boolean"},
 		{name: "uniqueItems invalid bool", comment: "# @schema uniqueItems: foo", wantErr: "uniqueItems: invalid boolean"},

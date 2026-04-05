@@ -225,6 +225,10 @@ func processComment(schema *Schema, commentLines []string) error {
 			if err := processBoolComment(&schema.ReadOnly, value); err != nil {
 				return fmt.Errorf("readOnly: %w", err)
 			}
+		case "deprecated":
+			if err := processBoolComment(&schema.Deprecated, value); err != nil {
+				return fmt.Errorf("deprecated: %w", err)
+			}
 		case "default":
 			if err := processObjectComment(&schema.Default, value); err != nil {
 				return fmt.Errorf("default: %w", err)

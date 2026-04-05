@@ -101,6 +101,7 @@ The following annotations are supported:
     * [examples](#examples)
     * [default](#default)
     * [readOnly](#readonly)
+    * [deprecated](#deprecated)
 * [Schema Composition](#schema-composition)
     * [allOf](#allof)
     * [anyOf](#anyof)
@@ -1027,6 +1028,24 @@ image:
         }
     },
     "type": "object"
+}
+```
+
+### deprecated
+
+Boolean. [section 9.3](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.3)
+
+Marks the instance as deprecated — tooling may surface this to users. The `:true` part of `deprecated:true` is optional.
+
+```yaml
+replicas: 2 # @schema deprecated:true
+scale: 1   # @schema deprecated
+```
+
+```json
+"replicas": {
+    "deprecated": true,
+    "type": "integer"
 }
 ```
 
