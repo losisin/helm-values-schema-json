@@ -125,6 +125,7 @@
             ],
             "properties": {
                 "pullPolicy": {
+                    "deprecated": true,
                     "type": "string"
                 },
                 "repository": {

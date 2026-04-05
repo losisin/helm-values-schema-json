@@ -1046,6 +1046,10 @@ scale: 1   # @schema deprecated
 "replicas": {
     "deprecated": true,
     "type": "integer"
+},
+"scale": {
+    "deprecated": true,
+    "type": "integer"
 }
 ```
 

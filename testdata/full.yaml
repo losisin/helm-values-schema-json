@@ -2,7 +2,7 @@
 image:
   repository: nginx # @schema required: true
   tag: latest # @schema readOnly: true
-  pullPolicy: Always
+  pullPolicy: Always # @schema deprecated
 nameOverride: foo # @schema required: true
 
 # Enum
