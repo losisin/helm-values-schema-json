@@ -11,6 +11,7 @@
 package pkg
 
 import (
+	"cmp"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -45,9 +46,22 @@ func (r *RootFS) Open(name string) (fs.File, error) {
 	return ((*os.Root)(r)).Open(name)
 }
 
-func NewDefaultLoader(client *http.Client, bundleFS fs.FS, basePath string) Loader {
+func NewDefaultLoader(bundleRoot string, httpLoader Loader) (Loader, *os.Root, error) {
+	bundleRootAbs, err := filepath.Abs(cmp.Or(filepath.FromSlash(bundleRoot), "."))
+	if err != nil {
+		return nil, nil, fmt.Errorf("bundle root %s: get absolute path: %w", bundleRoot, err)
+	}
+
+	root, err := os.OpenRoot(bundleRootAbs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("bundle root %s: %w", bundleRoot, err)
+	}
+
+	return NewDefaultLoaderFS((*RootFS)(root), bundleRootAbs, httpLoader), root, nil
+}
+
+func NewDefaultLoaderFS(bundleFS fs.FS, basePath string, httpLoader Loader) Loader {
 	fileLoader := NewFileLoader(bundleFS, basePath)
-	httpLoader := NewHTTPLoader(client, NewHTTPCache())
 	return NewCacheLoader(URLSchemeLoader{
 		"http":  httpLoader,
 		"https": httpLoader,

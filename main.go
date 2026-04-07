@@ -23,10 +23,8 @@ func main() {
 	cmd.SetOut(os.Stdout)
 	cmd.SetErr(os.Stderr)
 	if err := cmd.Execute(); err != nil {
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error:", err)
-			osExit(1)
-		}
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		osExit(1)
 	}
 }
 
