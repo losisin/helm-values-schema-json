@@ -923,3 +923,103 @@ func TestRemoveUnusedDefs(t *testing.T) {
 		})
 	}
 }
+
+func TestK8sAliasLoader(t *testing.T) {
+	t.Parallel()
+
+	const (
+		urlTemplate = "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/"
+		version     = "v1.33.1"
+	)
+
+	t.Run("expands $k8s alias in loaded schema", func(t *testing.T) {
+		t.Parallel()
+		inner := DummyLoader{
+			LoadFunc: func(_ context.Context, _ *url.URL) (*Schema, error) {
+				return &Schema{
+					Properties: map[string]*Schema{
+						"probe": {Ref: "$k8s/io.k8s.api.core.v1.Probe.json"},
+					},
+				}, nil
+			},
+		}
+		loader := k8sAliasLoader{inner: inner, urlTemplate: urlTemplate, version: version}
+
+		ref, _ := url.Parse("local.json")
+		schema, err := loader.Load(t.Context(), ref)
+		require.NoError(t, err)
+		assert.Equal(t,
+			"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.33.1/io.k8s.api.core.v1.Probe.json",
+			schema.Properties["probe"].Ref,
+		)
+	})
+
+	t.Run("propagates loader error", func(t *testing.T) {
+		t.Parallel()
+		inner := DummyLoader{
+			LoadFunc: func(_ context.Context, _ *url.URL) (*Schema, error) {
+				return nil, fmt.Errorf("load failed")
+			},
+		}
+		loader := k8sAliasLoader{inner: inner, urlTemplate: urlTemplate, version: version}
+
+		ref, _ := url.Parse("local.json")
+		_, err := loader.Load(t.Context(), ref)
+		assert.ErrorContains(t, err, "load failed")
+	})
+
+	t.Run("returns nil schema as-is", func(t *testing.T) {
+		t.Parallel()
+		inner := DummyLoader{
+			LoadFunc: func(_ context.Context, _ *url.URL) (*Schema, error) {
+				return nil, nil
+			},
+		}
+		loader := k8sAliasLoader{inner: inner, urlTemplate: urlTemplate, version: version}
+
+		ref, _ := url.Parse("local.json")
+		schema, err := loader.Load(t.Context(), ref)
+		require.NoError(t, err)
+		assert.Nil(t, schema)
+	})
+
+	t.Run("expands $k8s alias in external schema loaded during bundling", func(t *testing.T) {
+		t.Parallel()
+		// Simulate: values.yaml has @schema $ref: local.json
+		// local.json contains $ref: $k8s/io.k8s.api.core.v1.Probe.json
+		// After bundling with k8sAliasLoader, the k8s schema should be loaded and bundled.
+		k8sSchemaURL := "https://example.com/k8s/v1.33.1/io.k8s.api.core.v1.Probe.json"
+		inner := DummyLoader{
+			LoadFunc: func(_ context.Context, ref *url.URL) (*Schema, error) {
+				switch ref.String() {
+				case "local.json":
+					// Local schema contains a $k8s/ ref — simulates the bug scenario
+					return &Schema{Ref: "$k8s/io.k8s.api.core.v1.Probe.json"}, nil
+				case k8sSchemaURL:
+					return &Schema{Type: "object"}, nil
+				default:
+					return nil, fmt.Errorf("unexpected ref: %s", ref)
+				}
+			},
+		}
+		loader := k8sAliasLoader{
+			inner:       inner,
+			urlTemplate: "https://example.com/k8s/{{ .K8sSchemaVersion }}/",
+			version:     version,
+		}
+
+		root := &Schema{
+			Properties: map[string]*Schema{
+				"probe": {
+					Ref:         "local.json",
+					RefReferrer: ReferrerDir("."),
+				},
+			},
+		}
+
+		ctx := ContextWithLogger(t.Context(), t)
+		require.NoError(t, bundleWithLoader(ctx, loader, root, "/", false))
+		// Both local.json and the k8s schema should have been loaded and bundled.
+		assert.NotNil(t, root.Defs)
+	})
+}

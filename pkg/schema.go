@@ -91,7 +91,7 @@ type Schema struct {
 	Description           string              `json:"description,omitempty" yaml:"description,omitempty"`
 	Comment               string              `json:"$comment,omitempty" yaml:"$comment,omitempty"`
 	Examples              []any               `json:"examples,omitempty" yaml:"examples,omitempty"`
-	Deprecated            bool                `json:"decrecated,omitempty" yaml:"deprecated,omitempty"`
+	Deprecated            bool                `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
 	ReadOnly              bool                `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	WriteOnly             bool                `json:"writeOnly,omitempty" yaml:"writeOnly,omitempty"`
 	Default               any                 `json:"default,omitempty" yaml:"default,omitempty"`

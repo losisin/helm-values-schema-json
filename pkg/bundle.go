@@ -19,7 +19,7 @@ import (
 //
 // The paths, outputDir & bundleRoot, are only used to change absolute paths
 // into relative paths in a solely cosmetic way.
-func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool) error {
+func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool, k8sSchemaURL, k8sSchemaVersion string) error {
 	absOutputDir, err := filepath.Abs(filepath.Dir(filepath.FromSlash(outputDir)))
 	if err != nil {
 		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
@@ -36,8 +36,32 @@ func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, w
 	}
 	defer closeIgnoreError(root)
 
-	loader := NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs)
+	loader := k8sAliasLoader{
+		inner:       NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs),
+		urlTemplate: k8sSchemaURL,
+		version:     k8sSchemaVersion,
+	}
 	return bundleWithLoader(ctx, loader, schema, absOutputDir, withoutIDs)
+}
+
+// k8sAliasLoader wraps a Loader and expands any "$ref: $k8s/..." aliases in
+// each loaded schema. This ensures external schema files that reference k8s
+// schemas via the "$k8s/" alias have those references expanded before bundling.
+type k8sAliasLoader struct {
+	inner       Loader
+	urlTemplate string
+	version     string
+}
+
+func (l k8sAliasLoader) Load(ctx context.Context, ref *url.URL) (*Schema, error) {
+	schema, err := l.inner.Load(ctx, ref)
+	if err != nil || schema == nil {
+		return schema, err
+	}
+	if err := updateRefK8sAlias(schema, l.urlTemplate, l.version); err != nil {
+		return nil, err
+	}
+	return schema, nil
 }
 
 func bundleWithLoader(ctx context.Context, loader Loader, schema *Schema, absOutputDir string, withoutIDs bool) error {
