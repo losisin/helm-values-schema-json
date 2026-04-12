@@ -546,6 +546,24 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("/properties/memory: must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
 		},
 		{
+			// When a local schema file (loaded during bundling) contains $ref: $k8s/...,
+			// the error should be about the missing k8sSchemaVersion, not "no such file or directory".
+			name: "k8s ref alias in external schema loaded during bundling",
+			config: &Config{
+				Draft:            2020,
+				Indent:           4,
+				Bundle:           true,
+				BundleRoot:       "../testdata/bundle",
+				K8sSchemaURL:     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
+				K8sSchemaVersion: "",
+				Values: []string{
+					"../testdata/bundle/k8s-alias.yaml",
+				},
+				Output: "../testdata/bundle/k8s-alias_output.json",
+			},
+			expectedErr: errors.New("must set k8sSchemaVersion config when using \"$ref: $k8s/...\""),
+		},
+		{
 			name: "invalid subschema type",
 			config: &Config{
 				Draft:  2020,
@@ -813,6 +831,39 @@ func TestWriteOutputFile_WriteToStdout(t *testing.T) {
 		// Just in case it creates a file
 		_ = os.Remove("-")
 	}()
+}
+
+func TestGenerateJsonSchema_K8sAliasInExternalSchema(t *testing.T) {
+	// When a local schema file referenced from values.yaml contains $ref: $k8s/...,
+	// bundling should expand the alias and load the referenced schema — not fail
+	// with "no such file or directory $k8s/...".
+	//
+	// K8sSchemaURL "." is used so the expanded ref points to the local _definitions.json
+	// stub, avoiding network calls in the test.
+	t.Parallel()
+
+	outputFile := "../testdata/bundle/k8s-alias-success_output.json"
+	t.Cleanup(func() { _ = os.Remove(outputFile) })
+
+	config := &Config{
+		Draft:            2020,
+		Indent:           4,
+		Bundle:           true,
+		BundleWithoutID:  true,
+		BundleRoot:       "../testdata/bundle",
+		K8sSchemaURL:     ".",
+		K8sSchemaVersion: "test",
+		Values:           []string{"../testdata/bundle/k8s-alias.yaml"},
+		Output:           outputFile,
+	}
+
+	ctx := ContextWithLogger(t.Context(), t)
+	require.NoError(t, GenerateJsonSchema(ctx, config))
+
+	out, err := os.ReadFile(outputFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "$k8s/", "all $k8s/ aliases should be expanded")
+	assert.Contains(t, string(out), "initialDelaySeconds", "stub probe schema should be bundled in output")
 }
 
 func TestWriteOutputFile_WriteToStdoutError(t *testing.T) {

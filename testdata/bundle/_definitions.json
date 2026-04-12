@@ -1,0 +1,16 @@
+{
+    "$comment": "Stub definitions file used in tests as a stand-in for the real k8s _definitions.json.",
+    "definitions": {
+        "io.k8s.api.core.v1.Probe": {
+            "type": "object",
+            "properties": {
+                "exec": {
+                    "type": "object"
+                },
+                "initialDelaySeconds": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}
