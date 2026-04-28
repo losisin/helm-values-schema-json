@@ -444,7 +444,7 @@ func TestSchemaSetKind_panics(t *testing.T) {
 	}
 }
 
-func TestGetYAMLKind(t *testing.T) {
+func TestGetScalarType(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    string
@@ -491,16 +491,23 @@ func TestGetYAMLKind(t *testing.T) {
 			expected: "string",
 		},
 		{
-			name:     "Empty string",
-			value:    "",
-			expected: "null",
+			name:     "Unknown tag",
+			value:    "!!foo hello",
+			expected: "string",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getYAMLKind(tt.value)
-			testutil.Equal(t, tt.expected, result)
+			var doc yaml.Node
+			if err := yaml.Unmarshal([]byte(tt.value), &doc); err != nil {
+				t.Fatal(err)
+			}
+			require.Equal(t, yaml.DocumentNode, doc.Kind, "document node kind")
+			require.Len(t, doc.Content, 1, "document content")
+			node := doc.Content[0]
+			require.Equal(t, yaml.ScalarNode, node.Kind, "scalar node kind")
+			require.Equal(t, tt.expected, getScalarType(node.ShortTag()), "scalar node type")
 		})
 	}
 }
@@ -620,6 +627,20 @@ func TestParseNode(t *testing.T) {
 		{
 			name:         "parse scalar node",
 			valNode:      yamlutil.String("value"),
+			expectedType: "string",
+		},
+		{
+			name: "parse scalar null node",
+			valNode: &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!null",
+				Value: "null",
+			},
+			expectedType: "null",
+		},
+		{
+			name:         "parse scalar string null node",
+			valNode:      yamlutil.String("null"),
 			expectedType: "string",
 		},
 		{

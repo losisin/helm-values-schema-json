@@ -80,20 +80,19 @@ func cutSchemaComment(line string) (string, bool) {
 	return trimmed, true
 }
 
-func getYAMLKind(value string) string {
-	if _, err := strconv.ParseInt(value, 10, 64); err == nil {
+func getScalarType(shortTag string) string {
+	switch shortTag {
+	case "!!int":
 		return "integer"
-	}
-	if _, err := strconv.ParseFloat(value, 64); err == nil {
+	case "!!float":
 		return "number"
-	}
-	if _, err := strconv.ParseBool(value); err == nil {
+	case "!!bool":
 		return "boolean"
-	}
-	if value != "" {
+	case "!!null":
+		return "null"
+	default:
 		return "string"
 	}
-	return "null"
 }
 
 func processList(comment string, stringsOnly bool) []any {
