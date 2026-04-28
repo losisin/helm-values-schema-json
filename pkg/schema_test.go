@@ -444,48 +444,70 @@ func TestSchemaSetKind_panics(t *testing.T) {
 	}
 }
 
-func TestGetScalarKind(t *testing.T) {
+func TestGetScalarType(t *testing.T) {
 	tests := []struct {
 		name     string
-		shortTag string
+		value    string
 		expected string
 	}{
 		{
-			name:     "Boolean",
-			shortTag: "!!bool",
+			name:     "Boolean true",
+			value:    "true",
 			expected: "boolean",
 		},
 		{
-			name:     "Integer",
-			shortTag: "!!int",
+			name:     "Boolean false",
+			value:    "false",
+			expected: "boolean",
+		},
+		{
+			name:     "Integer zero",
+			value:    "0",
+			expected: "integer",
+		},
+		{
+			name:     "Positive integer",
+			value:    "123",
+			expected: "integer",
+		},
+		{
+			name:     "Negative integer",
+			value:    "-123",
 			expected: "integer",
 		},
 		{
 			name:     "Float",
-			shortTag: "!!float",
+			value:    "123.456",
 			expected: "number",
 		},
 		{
-			name:     "Null",
-			shortTag: "!!null",
-			expected: "null",
+			name:     "Float with exponent",
+			value:    "5e7",
+			expected: "number",
 		},
 		{
-			name:     "String",
-			shortTag: "!!str",
+			name:     "Non-empty string",
+			value:    "test",
 			expected: "string",
 		},
 		{
-			name:     "Unknown",
-			shortTag: "!!unknown",
+			name:     "Unknown tag",
+			value:    "!!foo hello",
 			expected: "string",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getScalarType(tt.shortTag)
-			testutil.Equal(t, tt.expected, result)
+			var doc yaml.Node
+			if err := yaml.Unmarshal([]byte(tt.value), &doc); err != nil {
+				t.Fatal(err)
+			}
+			require.Equal(t, yaml.DocumentNode, doc.Kind, "document node kind")
+			require.Len(t, doc.Content, 1, "document content")
+			node := doc.Content[0]
+			require.Equal(t, yaml.ScalarNode, node.Kind, "scalar node kind")
+			require.Equal(t, tt.expected, getScalarType(node.ShortTag()), "scalar node type")
 		})
 	}
 }
