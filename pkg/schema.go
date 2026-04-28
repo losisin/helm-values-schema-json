@@ -416,11 +416,7 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		}
 
 	case yaml.ScalarNode:
-		if valNode.Style == yaml.DoubleQuotedStyle || valNode.Style == yaml.SingleQuotedStyle {
-			schema.Type = "string"
-		} else {
-			schema.Type = getYAMLKind(valNode.Value)
-		}
+		schema.Type = getScalarType(valNode.ShortTag())
 	}
 
 	schemaComments, helmDocsComments := getComments(keyNode, valNode, useHelmDocs)

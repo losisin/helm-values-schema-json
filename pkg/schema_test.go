@@ -444,62 +444,47 @@ func TestSchemaSetKind_panics(t *testing.T) {
 	}
 }
 
-func TestGetYAMLKind(t *testing.T) {
+func TestGetScalarKind(t *testing.T) {
 	tests := []struct {
 		name     string
-		value    string
+		shortTag string
 		expected string
 	}{
 		{
-			name:     "Boolean true",
-			value:    "true",
+			name:     "Boolean",
+			shortTag: "!!bool",
 			expected: "boolean",
 		},
 		{
-			name:     "Boolean false",
-			value:    "false",
-			expected: "boolean",
-		},
-		{
-			name:     "Integer zero",
-			value:    "0",
-			expected: "integer",
-		},
-		{
-			name:     "Positive integer",
-			value:    "123",
-			expected: "integer",
-		},
-		{
-			name:     "Negative integer",
-			value:    "-123",
+			name:     "Integer",
+			shortTag: "!!int",
 			expected: "integer",
 		},
 		{
 			name:     "Float",
-			value:    "123.456",
+			shortTag: "!!float",
 			expected: "number",
 		},
 		{
-			name:     "Float with exponent",
-			value:    "5e7",
-			expected: "number",
+			name:     "Null",
+			shortTag: "!!null",
+			expected: "null",
 		},
 		{
-			name:     "Non-empty string",
-			value:    "test",
+			name:     "String",
+			shortTag: "!!str",
 			expected: "string",
 		},
 		{
-			name:     "Empty string",
-			value:    "",
-			expected: "null",
+			name:     "Unknown",
+			shortTag: "!!unknown",
+			expected: "string",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getYAMLKind(tt.value)
+			result := getScalarType(tt.shortTag)
 			testutil.Equal(t, tt.expected, result)
 		})
 	}
@@ -620,6 +605,20 @@ func TestParseNode(t *testing.T) {
 		{
 			name:         "parse scalar node",
 			valNode:      yamlutil.String("value"),
+			expectedType: "string",
+		},
+		{
+			name: "parse scalar null node",
+			valNode: &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!null",
+				Value: "null",
+			},
+			expectedType: "null",
+		},
+		{
+			name:         "parse scalar string null node",
+			valNode:      yamlutil.String("null"),
 			expectedType: "string",
 		},
 		{
