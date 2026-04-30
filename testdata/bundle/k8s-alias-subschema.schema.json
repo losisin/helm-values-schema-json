@@ -1,0 +1,11 @@
+{
+    "$comment": "Sample schema with a k8s alias ref. Used to test that k8s aliases in external schemas are expanded during bundling.",
+    "oneOf": [
+        {
+            "$ref": "$k8s/_definitions.json#/definitions/io.k8s.api.core.v1.Probe"
+        },
+        {
+            "type": "null"
+        }
+    ]
+}
