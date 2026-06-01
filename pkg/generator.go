@@ -16,28 +16,41 @@ import (
 
 // Generate JSON schema
 func GenerateJsonSchema(ctx context.Context, config *Config) error {
+	mergedSchema, err := buildJSONSchema(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	indentString := strings.Repeat(" ", config.Indent)
+	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
+}
+
+// buildJSONSchema parses and validates the configured input files and returns
+// the merged, JSON-Schema-compliant schema, without writing any output. It is
+// shared by [GenerateJsonSchema] and "helm schema lint" so both run the exact
+// same parsing and validation.
+func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 	// Check if the values flag is set
 	if len(config.Values) == 0 {
-		return errors.New("values flag is required")
+		return nil, errors.New("values flag is required")
 	}
 	if countOccurrencesSlice(config.Values, "-") > 1 {
-		return errors.New("values flag must not contain multiple stdin (\"-f -\")")
+		return nil, errors.New("values flag must not contain multiple stdin (\"-f -\")")
 	}
 
 	// Determine the schema URL based on the draft version
 	schemaURL, err := getSchemaURL(config.Draft)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Determine the indentation string based on the number of spaces
+	// Validate the indentation
 	if config.Indent <= 0 {
-		return errors.New("indentation must be a positive number")
+		return nil, errors.New("indentation must be a positive number")
 	}
 	if config.Indent%2 != 0 {
-		return errors.New("indentation must be an even number")
+		return nil, errors.New("indentation must be an even number")
 	}
-	indentString := strings.Repeat(" ", config.Indent)
 
 	// Initialize a Schema to hold the merged YAML data
 	mergedSchema := &Schema{}
@@ -46,7 +59,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	for _, filePath := range config.Values {
 		fileReferrer, content, err := readInputFile(os.Stdin, filePath)
 		if err != nil {
-			return fmt.Errorf("read --values=%q: %w", filePath, err)
+			return nil, fmt.Errorf("read --values=%q: %w", filePath, err)
 		}
 
 		// Change Window's CRLF to LF line endings
@@ -55,7 +68,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 		var node yaml.Node
 		if err := yaml.Unmarshal(content, &node); err != nil {
-			return errors.New("error unmarshalling YAML")
+			return nil, errors.New("error unmarshalling YAML")
 		}
 
 		if len(node.Content) == 0 {
@@ -71,7 +84,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 			valNode := rootNode.Content[i+1]
 			schema, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
 			if err != nil {
-				return fmt.Errorf("parse schema: %w", err)
+				return nil, fmt.Errorf("parse schema: %w", err)
 			}
 
 			// Exclude hidden nodes
@@ -102,7 +115,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 		// Apply "$ref: $k8s/..." transformation
 		if err := updateRefK8sAlias(tempSchema, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
-			return fmt.Errorf("%s: %w", filePath, err)
+			return nil, fmt.Errorf("%s: %w", filePath, err)
 		}
 
 		// Merge with existing data
@@ -112,7 +125,7 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 	if config.Bundle {
 		if err := Bundle(ctx, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -124,12 +137,12 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 
 	// Ensure merged Schema is JSON Schema compliant
 	if err := ensureCompliant(mergedSchema, config.NoAdditionalProperties, config.NoDefaultGlobal, config.Draft); err != nil {
-		return err
+		return nil, err
 	}
 	mergedSchema.Schema = schemaURL // Include the schema draft version
 	mergedSchema.Type = "object"
 
-	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
+	return mergedSchema, nil
 }
 
 func readInputFile(stdin io.Reader, filePath string) (Referrer, []byte, error) {

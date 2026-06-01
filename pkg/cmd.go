@@ -61,6 +61,7 @@ func NewCmd() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(versionCmd)
+	cmd.AddCommand(newLintCmd())
 
 	cmd.PersistentFlags().String("config", ".schema.yaml", "Config file for setting defaults.")
 
@@ -134,7 +135,9 @@ func LoadConfig(cmd *cobra.Command) (*Config, error) {
 		return nil, fmt.Errorf("load flags: %w", err)
 	}
 
-	if cmd.Flag(schemaRootRefKey).Changed {
+	// The schema-root.ref flag is only registered on the generate command, so it
+	// may be absent on subcommands such as "lint".
+	if f := cmd.Flag(schemaRootRefKey); f != nil && f.Changed {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return nil, fmt.Errorf("resolve current working directory: %w", err)

@@ -1,0 +1,2 @@
+replicas: 1 # @schema type: integer
+image: nginx

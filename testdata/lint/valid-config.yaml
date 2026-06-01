@@ -1,0 +1,6 @@
+values:
+  - ../testdata/lint/values.yaml
+draft: 2020
+indent: 2
+schemaRoot:
+  title: Example

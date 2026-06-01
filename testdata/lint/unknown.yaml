@@ -1,0 +1,6 @@
+values:
+  - ../testdata/lint/values.yaml
+draft: 2020
+fooBar: 123
+schemaRoot:
+  unknownNested: true
