@@ -13,6 +13,9 @@ import (
 func TestBundleCmd(t *testing.T) {
 	golden, err := os.ReadFile("../testdata/bundle/cmd.bundled.json")
 	require.NoError(t, err)
+	// Normalize line endings so the byte-exact comparison holds on Windows,
+	// where the golden file is checked out with CRLF.
+	golden = bytes.ReplaceAll(golden, []byte("\r\n"), []byte("\n"))
 
 	tests := []struct {
 		name        string
@@ -163,4 +166,32 @@ func TestBundleFile_Indent(t *testing.T) {
 	require.NoError(t, err)
 	// 2-space indent puts top-level keys two spaces in.
 	assert.Contains(t, buf.String(), "\n  \"type\": \"object\",")
+}
+
+func TestBundleFile_AbsError(t *testing.T) {
+	failBundleFileAbs = true
+	defer func() { failBundleFileAbs = false }()
+
+	var buf bytes.Buffer
+	err := BundleFile(context.Background(), &buf, BundleFileOptions{
+		InputFile:    "../testdata/bundle/cmd.schema.json",
+		Indent:       DefaultConfig.Indent,
+		BundleRoot:   "../testdata/bundle",
+		K8sSchemaURL: DefaultConfig.K8sSchemaURL,
+	})
+	assert.ErrorContains(t, err, "get absolute path of")
+}
+
+func TestBundleFile_MarshalError(t *testing.T) {
+	failBundleFileMarshal = true
+	defer func() { failBundleFileMarshal = false }()
+
+	var buf bytes.Buffer
+	err := BundleFile(context.Background(), &buf, BundleFileOptions{
+		InputFile:    "../testdata/bundle/cmd.schema.json",
+		Indent:       DefaultConfig.Indent,
+		BundleRoot:   "../testdata/bundle",
+		K8sSchemaURL: DefaultConfig.K8sSchemaURL,
+	})
+	assert.ErrorContains(t, err, "encode bundled schema")
 }

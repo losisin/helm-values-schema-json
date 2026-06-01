@@ -13,6 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Flags are only used in testing to achieve better test coverage
+var (
+	failBundleFileAbs     bool
+	failBundleFileMarshal bool
+)
+
 // newBundleCmd creates the "bundle" subcommand, which reads an existing JSON
 // schema file, bundles all its "$ref" subschemas into "$defs", and prints the
 // result to stdout.
@@ -97,7 +103,7 @@ func BundleFile(ctx context.Context, out io.Writer, opts BundleFileOptions) erro
 
 	// Resolve "$ref" relative to the input file's directory.
 	inputAbs, err := filepath.Abs(opts.InputFile)
-	if err != nil {
+	if err != nil || failBundleFileAbs {
 		return fmt.Errorf("get absolute path of %q: %w", opts.InputFile, err)
 	}
 	schema.SetReferrer(ReferrerDir(filepath.Dir(inputAbs)))
@@ -111,7 +117,7 @@ func BundleFile(ctx context.Context, out io.Writer, opts BundleFileOptions) erro
 	}
 
 	jsonBytes, err := json.MarshalIndent(&schema, "", strings.Repeat(" ", opts.Indent))
-	if err != nil {
+	if err != nil || failBundleFileMarshal {
 		return fmt.Errorf("encode bundled schema: %w", err)
 	}
 	jsonBytes = append(jsonBytes, '\n')
