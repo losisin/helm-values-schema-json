@@ -147,6 +147,41 @@ Flags:
   -v, --version                             version for helm schema
 ```
 
+### Lint subcommand
+
+Use `helm schema lint` to validate your config file and its input values files
+without generating a schema. It parses the input files using the same parsing as
+schema generation and reports any errors, and warns about unknown fields in the
+config file (`.schema.yaml`):
+
+```bash
+$ helm schema lint
+No issues found
+```
+
+Pass `--strict` to exit with a non-zero code when any warning is reported, which
+is useful in CI:
+
+```bash
+$ helm schema lint --strict
+warning: line 4: field fooBar is not a known config field
+Found 1 warning(s)
+Error: found 1 warning(s) in strict mode
+```
+
+```bash
+$ helm schema lint --help
+Usage:
+  helm schema lint [flags]
+
+Flags:
+  -h, --help     help for lint
+      --strict   Fail with a non-zero exit code when any warning is reported
+
+Global Flags:
+      --config string   Config file for setting defaults. (default ".schema.yaml")
+```
+
 ### Configuration file
 
 Uses `.schema.yaml` in the current working directory.

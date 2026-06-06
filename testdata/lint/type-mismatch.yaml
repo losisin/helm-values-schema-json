@@ -1,0 +1,3 @@
+values:
+  - ../testdata/lint/values.yaml
+draft: notanumber
