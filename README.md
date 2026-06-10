@@ -182,6 +182,49 @@ Global Flags:
       --config string   Config file for setting defaults. (default ".schema.yaml")
 ```
 
+### Bundle subcommand
+
+Use `helm schema bundle` to run only the bundler on an existing JSON schema file
+and print the bundled result to stdout, without generating a new schema from
+values files:
+
+```bash
+$ helm schema bundle values.schema.json
+{
+  ...
+}
+```
+
+This resolves every `$ref` in the file, stores the referenced subschemas inside
+`$defs`, and prints the bundled schema. It is the same bundling that
+`helm schema --bundle` performs while generating a schema, but applied to an
+already-existing schema file.
+
+```bash
+$ helm schema bundle --help
+Usage:
+  helm schema bundle SCHEMA_FILE [flags]
+
+Flags:
+      --bundle-root string          Root directory to allow local referenced files to be loaded from (default current working directory)
+      --bundle-without-id           Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
+  -h, --help                        help for bundle
+      --indent int                  Indentation spaces (even number) (default 4)
+      --k8s-schema-url string       URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/")
+      --k8s-schema-version string   Version used in the --k8s-schema-url template for $ref: $k8s/... alias
+
+Global Flags:
+      --config string   Config file for setting defaults. (default ".schema.yaml")
+```
+
+> [!NOTE]
+> The `bundle` command does **not** load settings from `.schema.yaml` (or `--config`).
+> It applies only the flags shown above. Config-file fields such as `bundleRoot`,
+> `indent`, and `k8sSchemaVersion` are ignored when bundling an existing schema file —
+> pass the corresponding `--bundle-root`, `--indent`, and `--k8s-schema-version` flags
+> directly instead. The `--config` flag is inherited from the root command but has no
+> effect on `bundle`.
+
 ### Configuration file
 
 Uses `.schema.yaml` in the current working directory.

@@ -62,6 +62,7 @@ func NewCmd() *cobra.Command {
 	}
 	cmd.AddCommand(versionCmd)
 	cmd.AddCommand(newLintCmd())
+	cmd.AddCommand(newBundleCmd())
 
 	cmd.PersistentFlags().String("config", ".schema.yaml", "Config file for setting defaults.")
 
