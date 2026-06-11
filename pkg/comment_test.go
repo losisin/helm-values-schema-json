@@ -652,6 +652,48 @@ func TestProcessComment(t *testing.T) {
 			comment:    "# @schema examples:[foo, bar]",
 			wantSchema: &Schema{Examples: []any{"foo", "bar"}},
 		},
+		{
+			name:       "nullable on inferred scalar type",
+			schema:     &Schema{Type: "string"},
+			comment:    "# @schema nullable",
+			wantSchema: &Schema{Type: []any{"string", "null"}},
+		},
+		{
+			name:       "nullable without a type",
+			schema:     &Schema{},
+			comment:    "# @schema nullable",
+			wantSchema: &Schema{Type: "null"},
+		},
+		{
+			name:       "nullable on an already-null type",
+			schema:     &Schema{Type: "null"},
+			comment:    "# @schema nullable",
+			wantSchema: &Schema{Type: "null"},
+		},
+		{
+			name:       "nullable combined with explicit type",
+			schema:     &Schema{},
+			comment:    "# @schema nullable; type: integer",
+			wantSchema: &Schema{Type: []any{"integer", "null"}},
+		},
+		{
+			name:       "nullable appends to a type list",
+			schema:     &Schema{},
+			comment:    "# @schema type:[string, integer]; nullable",
+			wantSchema: &Schema{Type: []any{"string", "integer", "null"}},
+		},
+		{
+			name:       "nullable is idempotent when null already present",
+			schema:     &Schema{},
+			comment:    "# @schema type:[string, null]; nullable",
+			wantSchema: &Schema{Type: []any{"string", "null"}},
+		},
+		{
+			name:       "nullable false leaves the type untouched",
+			schema:     &Schema{Type: "string"},
+			comment:    "# @schema nullable: false",
+			wantSchema: &Schema{Type: "string"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -659,6 +701,27 @@ func TestProcessComment(t *testing.T) {
 			err := processComment(tt.schema, []string{tt.comment})
 			require.NoError(t, err)
 			testutil.Equal(t, tt.wantSchema, tt.schema)
+		})
+	}
+}
+
+func TestAppendNullType(t *testing.T) {
+	tests := []struct {
+		name string
+		in   any
+		want any
+	}{
+		{name: "nil", in: nil, want: "null"},
+		{name: "scalar string", in: "string", want: []any{"string", "null"}},
+		{name: "already null", in: "null", want: "null"},
+		{name: "list without null", in: []any{"string", "integer"}, want: []any{"string", "integer", "null"}},
+		{name: "list with null", in: []any{"string", "null"}, want: []any{"string", "null"}},
+		{name: "unsupported type is returned as-is", in: 42, want: 42},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testutil.Equal(t, tt.want, appendNullType(tt.in))
 		})
 	}
 }
@@ -679,6 +742,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "uniqueItems invalid bool", comment: "# @schema uniqueItems: foo", wantErr: "uniqueItems: invalid boolean"},
 		{name: "skipProperties invalid bool", comment: "# @schema skipProperties: foo", wantErr: "skipProperties: invalid boolean"},
 		{name: "mergeProperties invalid bool", comment: "# @schema mergeProperties: foo", wantErr: "mergeProperties: invalid boolean"},
+		{name: "nullable invalid bool", comment: "# @schema nullable: foo", wantErr: "nullable: invalid boolean"},
 
 		{name: "maxLength invalid uint64", comment: "# @schema maxLength: foo", wantErr: "maxLength: invalid integer"},
 		{name: "minLength invalid uint64", comment: "# @schema minLength: foo", wantErr: "minLength: invalid integer"},

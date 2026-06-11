@@ -143,6 +143,9 @@ func convertScalarsToString(slice []any) {
 }
 
 func processComment(schema *Schema, commentLines []string) error {
+	// nullable is applied after the loop so it merges "null" into the final
+	// type regardless of the order keywords appear in the comment.
+	var nullable bool
 	for key, value := range splitCommentsByParts(commentLines) {
 		switch key {
 		case "enum":
@@ -213,6 +216,10 @@ func processComment(schema *Schema, commentLines []string) error {
 			schema.Type = list
 			if len(list) == 1 {
 				schema.Type = list[0]
+			}
+		case "nullable":
+			if err := processBoolComment(&nullable, value); err != nil {
+				return fmt.Errorf("nullable: %w", err)
 			}
 		case "title":
 			schema.Title = value
@@ -303,7 +310,38 @@ func processComment(schema *Schema, commentLines []string) error {
 		}
 	}
 
+	if nullable {
+		schema.Type = appendNullType(schema.Type)
+	}
+
 	return nil
+}
+
+// appendNullType adds "null" to the schema type, turning a single type into a
+// list and leaving an existing "null" untouched. It backs the `nullable`
+// annotation, e.g. `# @schema nullable` on a string value yields
+// `"type": ["string", "null"]`.
+func appendNullType(t any) any {
+	switch v := t.(type) {
+	case nil:
+		return "null"
+	case string:
+		if v == "null" {
+			return v
+		}
+		return []any{v, "null"}
+	case []any:
+		// v is the freshly built type list owned solely by schema.Type, so
+		// appending in place is safe.
+		for _, item := range v {
+			if s, ok := item.(string); ok && s == "null" {
+				return v
+			}
+		}
+		return append(v, "null")
+	default:
+		return t
+	}
 }
 
 func processObjectComment[T any](dest *T, comment string) error {

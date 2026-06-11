@@ -62,6 +62,7 @@ The following annotations are supported:
 * [Validation Keywords for Any Instance Type](#validation-keywords-for-any-instance-type)
     * [Type](#type)
     * [Multiple types](#multiple-types)
+    * [Nullable](#nullable)
     * [Enum](#enum)
     * [ItemEnum](#itemEnum)
     * [Const](#const)
@@ -173,6 +174,40 @@ app: &app
         }
     },
     "type": "object"
+}
+```
+
+### Nullable
+
+The `nullable` annotation is a shorthand that adds `null` to the value's type, so the value may also be omitted or set to `null`. It is semantically identical to listing `null` in [Multiple types](#multiple-types), but reuses the type inferred from the value instead of repeating it.
+
+```yaml
+# These two are equivalent:
+replicaCount: # @schema type:[integer, null]
+replicaCount: # @schema type: integer; nullable
+```
+
+```json
+"replicaCount": {
+    "type": [
+        "integer",
+        "null"
+    ]
+}
+```
+
+When no explicit `type` is given, `nullable` appends `null` to the type inferred from the YAML value:
+
+```yaml
+nameOverride: "" # @schema nullable
+```
+
+```json
+"nameOverride": {
+    "type": [
+        "string",
+        "null"
+    ]
 }
 ```
 
