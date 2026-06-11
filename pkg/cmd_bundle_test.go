@@ -140,6 +140,17 @@ func TestBundleFile_IndentValidation(t *testing.T) {
 	}
 }
 
+func TestBundleFile_CacheMinValidation(t *testing.T) {
+	var buf bytes.Buffer
+	err := BundleFile(context.Background(), &buf, BundleFileOptions{
+		InputFile: "../testdata/bundle/cmd.schema.json",
+		Indent:    DefaultConfig.Indent,
+		CacheMin:  "not-a-duration",
+	})
+	assert.ErrorContains(t, err, "parse bundle cache min duration")
+	assert.Empty(t, buf.String())
+}
+
 // errWriter always fails, used to exercise the output write error path.
 type errWriter struct{}
 

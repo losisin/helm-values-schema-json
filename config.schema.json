@@ -9,6 +9,15 @@
             "default": false,
             "type": "boolean"
         },
+        "bundleCacheMin": {
+            "description": "Minimum cache duration for downloaded schemas, e.g. \"24h\" or \"30m\". Raises short server Cache-Control max-age values so schemas stay cached longer. An empty string follows the server's caching headers.",
+            "examples": [
+                "24h",
+                "30m"
+            ],
+            "default": "",
+            "type": "string"
+        },
         "bundleRoot": {
             "description": "Root directory to allow local referenced files to be loaded from. Defaults to the current working directory.",
             "examples": [

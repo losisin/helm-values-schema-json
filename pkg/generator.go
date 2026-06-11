@@ -124,7 +124,11 @@ func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 	}
 
 	if config.Bundle {
-		if err := Bundle(ctx, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID, config.K8sSchemaURL, config.K8sSchemaVersion); err != nil {
+		cacheMinDuration, err := ParseCacheMinDuration(config.BundleCacheMin)
+		if err != nil {
+			return nil, err
+		}
+		if err := Bundle(ctx, mergedSchema, config.Output, config.BundleRoot, config.BundleWithoutID, config.K8sSchemaURL, config.K8sSchemaVersion, cacheMinDuration); err != nil {
 			return nil, err
 		}
 	}

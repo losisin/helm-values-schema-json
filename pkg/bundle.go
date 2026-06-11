@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Bundle will use default loader settings to bundle all $ref into $defs
@@ -19,7 +20,7 @@ import (
 //
 // The paths, outputDir & bundleRoot, are only used to change absolute paths
 // into relative paths in a solely cosmetic way.
-func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool, k8sSchemaURL, k8sSchemaVersion string) error {
+func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, withoutIDs bool, k8sSchemaURL, k8sSchemaVersion string, cacheMinDuration time.Duration) error {
 	absOutputDir, err := filepath.Abs(filepath.Dir(filepath.FromSlash(outputDir)))
 	if err != nil {
 		return fmt.Errorf("output %s: get absolute path: %w", outputDir, err)
@@ -37,7 +38,7 @@ func Bundle(ctx context.Context, schema *Schema, outputDir, bundleRoot string, w
 	defer closeIgnoreError(root)
 
 	loader := k8sAliasLoader{
-		inner:       NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs),
+		inner:       NewDefaultLoader(http.DefaultClient, (*RootFS)(root), bundleRootAbs, cacheMinDuration),
 		urlTemplate: k8sSchemaURL,
 		version:     k8sSchemaVersion,
 	}
