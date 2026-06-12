@@ -129,6 +129,12 @@ func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 		}
 	}
 
+	if config.ExpandRefs {
+		if err := ExpandRefs(mergedSchema); err != nil {
+			return err
+		}
+	}
+
 	if config.SchemaRoot.AdditionalProperties != nil {
 		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
 	} else if config.NoAdditionalProperties {
