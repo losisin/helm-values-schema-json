@@ -442,6 +442,7 @@ func TestProcessComment(t *testing.T) {
 		name       string
 		schema     *Schema
 		comment    string
+		valNode    *yaml.Node
 		wantSchema *Schema
 	}{
 		{
@@ -652,11 +653,50 @@ func TestProcessComment(t *testing.T) {
 			comment:    "# @schema examples:[foo, bar]",
 			wantSchema: &Schema{Examples: []any{"foo", "bar"}},
 		},
+		{
+			name:       "Set const shorthand from string value",
+			schema:     &Schema{},
+			comment:    "# @schema const",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "foo"},
+			wantSchema: &Schema{Const: "foo"},
+		},
+		{
+			name:       "Set default shorthand from int value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: "3"},
+			wantSchema: &Schema{Default: 3},
+		},
+		{
+			name:       "Set const shorthand from bool value",
+			schema:     &Schema{},
+			comment:    "# @schema const",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"},
+			wantSchema: &Schema{Const: true},
+		},
+		{
+			// null is decoded to nil and applied without error, matching the
+			// existing `# @schema const: null` behavior.
+			name:       "Set default shorthand from null value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: "null"},
+			wantSchema: &Schema{Default: nil},
+		},
+		{
+			// The explicit long form keeps taking the value from the comment,
+			// ignoring the YAML node value.
+			name:       "Explicit const value overrides the node value",
+			schema:     &Schema{},
+			comment:    "# @schema const: bar",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "foo"},
+			wantSchema: &Schema{Const: "bar"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processComment(tt.schema, []string{tt.comment})
+			err := processComment(tt.schema, []string{tt.comment}, tt.valNode)
 			require.NoError(t, err)
 			testutil.Equal(t, tt.wantSchema, tt.schema)
 		})
@@ -702,12 +742,15 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "oneOf invalid YAML", comment: "# @schema oneOf: {", wantErr: "oneOf: parse object \"{\": yaml"},
 		{name: "not invalid YAML", comment: "# @schema not: {", wantErr: "not: parse object \"{\": yaml"},
 		{name: "const invalid YAML", comment: "# @schema const: {", wantErr: "const: parse object \"{\": yaml"},
+
+		{name: "const shorthand without a node", comment: "# @schema const", wantErr: "const: parse object \"\": missing value"},
+		{name: "default shorthand without a node", comment: "# @schema default", wantErr: "default: parse object \"\": missing value"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema Schema
-			err := processComment(&schema, []string{tt.comment})
+			err := processComment(&schema, []string{tt.comment}, nil)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
