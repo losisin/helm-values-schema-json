@@ -76,6 +76,7 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
 	cmd.Flags().Bool("bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
 	cmd.Flags().String("bundle-root", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
+	cmd.Flags().String("bundle-cache-min", "", "Minimum cache duration for downloaded schemas, e.g. 24h or 30m. Raises short server Cache-Control max-age values; empty follows the server")
 
 	cmd.Flags().String("k8s-schema-url", DefaultConfig.K8sSchemaURL, "URL template used in $ref: $k8s/... alias")
 	cmd.Flags().String("k8s-schema-version", "", "Version used in the --k8s-schema-url template for $ref: $k8s/... alias")
@@ -179,6 +180,7 @@ type Config struct {
 	Bundle                 bool     `yaml:"bundle" koanf:"bundle"`
 	BundleRoot             string   `yaml:"bundleRoot" koanf:"bundle-root"`
 	BundleWithoutID        bool     `yaml:"bundleWithoutID" koanf:"bundle-without-id"`
+	BundleCacheMin         string   `yaml:"bundleCacheMin" koanf:"bundle-cache-min"`
 
 	K8sSchemaURL     string `yaml:"k8sSchemaURL" koanf:"k8s-schema-url"`
 	K8sSchemaVersion string `yaml:"k8sSchemaVersion" koanf:"k8s-schema-version"`

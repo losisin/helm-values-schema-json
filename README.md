@@ -126,6 +126,7 @@ Usage:
 
 Flags:
       --bundle                              Bundle referenced ($ref) subschemas into a single file inside $defs
+      --bundle-cache-min string             Minimum cache duration for downloaded schemas, e.g. 24h or 30m. Raises short server Cache-Control max-age values; empty follows the server
       --bundle-root string                  Root directory to allow local referenced files to be loaded from (default current working directory)
       --bundle-without-id                   Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
       --config string                       Config file for setting defaults. (default ".schema.yaml")
@@ -206,6 +207,7 @@ Usage:
   helm schema bundle SCHEMA_FILE [flags]
 
 Flags:
+      --bundle-cache-min string     Minimum cache duration for downloaded schemas, e.g. 24h or 30m. Raises short server Cache-Control max-age values; empty follows the server
       --bundle-root string          Root directory to allow local referenced files to be loaded from (default current working directory)
       --bundle-without-id           Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension
   -h, --help                        help for bundle
@@ -244,6 +246,7 @@ output: values.schema.json
 bundle: false
 bundleRoot: ""
 bundleWithoutID: false
+bundleCacheMin: ""
 
 k8sSchemaURL: https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/
 k8sSchemaVersion: "v1.33.1"

@@ -484,6 +484,21 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 			expectedErr: errors.New("write output schema:"),
 		},
 		{
+			name: "bundle invalid cache min duration",
+			config: &Config{
+				Draft:          2020,
+				Indent:         4,
+				Bundle:         true,
+				BundleRoot:     "..",
+				BundleCacheMin: "not-a-duration",
+				Values: []string{
+					"../testdata/bundle/simple.yaml",
+				},
+				Output: "../testdata/bundle_output.json",
+			},
+			expectedErr: errors.New("parse bundle cache min duration"),
+		},
+		{
 			name: "bundle invalid root path",
 			config: &Config{
 				Draft:      2020,
