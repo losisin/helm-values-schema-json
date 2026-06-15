@@ -540,6 +540,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Items: &Schema{Enum: []any{1, 2}}},
 		},
 		{
+			name:       "Set array only item required",
+			schema:     &Schema{},
+			comment:    "# @schema itemRequired:[name, value]",
+			wantSchema: &Schema{Items: &Schema{Required: []string{"name", "value"}}},
+		},
+		{
 			name:       "Set array only item ref",
 			schema:     &Schema{},
 			comment:    "# @schema itemRef: http://example.com",
@@ -735,6 +741,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "patternProperties invalid YAML", comment: "# @schema patternProperties: {", wantErr: "patternProperties: parse object \"{\": yaml"},
 		{name: "default invalid YAML", comment: "# @schema default: {", wantErr: "default: parse object \"{\": yaml"},
 		{name: "itemProperties invalid YAML", comment: "# @schema itemProperties: {", wantErr: "itemProperties: parse object \"{\": yaml"},
+		{name: "itemRequired invalid list", comment: "# @schema itemRequired: [[foo]]", wantErr: "itemRequired: expected string"},
 		{name: "additionalProperties invalid YAML", comment: "# @schema additionalProperties: {", wantErr: "additionalProperties: parse object \"{\": yaml"},
 		{name: "unevaluatedProperties invalid YAML", comment: "# @schema unevaluatedProperties: {", wantErr: "unevaluatedProperties: parse object \"{\": yaml"},
 		{name: "allOf invalid YAML", comment: "# @schema allOf: {", wantErr: "allOf: parse object \"{\": yaml"},

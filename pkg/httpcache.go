@@ -47,6 +47,9 @@ func NewHTTPMemoryCache() *HTTPMemoryCache {
 type HTTPMemoryCache struct {
 	Map map[string]CachedResponse
 	Now func() time.Time
+
+	// MinCacheDuration mirrors [HTTPFileCache.MinCacheDuration].
+	MinCacheDuration time.Duration
 }
 
 var _ HTTPCache = &HTTPMemoryCache{}
@@ -64,6 +67,7 @@ func (h *HTTPMemoryCache) SaveCache(req *http.Request, resp *http.Response, body
 		// Response doesn't want to be cached.
 		return CachedResponse{}, nil
 	}
+	maxAge = applyMinCacheDuration(maxAge, h.MinCacheDuration)
 	cached := CachedResponse{
 		Data:     body,
 		CachedAt: h.Now(),
@@ -77,9 +81,15 @@ func (h *HTTPMemoryCache) SaveCache(req *http.Request, resp *http.Response, body
 type HTTPFileCache struct {
 	cacheDirFunc func() string
 	now          func() time.Time
+
+	// MinCacheDuration, when greater than zero, raises a cacheable response's
+	// effective max-age to at least this value. It lets users keep downloaded
+	// schemas cached longer than the short max-age that many schema stores
+	// return. Responses the server marks as uncacheable are still not cached.
+	MinCacheDuration time.Duration
 }
 
-func NewHTTPCache() *HTTPFileCache {
+func NewHTTPCache(minCacheDuration time.Duration) *HTTPFileCache {
 	return &HTTPFileCache{
 		cacheDirFunc: sync.OnceValue(func() string {
 			dir, err := os.UserCacheDir()
@@ -89,7 +99,8 @@ func NewHTTPCache() *HTTPFileCache {
 			}
 			return filepath.Join(dir, "helm-values-schema-json", "httploader")
 		}),
-		now: time.Now,
+		now:              time.Now,
+		MinCacheDuration: minCacheDuration,
 	}
 }
 
@@ -124,6 +135,7 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 		return CachedResponse{}, nil
 	}
 
+	maxAge = applyMinCacheDuration(maxAge, h.MinCacheDuration)
 	cached := CachedResponse{
 		Data:     body,
 		CachedAt: h.now().UTC(),
@@ -163,6 +175,35 @@ func getCacheControlMaxAge(header string) time.Duration {
 		}
 	}
 	return maxAge
+}
+
+// applyMinCacheDuration raises maxAge to minDuration when minDuration is larger.
+// It is only meant to be called for responses that are already cacheable
+// (maxAge > 0); responses the server marked as no-store/no-cache are skipped by
+// the caller and never extended.
+func applyMinCacheDuration(maxAge, minDuration time.Duration) time.Duration {
+	if minDuration > maxAge {
+		return minDuration
+	}
+	return maxAge
+}
+
+// ParseCacheMinDuration parses a --bundle-cache-min value such as "24h" or
+// "30m" into a [time.Duration]. An empty string means "no override" and returns
+// zero. It is the single place that interprets the duration string, so any
+// future support for extended units (1d/1w/1M/1y) only needs to be added here.
+func ParseCacheMinDuration(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("parse bundle cache min duration %q: %w", s, err)
+	}
+	if d < 0 {
+		return 0, fmt.Errorf("bundle cache min duration %q must not be negative", s)
+	}
+	return d, nil
 }
 
 // urlToCachePath returns a relative path that can be used as a file path

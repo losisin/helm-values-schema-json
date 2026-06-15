@@ -21,7 +21,7 @@ func TestHTTPCache_CacheDir(t *testing.T) {
 	os.Clearenv()
 	require.NoError(t, os.Setenv("HOME", "/foo/bar"))
 
-	cache := NewHTTPCache()
+	cache := NewHTTPCache(0)
 
 	dir := cache.cacheDirFunc()
 	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
@@ -32,7 +32,7 @@ func TestHTTPCache_CacheDir_Error(t *testing.T) {
 	// Remove $HOME and $XDG_CONFIG_DIR, which makes [os.UserCacheDir] fail
 	os.Clearenv()
 
-	cache := NewHTTPCache()
+	cache := NewHTTPCache(0)
 	dir := cache.cacheDirFunc()
 	require.Contains(t, dir, filepath.FromSlash("/helm-values-schema-json/httploader"))
 }
@@ -139,7 +139,7 @@ func TestLoadCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := NewHTTPCache()
+			cache := NewHTTPCache(0)
 			dir, err := os.MkdirTemp("", "schema-httpcache-*")
 			require.NoError(t, err)
 			t.Cleanup(func() {
@@ -234,7 +234,7 @@ func TestSaveCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := NewHTTPCache()
+			cache := NewHTTPCache(0)
 			dir := testutil.CreateTempDir(t, "schema-httpcache-*")
 			cache.cacheDirFunc = func() string { return dir }
 			cache.now = func() time.Time { return now }
@@ -257,7 +257,7 @@ func TestSaveCache(t *testing.T) {
 
 func TestSaveCache_Error(t *testing.T) {
 	t.Run("mkdir", func(t *testing.T) {
-		cache := NewHTTPCache()
+		cache := NewHTTPCache(0)
 		file := testutil.CreateTempFile(t, "schema-httpcache-*")
 		cache.cacheDirFunc = func() string { return file.Name() }
 
@@ -274,7 +274,7 @@ func TestSaveCache_Error(t *testing.T) {
 	})
 
 	t.Run("create file", func(t *testing.T) {
-		cache := NewHTTPCache()
+		cache := NewHTTPCache(0)
 		dir := testutil.CreateTempDir(t, "schema-httpcache-*")
 		cache.cacheDirFunc = func() string { return dir }
 
@@ -291,6 +291,122 @@ func TestSaveCache_Error(t *testing.T) {
 		}, nil)
 		assert.ErrorContains(t, err, "create cache file:")
 	})
+}
+
+func TestSaveCache_MinCacheDuration(t *testing.T) {
+	now := time.Date(2025, 6, 9, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name        string
+		minDuration time.Duration
+		cacheCtrl   string
+		want        CachedResponse
+	}{
+		{
+			name:        "raises short max-age to the minimum",
+			minDuration: 24 * time.Hour,
+			cacheCtrl:   "max-age=300",
+			want: CachedResponse{
+				CachedAt: now,
+				MaxAge:   24 * time.Hour,
+				Data:     []byte("foo"),
+			},
+		},
+		{
+			name:        "keeps longer max-age untouched",
+			minDuration: time.Hour,
+			cacheCtrl:   "max-age=7200",
+			want: CachedResponse{
+				CachedAt: now,
+				MaxAge:   2 * time.Hour,
+				Data:     []byte("foo"),
+			},
+		},
+		{
+			name:        "does not cache no-store responses",
+			minDuration: 24 * time.Hour,
+			cacheCtrl:   "no-store",
+			want:        CachedResponse{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := &http.Response{
+				Header: http.Header{
+					http.CanonicalHeaderKey("Cache-Control"): []string{tt.cacheCtrl},
+				},
+			}
+			req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+			require.NoError(t, err)
+
+			t.Run("file", func(t *testing.T) {
+				dir := testutil.CreateTempDir(t, "schema-httpcache-*")
+				cache := NewHTTPCache(tt.minDuration)
+				cache.cacheDirFunc = func() string { return dir }
+				cache.now = func() time.Time { return now }
+
+				cached, err := cache.SaveCache(req, resp, []byte("foo"))
+				require.NoError(t, err)
+				testutil.Equal(t, tt.want, cached)
+			})
+
+			t.Run("memory", func(t *testing.T) {
+				cache := NewHTTPMemoryCache()
+				cache.MinCacheDuration = tt.minDuration
+				cache.Now = func() time.Time { return now }
+
+				cached, err := cache.SaveCache(req, resp, []byte("foo"))
+				require.NoError(t, err)
+				testutil.Equal(t, tt.want, cached)
+			})
+		})
+	}
+}
+
+func TestApplyMinCacheDuration(t *testing.T) {
+	tests := []struct {
+		name        string
+		maxAge      time.Duration
+		minDuration time.Duration
+		want        time.Duration
+	}{
+		{name: "min larger than max-age", maxAge: 5 * time.Minute, minDuration: time.Hour, want: time.Hour},
+		{name: "min smaller than max-age", maxAge: 2 * time.Hour, minDuration: time.Hour, want: 2 * time.Hour},
+		{name: "min equal to max-age", maxAge: time.Hour, minDuration: time.Hour, want: time.Hour},
+		{name: "min disabled (zero)", maxAge: 5 * time.Minute, minDuration: 0, want: 5 * time.Minute},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, applyMinCacheDuration(tt.maxAge, tt.minDuration))
+		})
+	}
+}
+
+func TestParseCacheMinDuration(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    time.Duration
+		wantErr string
+	}{
+		{name: "empty is no override", input: "", want: 0},
+		{name: "hours", input: "24h", want: 24 * time.Hour},
+		{name: "minutes", input: "30m", want: 30 * time.Minute},
+		{name: "combined", input: "1h30m", want: 90 * time.Minute},
+		{name: "invalid", input: "tomorrow", wantErr: "parse bundle cache min duration"},
+		{name: "negative", input: "-1h", wantErr: "must not be negative"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseCacheMinDuration(tt.input)
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestGetCacheControlMaxAge(t *testing.T) {

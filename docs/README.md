@@ -75,6 +75,7 @@ The following annotations are supported:
     * [minimum](#minimum)
 * [Arrays](#arrays)
     * [item](#item)
+    * [itemRequired](#itemrequired)
     * [maxItems](#maxitems)
     * [minItems](#minitems)
     * [uniqueItems](#uniqueitems)
@@ -354,6 +355,28 @@ This will generate following schema:
 ```json
 "imagePullSecrets": {
     "items": {
+        "type": "object"
+    }
+}
+```
+
+### itemRequired
+
+This is a special annotation that sets required properties on items of an array.
+
+```yaml
+env: [] # @schema item:object; itemRequired:[name, value]
+```
+
+This will generate following schema:
+
+```json
+"env": {
+    "items": {
+        "required": [
+            "name",
+            "value"
+        ],
         "type": "object"
     }
 }
@@ -850,6 +873,14 @@ result in `$defs`. To enable bundling, use the command-line flags:
 
 - `--bundle-root /some/path` sets the root directory from which file `$ref` are
   allowed to read files from (default: current working directory)
+
+- `--bundle-cache-min 24h` raises the minimum cache duration for downloaded
+  schemas. Many schema stores return a short `Cache-Control` max-age (5 or 30
+  minutes); this overrides it so cacheable schemas stay cached for at least the
+  given duration. The value uses Go's
+  [duration syntax](https://pkg.go.dev/time#ParseDuration) (e.g. `24h`, `30m`).
+  An empty value (default) follows the server's caching headers, and responses
+  the server marks as uncacheable are still not cached.
 
 - `--bundle-without-id` works as a compatibility mode by disabling usage of
   `$id` and overriding `$ref` with syntax like `"$ref": "#/$defs/schema.json"`

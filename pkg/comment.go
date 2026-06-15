@@ -248,6 +248,19 @@ func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) e
 			if err := processObjectComment(&schema.Items.Properties, value); err != nil {
 				return fmt.Errorf("itemProperties: %w", err)
 			}
+		case "itemRequired":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			itemRequired := processList(value, true)
+			schema.Items.Required = make([]string, 0, len(itemRequired))
+			for _, item := range itemRequired {
+				required, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("itemRequired: expected string, got %T", item)
+				}
+				schema.Items.Required = append(schema.Items.Required, required)
+			}
 		case "itemEnum":
 			if schema.Items == nil {
 				schema.Items = &Schema{}

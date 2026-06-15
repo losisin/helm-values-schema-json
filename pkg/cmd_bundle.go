@@ -23,11 +23,6 @@ var (
 // schema file, bundles all its "$ref" subschemas into "$defs", and prints the
 // result to stdout.
 func newBundleCmd() *cobra.Command {
-	opts := BundleFileOptions{
-		Indent:       DefaultConfig.Indent,
-		K8sSchemaURL: DefaultConfig.K8sSchemaURL,
-	}
-
 	cmd := &cobra.Command{
 		Use:   "bundle SCHEMA_FILE",
 		Short: "Bundle referenced ($ref) subschemas of a JSON schema file into $defs",
@@ -52,16 +47,29 @@ func newBundleCmd() *cobra.Command {
 					"warning: --config (and .schema.yaml) is ignored by the bundle command; "+
 						"pass --bundle-root, --indent and --k8s-schema-version directly")
 			}
-			opts.InputFile = args[0]
-			return BundleFile(cmd.Context(), cmd.OutOrStdout(), opts)
+
+			// All flags are registered below, so these getters cannot fail; their
+			// errors are ignored to avoid an unreachable, uncoverable error branch.
+			indent, _ := cmd.Flags().GetInt("indent")
+			bundleRoot, _ := cmd.Flags().GetString("bundle-root")
+			bundleWithoutID, _ := cmd.Flags().GetBool("bundle-without-id")
+			cacheMin, _ := cmd.Flags().GetString("bundle-cache-min")
+			k8sSchemaURL, _ := cmd.Flags().GetString("k8s-schema-url")
+			k8sSchemaVersion, _ := cmd.Flags().GetString("k8s-schema-version")
+
+			return BundleFile(cmd.Context(), cmd.OutOrStdout(), BundleFileOptions{
+				InputFile:        args[0],
+				Indent:           indent,
+				BundleRoot:       bundleRoot,
+				BundleWithoutID:  bundleWithoutID,
+				CacheMin:         cacheMin,
+				K8sSchemaURL:     k8sSchemaURL,
+				K8sSchemaVersion: k8sSchemaVersion,
+			})
 		},
 	}
 
-	cmd.Flags().IntVar(&opts.Indent, "indent", DefaultConfig.Indent, "Indentation spaces (even number)")
-	cmd.Flags().StringVar(&opts.BundleRoot, "bundle-root", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
-	cmd.Flags().BoolVar(&opts.BundleWithoutID, "bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
-	cmd.Flags().StringVar(&opts.K8sSchemaURL, "k8s-schema-url", DefaultConfig.K8sSchemaURL, "URL template used in $ref: $k8s/... alias")
-	cmd.Flags().StringVar(&opts.K8sSchemaVersion, "k8s-schema-version", "", "Version used in the --k8s-schema-url template for $ref: $k8s/... alias")
+	registerSharedFlags(cmd.Flags())
 
 	return cmd
 }
@@ -78,6 +86,10 @@ type BundleFileOptions struct {
 	BundleWithoutID  bool
 	K8sSchemaURL     string
 	K8sSchemaVersion string
+	// CacheMin is the raw --bundle-cache-min value (e.g. "24h"); it is parsed by
+	// [ParseCacheMinDuration] and passed through to [Bundle] to raise the minimum
+	// cache duration for downloaded schemas. An empty string means no override.
+	CacheMin string
 }
 
 // BundleFile reads the JSON schema file referenced by opts.InputFile, bundles
@@ -89,6 +101,11 @@ func BundleFile(ctx context.Context, out io.Writer, opts BundleFileOptions) erro
 	}
 	if opts.Indent%2 != 0 {
 		return errors.New("indentation must be an even number")
+	}
+
+	cacheMinDuration, err := ParseCacheMinDuration(opts.CacheMin)
+	if err != nil {
+		return err
 	}
 
 	content, err := os.ReadFile(filepath.Clean(opts.InputFile))
@@ -112,7 +129,7 @@ func BundleFile(ctx context.Context, out io.Writer, opts BundleFileOptions) erro
 	// the filename internally to derive the directory used as the cosmetic base
 	// for relative $ref/$id paths. Passing the input file path makes those paths
 	// relative to the schema file's own directory, matching the generate command.
-	if err := Bundle(ctx, &schema, inputAbs, opts.BundleRoot, opts.BundleWithoutID, opts.K8sSchemaURL, opts.K8sSchemaVersion); err != nil {
+	if err := Bundle(ctx, &schema, inputAbs, opts.BundleRoot, opts.BundleWithoutID, opts.K8sSchemaURL, opts.K8sSchemaVersion, cacheMinDuration); err != nil {
 		return err
 	}
 
