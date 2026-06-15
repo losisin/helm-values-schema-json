@@ -756,6 +756,30 @@ func TestProcessComment_Error(t *testing.T) {
 	}
 }
 
+func TestProcessComment_ShorthandDecodeError(t *testing.T) {
+	// A non-nil value node that fails to decode (invalid base64 under the
+	// !!binary tag) exercises the shorthand decode-error path for both const
+	// and default.
+	badNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!binary", Value: "@@not-base64@@"}
+
+	tests := []struct {
+		name    string
+		comment string
+		wantErr string
+	}{
+		{name: "const shorthand decode error", comment: "# @schema const", wantErr: "const: decode YAML value:"},
+		{name: "default shorthand decode error", comment: "# @schema default", wantErr: "default: decode YAML value:"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var schema Schema
+			err := processComment(&schema, []string{tt.comment}, badNode)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestProcessObjectComment(t *testing.T) {
 	tests := []struct {
 		name    string
