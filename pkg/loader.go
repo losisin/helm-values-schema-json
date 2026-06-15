@@ -45,9 +45,9 @@ func (r *RootFS) Open(name string) (fs.File, error) {
 	return ((*os.Root)(r)).Open(name)
 }
 
-func NewDefaultLoader(client *http.Client, bundleFS fs.FS, basePath string) Loader {
+func NewDefaultLoader(client *http.Client, bundleFS fs.FS, basePath string, cacheMinDuration time.Duration) Loader {
 	fileLoader := NewFileLoader(bundleFS, basePath)
-	httpLoader := NewHTTPLoader(client, NewHTTPCache())
+	httpLoader := NewHTTPLoader(client, NewHTTPCache(cacheMinDuration))
 	return NewCacheLoader(URLSchemeLoader{
 		"http":  httpLoader,
 		"https": httpLoader,
