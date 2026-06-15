@@ -142,7 +142,7 @@ func convertScalarsToString(slice []any) {
 	}
 }
 
-func processComment(schema *Schema, commentLines []string) error {
+func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) error {
 	for key, value := range splitCommentsByParts(commentLines) {
 		switch key {
 		case "enum":
@@ -229,7 +229,7 @@ func processComment(schema *Schema, commentLines []string) error {
 				return fmt.Errorf("deprecated: %w", err)
 			}
 		case "default":
-			if err := processObjectComment(&schema.Default, value); err != nil {
+			if err := processValueComment(&schema.Default, value, valNode); err != nil {
 				return fmt.Errorf("default: %w", err)
 			}
 		case "item":
@@ -308,7 +308,7 @@ func processComment(schema *Schema, commentLines []string) error {
 				return fmt.Errorf("not: %w", err)
 			}
 		case "const":
-			if err := processObjectComment(&schema.Const, value); err != nil {
+			if err := processValueComment(&schema.Const, value, valNode); err != nil {
 				return fmt.Errorf("const: %w", err)
 			}
 		default:
@@ -316,6 +316,26 @@ func processComment(schema *Schema, commentLines []string) error {
 		}
 	}
 
+	return nil
+}
+
+// processValueComment fills dest from the annotation value. When the value is
+// omitted — the shorthand form `# @schema const` or `# @schema default` — it
+// derives the value from the YAML node the comment is attached to instead,
+// including null. The explicit form (`# @schema const: foo`) keeps taking the
+// value written in the comment, so the long form stays the default behavior.
+func processValueComment(dest *any, comment string, valNode *yaml.Node) error {
+	if strings.TrimSpace(comment) != "" {
+		return processObjectComment(dest, comment)
+	}
+	if valNode == nil {
+		return fmt.Errorf("parse object %q: missing value", comment)
+	}
+	var value any
+	if err := valNode.Decode(&value); err != nil {
+		return fmt.Errorf("decode YAML value: %w", err)
+	}
+	*dest = value
 	return nil
 }
 
