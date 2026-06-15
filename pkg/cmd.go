@@ -69,17 +69,11 @@ func NewCmd() *cobra.Command {
 	cmd.Flags().StringSliceP("values", "f", DefaultConfig.Values, "One or more YAML files as inputs. Use comma-separated list or supply flag multiple times")
 	cmd.Flags().StringP("output", "o", DefaultConfig.Output, "Output file path")
 	cmd.Flags().Int("draft", DefaultConfig.Draft, "Draft version (4, 6, 7, 2019, or 2020)")
-	cmd.Flags().Int("indent", DefaultConfig.Indent, "Indentation spaces (even number)")
 	cmd.Flags().Bool("no-additional-properties", false, "Default additionalProperties to false for all objects in the schema")
 	cmd.Flags().Bool("no-default-global", false, "Disable automatic injection of 'global' property when schema root does not allow it")
 
 	cmd.Flags().Bool("bundle", false, "Bundle referenced ($ref) subschemas into a single file inside $defs")
-	cmd.Flags().Bool("bundle-without-id", false, "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension")
-	cmd.Flags().String("bundle-root", "", "Root directory to allow local referenced files to be loaded from (default current working directory)")
-	cmd.Flags().String("bundle-cache-min", "", "Minimum cache duration for downloaded schemas, e.g. 24h or 30m. Raises short server Cache-Control max-age values; empty follows the server")
-
-	cmd.Flags().String("k8s-schema-url", DefaultConfig.K8sSchemaURL, "URL template used in $ref: $k8s/... alias")
-	cmd.Flags().String("k8s-schema-version", "", "Version used in the --k8s-schema-url template for $ref: $k8s/... alias")
+	registerSharedFlags(cmd.Flags())
 
 	cmd.Flags().Bool("use-helm-docs", false, "Read description from https://github.com/norwoodj/helm-docs comments")
 
