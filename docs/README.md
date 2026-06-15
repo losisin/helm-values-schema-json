@@ -75,6 +75,7 @@ The following annotations are supported:
     * [minimum](#minimum)
 * [Arrays](#arrays)
     * [item](#item)
+    * [itemRequired](#itemrequired)
     * [maxItems](#maxitems)
     * [minItems](#minitems)
     * [uniqueItems](#uniqueitems)
@@ -348,6 +349,28 @@ This will generate following schema:
 ```json
 "imagePullSecrets": {
     "items": {
+        "type": "object"
+    }
+}
+```
+
+### itemRequired
+
+This is a special annotation that sets required properties on items of an array.
+
+```yaml
+env: [] # @schema item:object; itemRequired:[name, value]
+```
+
+This will generate following schema:
+
+```json
+"env": {
+    "items": {
+        "required": [
+            "name",
+            "value"
+        ],
         "type": "object"
     }
 }
