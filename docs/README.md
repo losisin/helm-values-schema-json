@@ -270,6 +270,12 @@ nameOverride: foo # @schema const: foo
 }
 ```
 
+Omitting the value (`# @schema const`) reuses the field's own YAML value, so the example above is equivalent to:
+
+```yaml
+nameOverride: foo # @schema const
+```
+
 ## Strings
 
 ### maxLength
@@ -1066,6 +1072,19 @@ tolerations: [] # @schema default: [{key: foo, operator: Equal, value: bar, effe
         }
     ],
     "type": "array"
+}
+```
+
+Omitting the value (`# @schema default`) reuses the field's own YAML value:
+
+```yaml
+replicas: 3 # @schema default
+```
+
+```json
+"replicas": {
+    "default": 3,
+    "type": "integer"
 }
 ```
 
