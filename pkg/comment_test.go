@@ -539,6 +539,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Items: &Schema{Enum: []any{1, 2}}},
 		},
 		{
+			name:       "Set array only item pattern",
+			schema:     &Schema{},
+			comment:    "# @schema itemPattern:^[a-z]+$",
+			wantSchema: &Schema{Items: &Schema{Pattern: "^[a-z]+$"}},
+		},
+		{
 			name:       "Set array only item required",
 			schema:     &Schema{},
 			comment:    "# @schema itemRequired:[name, value]",

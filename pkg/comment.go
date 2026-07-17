@@ -273,6 +273,11 @@ func processComment(schema *Schema, commentLines []string) error {
 				schema.Items = &Schema{}
 			}
 			schema.Items.Enum = processList(value, false)
+		case "itemPattern":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			schema.Items.Pattern = value
 		case "itemRef":
 			if schema.Items == nil {
 				schema.Items = &Schema{}
