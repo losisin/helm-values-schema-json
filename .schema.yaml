@@ -61,6 +61,10 @@ k8sSchemaVersion: "v1.33.1"
 useHelmDocs: true # @schema default: false
 
 # -- Default additionalProperties to false for all objects in the schema.
+# Objects that also get properties from an in-place applicator ("$ref", "allOf",
+# "anyOf", "oneOf", "if"/"then"/"else", "dependentSchemas") get
+# "unevaluatedProperties" instead on draft 2019-09 and later, because
+# "additionalProperties" cannot see those properties and would reject them.
 # Flag: --no-additional-properties
 noAdditionalProperties: true # @schema default: false
 

@@ -154,7 +154,7 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 }
 
 func ensureCompliant(schema *Schema, noAdditionalProperties, noDefaultGlobal bool, draft int) error {
-	if err := ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft); err != nil {
+	if err := ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft, false); err != nil {
 		return err
 	}
 
@@ -164,7 +164,9 @@ func ensureCompliant(schema *Schema, noAdditionalProperties, noDefaultGlobal boo
 	return nil
 }
 
-func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool, draft int) error {
+// ensureCompliantRec walks the schema. The appliedInPlace flag says whether this schema
+// validates the same instance location as the schema holding it; see [isAppliedInPlace].
+func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool, draft int, appliedInPlace bool) error {
 	if schema == nil {
 		return nil
 	}
@@ -180,7 +182,7 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 
 	for path, sub := range schema.Subschemas() {
 		// continue recursively
-		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties, draft); err != nil {
+		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties, draft, isAppliedInPlace(path)); err != nil {
 			return err
 		}
 	}
@@ -193,8 +195,8 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		return err
 	}
 
-	if schema.AdditionalProperties == nil && noAdditionalProperties && schema.IsType("object") {
-		schema.AdditionalProperties = SchemaFalse()
+	if noAdditionalProperties && !appliedInPlace && schema.IsType("object") {
+		closeObject(schema, draft)
 	}
 
 	switch {
@@ -232,6 +234,71 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 	}
 
 	return nil
+}
+
+// closeObject closes an object schema to properties it does not define, as asked for by
+// the "noAdditionalProperties" setting. An explicitly set keyword is always respected.
+//
+// An in-place applicator ($ref, allOf, anyOf, oneOf, if/then/else) contributes properties
+// that `additionalProperties` cannot see (JSON Schema 2020-12 §10.3.2 / §11.3), so closing
+// such an object with additionalProperties:false would reject every property the applicator
+// evaluates. `unevaluatedProperties` accounts for them, but exists only in draft 2019-09+.
+// See issues #317 and #324.
+//
+// This is the single decision point for both the schema root (see [buildJSONSchema])
+// and every node below it (see [ensureCompliantRec]).
+func closeObject(schema *Schema, draft int) {
+	if draft >= 2019 && hasInPlaceApplicator(schema) {
+		if schema.AdditionalProperties == nil && schema.UnevaluatedProperties == nil {
+			schema.UnevaluatedProperties = SchemaFalse()
+		}
+		return
+	}
+	if schema.AdditionalProperties == nil {
+		schema.AdditionalProperties = SchemaFalse()
+	}
+}
+
+// hasInPlaceApplicator reports whether the schema uses an in-place applicator that
+// contributes properties from outside this schema object's own properties /
+// patternProperties — properties `additionalProperties` cannot see but
+// `unevaluatedProperties` can. `not` is excluded: it is a negation and contributes none.
+func hasInPlaceApplicator(schema *Schema) bool {
+	return schema.Ref != "" ||
+		schema.DynamicRef != "" ||
+		schema.RecursiveRef != "" ||
+		len(schema.AllOf) > 0 ||
+		len(schema.AnyOf) > 0 ||
+		len(schema.OneOf) > 0 ||
+		len(schema.DependentSchemas) > 0 ||
+		schema.If != nil
+}
+
+// inPlaceApplicators are the keywords whose subschemas validate the *same* instance
+// location as the schema holding them, together with whatever that schema's siblings
+// contribute. "$defs"/"definitions" are included because their entries are only ever
+// reached through a "$ref", which applies them in place as well.
+var inPlaceApplicators = map[string]struct{}{
+	"allOf": {}, "anyOf": {}, "oneOf": {},
+	"not": {}, "if": {}, "then": {}, "else": {},
+	"dependentSchemas": {},
+	"$defs":            {}, "definitions": {},
+}
+
+// isAppliedInPlace reports whether the relative pointer of a subschema — as yielded by
+// [Schema.Subschemas] — reaches it through an in-place applicator.
+//
+// Such a subschema must not be closed with additionalProperties:false, because it cannot
+// see the properties contributed alongside it and would reject every one of them. The
+// schema that applies it closes the instance location instead, with unevaluatedProperties
+// (see [closeObject]). Nodes below it that are reached through "properties" and friends
+// are the sole authority for their own instance location, so they are closed as usual.
+func isAppliedInPlace(path Ptr) bool {
+	if len(path) == 0 {
+		return false
+	}
+	_, ok := inPlaceApplicators[path[0]]
+	return ok
 }
 
 // updateInternalRefsForDraft7 updates internal JSON pointer references after
@@ -348,14 +415,8 @@ func addMissingGlobalProperty(schema *Schema) {
 		schema == nil,
 		// "global" property already set
 		hasKey(schema.Properties, "global"),
-		// `"additionalProperties": null`
-		schema.AdditionalProperties == nil,
-		// `"additionalProperties": true`
-		schema.AdditionalProperties.Kind() == SchemaKindTrue,
-		// `"additionalProperties": {"type": ["object", ...]}`
-		schema.AdditionalProperties.Kind() != SchemaKindFalse && schema.AdditionalProperties.IsType("object"),
-		// `"additionalProperties": {"type": null}` (aka "allow any type")
-		schema.AdditionalProperties.Kind() != SchemaKindFalse && schema.AdditionalProperties.Type == nil:
+		// neither keyword closes the schema, so "global" is allowed as-is
+		!rejectsGlobalObject(schema.AdditionalProperties) && !rejectsGlobalObject(schema.UnevaluatedProperties):
 		return
 	}
 
@@ -365,11 +426,31 @@ func addMissingGlobalProperty(schema *Schema) {
 	schema.Properties["global"] = defaultGlobal()
 }
 
+// rejectsGlobalObject reports whether the given "additionalProperties" or
+// "unevaluatedProperties" subschema would reject Helm's special "global" object value.
+// A schema closed by either keyword needs /properties/global spelled out; see
+// [addMissingGlobalProperty] and [closeObject].
+func rejectsGlobalObject(schema *Schema) bool {
+	switch {
+	case
+		// keyword not set at all
+		schema == nil,
+		// `true`
+		schema.Kind() == SchemaKindTrue,
+		// `{"type": ["object", ...]}`
+		schema.Kind() != SchemaKindFalse && schema.IsType("object"),
+		// `{"type": null}` (aka "allow any type")
+		schema.Kind() != SchemaKindFalse && schema.Type == nil:
+		return false
+	}
+	return true
+}
+
 // defaultGlobal returns the default "global" property subschema used by [addMissingGlobalProperty].
 func defaultGlobal() *Schema {
 	return &Schema{
 		Type:        []any{"object", "null"},
-		Comment:     "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as the `additionalProperties` setting would otherwise collide with Helm's special 'global' values key.",
+		Comment:     "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key.",
 		Description: "Global values shared between all subcharts",
 	}
 }

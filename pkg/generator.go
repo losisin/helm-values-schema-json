@@ -136,7 +136,9 @@ func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 	if config.SchemaRoot.AdditionalProperties != nil {
 		mergedSchema.AdditionalProperties = SchemaBool(*config.SchemaRoot.AdditionalProperties)
 	} else if config.NoAdditionalProperties {
-		mergedSchema.AdditionalProperties = SchemaFalse()
+		// The root carries a $ref of its own when --schema-root.ref is used, so it needs
+		// the same applicator-aware treatment as every node below it.
+		closeObject(mergedSchema, config.Draft)
 	}
 
 	// Ensure merged Schema is JSON Schema compliant
