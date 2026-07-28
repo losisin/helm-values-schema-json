@@ -76,6 +76,7 @@ The following annotations are supported:
     * [minimum](#minimum)
 * [Arrays](#arrays)
     * [item](#item)
+    * [itemPattern](#itempattern)
     * [itemRequired](#itemrequired)
     * [maxItems](#maxitems)
     * [minItems](#minitems)
@@ -385,6 +386,25 @@ This will generate following schema:
 "imagePullSecrets": {
     "items": {
         "type": "object"
+    }
+}
+```
+
+### itemPattern
+
+This is a special annotation that applies [pattern](#pattern) to string items of an array.
+
+```yaml
+hostnames: [] # @schema item:string; itemPattern:^[a-z0-9.-]+$
+```
+
+This will generate the following schema:
+
+```json
+"hostnames": {
+    "items": {
+        "pattern": "^[a-z0-9.-]+$",
+        "type": "string"
     }
 }
 ```
