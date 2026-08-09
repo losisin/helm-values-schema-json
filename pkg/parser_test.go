@@ -1028,3 +1028,47 @@ func TestAddMissingGlobalProperty(t *testing.T) {
 		})
 	}
 }
+
+func TestIsAppliedInPlace(t *testing.T) {
+	t.Parallel()
+	t.Run("nil ptr", func(t *testing.T) {
+		got := isAppliedInPlace(nil)
+		testutil.Equal(t, false, got)
+	})
+
+	tests := []struct {
+		prop string
+		want bool
+	}{
+		{"allOf", true},
+		{"anyOf", true},
+		{"oneOf", true},
+		{"not", true},
+		{"if", true},
+		{"then", true},
+		{"else", true},
+		{"dependentSchemas", true},
+		{"$defs", true},
+		{"definitions", true},
+
+		{"default", false},
+		{"items", false},
+		{"const", false},
+
+		{"foobar", false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.prop, func(t *testing.T) {
+			t.Parallel()
+			t.Run("only", func(t *testing.T) {
+				got := isAppliedInPlace(NewPtr(test.prop))
+				testutil.Equal(t, test.want, got)
+			})
+			t.Run("longer path", func(t *testing.T) {
+				got := isAppliedInPlace(NewPtr(test.prop, "items", "default"))
+				testutil.Equal(t, test.want, got)
+			})
+		})
+	}
+}

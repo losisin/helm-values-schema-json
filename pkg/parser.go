@@ -274,17 +274,6 @@ func hasInPlaceApplicator(schema *Schema) bool {
 		schema.If != nil
 }
 
-// inPlaceApplicators are the keywords whose subschemas validate the *same* instance
-// location as the schema holding them, together with whatever that schema's siblings
-// contribute. "$defs"/"definitions" are included because their entries are only ever
-// reached through a "$ref", which applies them in place as well.
-var inPlaceApplicators = map[string]struct{}{
-	"allOf": {}, "anyOf": {}, "oneOf": {},
-	"not": {}, "if": {}, "then": {}, "else": {},
-	"dependentSchemas": {},
-	"$defs":            {}, "definitions": {},
-}
-
 // isAppliedInPlace reports whether the relative pointer of a subschema — as yielded by
 // [Schema.Subschemas] — reaches it through an in-place applicator.
 //
@@ -297,8 +286,17 @@ func isAppliedInPlace(path Ptr) bool {
 	if len(path) == 0 {
 		return false
 	}
-	_, ok := inPlaceApplicators[path[0]]
-	return ok
+	switch path[0] {
+	case "allOf", "anyOf", "oneOf",
+		"not", "if", "then", "else",
+		"dependentSchemas",
+		// "$defs"/"definitions" are included because their entries are only ever
+		// reached through a "$ref", which applies them in place as well.
+		"$defs", "definitions":
+		return true
+	default:
+		return false
+	}
 }
 
 // updateInternalRefsForDraft7 updates internal JSON pointer references after
