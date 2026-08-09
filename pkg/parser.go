@@ -154,7 +154,12 @@ func mergeSchemasMap(dest, src map[string]*Schema) map[string]*Schema {
 }
 
 func ensureCompliant(schema *Schema, noAdditionalProperties, noDefaultGlobal bool, draft int) error {
-	if err := ensureCompliantRec(nil, schema, map[*Schema]struct{}{}, noAdditionalProperties, draft, false); err != nil {
+	sc := schemaCompliance{
+		visited:                map[*Schema]struct{}{},
+		noAdditionalProperties: noAdditionalProperties,
+		draft:                  draft,
+	}
+	if err := sc.ensureCompliantRec(nil, schema, false); err != nil {
 		return err
 	}
 
@@ -164,25 +169,31 @@ func ensureCompliant(schema *Schema, noAdditionalProperties, noDefaultGlobal boo
 	return nil
 }
 
+type schemaCompliance struct {
+	visited                map[*Schema]struct{}
+	noAdditionalProperties bool
+	draft                  int
+}
+
 // ensureCompliantRec walks the schema. The appliedInPlace flag says whether this schema
 // validates the same instance location as the schema holding it; see [isAppliedInPlace].
-func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, noAdditionalProperties bool, draft int, appliedInPlace bool) error {
+func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedInPlace bool) error {
 	if schema == nil {
 		return nil
 	}
 
 	// If we've already visited this schema, we've found a circular reference
-	if hasKey(visited, schema) {
+	if hasKey(sc.visited, schema) {
 		return fmt.Errorf("%s: circular reference detected in schema", ptr)
 	}
 
 	// Mark the current schema as visited
-	visited[schema] = struct{}{}
-	defer delete(visited, schema)
+	sc.visited[schema] = struct{}{}
+	defer delete(sc.visited, schema)
 
 	for path, sub := range schema.Subschemas() {
 		// continue recursively
-		if err := ensureCompliantRec(ptr.Add(path), sub, visited, noAdditionalProperties, draft, isAppliedInPlace(path)); err != nil {
+		if err := sc.ensureCompliantRec(ptr.Add(path), sub, isAppliedInPlace(path)); err != nil {
 			return err
 		}
 	}
@@ -195,8 +206,8 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		return err
 	}
 
-	if noAdditionalProperties && !appliedInPlace && schema.IsType("object") {
-		closeObject(schema, draft)
+	if sc.noAdditionalProperties && !appliedInPlace && schema.IsType("object") {
+		closeObject(schema, sc.draft)
 	}
 
 	switch {
@@ -209,7 +220,7 @@ func ensureCompliantRec(ptr Ptr, schema *Schema, visited map[*Schema]struct{}, n
 		schema.Type = nil
 	}
 
-	if draft <= 7 && schema.Ref != "" {
+	if sc.draft <= 7 && schema.Ref != "" {
 		schemaClone := *schema
 		schemaClone.Ref = ""
 		if !schemaClone.IsZero() {
@@ -261,8 +272,10 @@ func closeObject(schema *Schema, draft int) {
 
 // hasInPlaceApplicator reports whether the schema uses an in-place applicator that
 // contributes properties from outside this schema object's own properties /
-// patternProperties — properties `additionalProperties` cannot see but
-// `unevaluatedProperties` can. `not` is excluded: it is a negation and contributes none.
+// patternProperties; properties which "additionalProperties" cannot see
+// but "unevaluatedProperties" can.
+//
+// "not" is excluded: it is a negation and contributes none.
 func hasInPlaceApplicator(schema *Schema) bool {
 	return schema.Ref != "" ||
 		schema.DynamicRef != "" ||
