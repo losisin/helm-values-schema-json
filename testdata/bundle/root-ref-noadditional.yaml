@@ -1,5 +1,9 @@
 # The chart's own values. The schema root also carries a "$ref" (--schema-root.ref)
 # pointing at a schema that defines *different* properties, so the two sides only
 # validate together if the root is closed with "unevaluatedProperties" and the
-# bundled "$defs" entry is left open. See issues #317 and #324.
+# bundled "$defs" entry is left open.
+#
+# See issues:
+# - https://github.com/losisin/helm-values-schema-json/issues/317
+# - https://github.com/losisin/helm-values-schema-json/issues/324
 own: hello

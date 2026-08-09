@@ -138,7 +138,7 @@ func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 	} else if config.NoAdditionalProperties {
 		// The root carries a $ref of its own when --schema-root.ref is used, so it needs
 		// the same applicator-aware treatment as every node below it.
-		closeObject(mergedSchema, config.Draft)
+		setNoAdditionalProperties(mergedSchema, config.Draft)
 	}
 
 	// Ensure merged Schema is JSON Schema compliant

@@ -207,7 +207,7 @@ func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedI
 	}
 
 	if sc.noAdditionalProperties && !appliedInPlace && schema.IsType("object") {
-		closeObject(schema, sc.draft)
+		setNoAdditionalProperties(schema, sc.draft)
 	}
 
 	switch {
@@ -247,18 +247,22 @@ func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedI
 	return nil
 }
 
-// closeObject closes an object schema to properties it does not define, as asked for by
-// the "noAdditionalProperties" setting. An explicitly set keyword is always respected.
+// setNoAdditionalProperties attempts to set "additionalProperties: false",
+// to apply the "--no-additional-properties" config. With some caveats:
 //
-// An in-place applicator ($ref, allOf, anyOf, oneOf, if/then/else) contributes properties
-// that `additionalProperties` cannot see (JSON Schema 2020-12 §10.3.2 / §11.3), so closing
-// such an object with additionalProperties:false would reject every property the applicator
-// evaluates. `unevaluatedProperties` accounts for them, but exists only in draft 2019-09+.
-// See issues #317 and #324.
+//   - If using draft 2019 (or later), and the schema has an in-place applicator
+//     ($ref, allOf, anyOf, oneOf, if/then/else), then set "unevaluatedProperties: false"
+//     instead, as "additionalProperties: false" does not account for the properties
+//     added by such applicators.
 //
-// This is the single decision point for both the schema root (see [buildJSONSchema])
-// and every node below it (see [ensureCompliantRec]).
-func closeObject(schema *Schema, draft int) {
+//   - If "additionalProperties" or "unevaluatedProperties" is already set,
+//     then do nothing.
+//
+// See issues [#317] and [#324].
+//
+// [#317]: https://github.com/losisin/helm-values-schema-json/issues/317
+// [#324]: https://github.com/losisin/helm-values-schema-json/issues/324
+func setNoAdditionalProperties(schema *Schema, draft int) {
 	if draft >= 2019 && hasInPlaceApplicator(schema) {
 		if schema.AdditionalProperties == nil && schema.UnevaluatedProperties == nil {
 			schema.UnevaluatedProperties = SchemaFalse()
@@ -293,7 +297,7 @@ func hasInPlaceApplicator(schema *Schema) bool {
 // Such a subschema must not be closed with additionalProperties:false, because it cannot
 // see the properties contributed alongside it and would reject every one of them. The
 // schema that applies it closes the instance location instead, with unevaluatedProperties
-// (see [closeObject]). Nodes below it that are reached through "properties" and friends
+// (see [setNoAdditionalProperties]). Nodes below it that are reached through "properties" and friends
 // are the sole authority for their own instance location, so they are closed as usual.
 func isAppliedInPlace(path Ptr) bool {
 	if len(path) == 0 {
@@ -440,7 +444,7 @@ func addMissingGlobalProperty(schema *Schema) {
 // rejectsGlobalObject reports whether the given "additionalProperties" or
 // "unevaluatedProperties" subschema would reject Helm's special "global" object value.
 // A schema closed by either keyword needs /properties/global spelled out; see
-// [addMissingGlobalProperty] and [closeObject].
+// [addMissingGlobalProperty] and [setNoAdditionalProperties].
 func rejectsGlobalObject(schema *Schema) bool {
 	switch {
 	case
