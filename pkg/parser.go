@@ -250,10 +250,11 @@ func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedI
 // setNoAdditionalProperties attempts to set "additionalProperties: false",
 // to apply the "--no-additional-properties" config. With some caveats:
 //
-//   - If using draft 2019 (or later), and the schema has an in-place applicator
-//     ($ref, allOf, anyOf, oneOf, if/then/else), then set "unevaluatedProperties: false"
-//     instead, as "additionalProperties: false" does not account for the properties
-//     added by such applicators.
+//   - If the schema has an in-place applicator ($ref, allOf, anyOf, oneOf, if/then/else),
+//     then set "unevaluatedProperties: false" instead, as "additionalProperties: false"
+//     does not account for the properties added by such applicators. On draft 7 and
+//     earlier, which has no "unevaluatedProperties", nothing is set and the schema is
+//     left open.
 //
 //   - If "additionalProperties" or "unevaluatedProperties" is already set,
 //     then do nothing.
@@ -263,8 +264,8 @@ func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedI
 // [#317]: https://github.com/losisin/helm-values-schema-json/issues/317
 // [#324]: https://github.com/losisin/helm-values-schema-json/issues/324
 func setNoAdditionalProperties(schema *Schema, draft int) {
-	if draft >= 2019 && hasInPlaceApplicator(schema) {
-		if schema.AdditionalProperties == nil && schema.UnevaluatedProperties == nil {
+	if hasInPlaceApplicator(schema) {
+		if draft >= 2019 && schema.AdditionalProperties == nil && schema.UnevaluatedProperties == nil {
 			schema.UnevaluatedProperties = SchemaFalse()
 		}
 		return
@@ -274,12 +275,9 @@ func setNoAdditionalProperties(schema *Schema, draft int) {
 	}
 }
 
-// hasInPlaceApplicator reports whether the schema uses an in-place applicator that
-// contributes properties from outside this schema object's own properties /
-// patternProperties; properties which "additionalProperties" cannot see
-// but "unevaluatedProperties" can.
-//
-// "not" is excluded: it is a negation and contributes none.
+// hasInPlaceApplicator reports whether the schema has an applicator contributing
+// properties that "additionalProperties" cannot see but "unevaluatedProperties" can.
+// "not" is excluded, as a negation contributes none.
 func hasInPlaceApplicator(schema *Schema) bool {
 	return schema.Ref != "" ||
 		schema.DynamicRef != "" ||
@@ -291,14 +289,12 @@ func hasInPlaceApplicator(schema *Schema) bool {
 		schema.If != nil
 }
 
-// isAppliedInPlace reports whether the relative pointer of a subschema — as yielded by
-// [Schema.Subschemas] — reaches it through an in-place applicator.
+// isAppliedInPlace reports whether a subschema's relative pointer, as yielded by
+// [Schema.Subschemas], reaches it through an in-place applicator.
 //
-// Such a subschema must not be closed with additionalProperties:false, because it cannot
-// see the properties contributed alongside it and would reject every one of them. The
-// schema that applies it closes the instance location instead, with unevaluatedProperties
-// (see [setNoAdditionalProperties]). Nodes below it that are reached through "properties" and friends
-// are the sole authority for their own instance location, so they are closed as usual.
+// Such a subschema cannot see the properties contributed alongside it, so closing it
+// would reject them. Closing the instance location is the applying schema's job,
+// see [setNoAdditionalProperties].
 func isAppliedInPlace(path Ptr) bool {
 	if len(path) == 0 {
 		return false

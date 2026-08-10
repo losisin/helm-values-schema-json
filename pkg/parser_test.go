@@ -450,15 +450,15 @@ func TestEnsureCompliant(t *testing.T) {
 		},
 
 		{
-			// draft <= 7 has no unevaluatedProperties: the existing $ref inlining path
-			// wraps into allOf and keeps additionalProperties. Must stay unchanged.
-			name:                   "ref keeps additionalProperties via allOf wrap when draft 7",
+			// draft <= 7 has no "unevaluatedProperties", so the node is left open
+			// instead of being closed wrongly.
+			name:                   "ref stays open when draft 7",
 			schema:                 &Schema{Ref: "#", Type: "object"},
 			noAdditionalProperties: true,
 			draft:                  7,
 			want: &Schema{
 				AllOf: []*Schema{
-					{Type: "object", AdditionalProperties: SchemaFalse()},
+					{Type: "object"},
 					{Ref: "#"},
 				},
 			},
@@ -520,8 +520,8 @@ func TestEnsureCompliant(t *testing.T) {
 		},
 
 		{
-			// dependentSchemas is an in-place applicator too. Not reachable from a
-			// "# @schema" annotation, but bundling can inline a schema that uses it.
+			// dependentSchemas is an in-place applicator too.
+			// Bundling may inline a schema that uses it.
 			name: "dependentSchemas uses unevaluatedProperties when draft 2020",
 			schema: &Schema{
 				Type: "object",
@@ -542,7 +542,7 @@ func TestEnsureCompliant(t *testing.T) {
 		},
 
 		{
-			// An explicitly set additionalProperties must be respected, not migrated.
+			// An explicitly set additionalProperties must be respected, not migrated to unevaluatedProperties.
 			name:                   "respect explicit additionalProperties on ref node",
 			schema:                 &Schema{Ref: "#", Type: "object", AdditionalProperties: SchemaTrue()},
 			noAdditionalProperties: true,
