@@ -689,6 +689,94 @@ func TestParseNode(t *testing.T) {
 			},
 			expectedReq: nil,
 		},
+		{
+			// The shorthand goes through processComment, which parseNode is
+			// the only caller of, so these cases exercise the real path.
+			name: "parse shorthand default from map value",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema default", yamlutil.Map(
+					yamlutil.String("x"),
+					yamlutil.Int(1),
+				)),
+			),
+			expectedType: "object",
+			expectedProps: map[string]*Schema{"key": {
+				Type:       "object",
+				Properties: map[string]*Schema{"x": {Type: "integer"}},
+				Default:    map[string]any{"x": 1},
+			}},
+			expectedReq: nil,
+		},
+		{
+			name: "parse shorthand default from list value",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema default", yamlutil.Seq(
+					yamlutil.String("a"),
+					yamlutil.String("b"),
+				)),
+			),
+			expectedType: "object",
+			expectedProps: map[string]*Schema{"key": {
+				Type:    "array",
+				Items:   &Schema{Type: "string"},
+				Default: []any{"a", "b"},
+			}},
+			expectedReq: nil,
+		},
+		{
+			name: "parse shorthand const and default from one comment",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema const; default", yamlutil.String("foo")),
+			),
+			expectedType:  "object",
+			expectedProps: map[string]*Schema{"key": {Type: "string", Const: "foo", Default: "foo"}},
+			expectedReq:   nil,
+		},
+		{
+			// A hidden property is left out of the schema, so it must be left
+			// out of the derived default too.
+			name: "parse shorthand default skips hidden property",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema default", yamlutil.Map(
+					yamlutil.String("keep"),
+					yamlutil.String("ok"),
+					yamlutil.WithLineComment("# @schema hidden", yamlutil.String("drop")),
+					yamlutil.String("secret-token"),
+				)),
+			),
+			expectedType: "object",
+			expectedProps: map[string]*Schema{"key": {
+				Type:       "object",
+				Properties: map[string]*Schema{"keep": {Type: "string"}},
+				Default:    map[string]any{"keep": "ok"},
+			}},
+			expectedReq: nil,
+		},
+		{
+			// skipProperties drops the properties from the schema, so the
+			// derived default must not carry them either. Annotation order in
+			// the comment must not matter.
+			name: "parse shorthand default with skipProperties on the same node",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema skipProperties; default", yamlutil.Map(
+					yamlutil.String("x"),
+					yamlutil.Int(1),
+				)),
+			),
+			expectedType: "object",
+			expectedProps: map[string]*Schema{"key": {
+				Type:           "object",
+				Properties:     nil,
+				SkipProperties: true,
+				Default:        map[string]any{},
+			}},
+			expectedReq: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -720,6 +808,24 @@ func TestParseNode_Error(t *testing.T) {
 			),
 			useHelmDocs: true,
 			wantErr:     "/key: parse @schema comments: hidden: invalid boolean",
+		},
+		{
+			// "default:" with a colon but no value is the explicit long form
+			// missing its value, not the shorthand, so it must still error.
+			name: "shorthand default with colon and no value",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema default:", yamlutil.String("value")),
+			),
+			wantErr: `/key: parse @schema comments: default: parse object "": missing value`,
+		},
+		{
+			name: "shorthand const with colon and no value",
+			valNode: yamlutil.Map(
+				yamlutil.String("key"),
+				yamlutil.WithLineComment("# @schema const:", yamlutil.String("value")),
+			),
+			wantErr: `/key: parse @schema comments: const: parse object "": missing value`,
 		},
 		{
 			name: "helm-docs map",
