@@ -277,6 +277,10 @@ Omitting the value (`# @schema const`) reuses the field's own YAML value, so the
 nameOverride: foo # @schema const
 ```
 
+The same rules as [`default`](#default) apply: `# @schema const:` with a colon
+and no value stays an error, maps and lists are reused whole, and `hidden` /
+`skipProperties` still remove what they remove.
+
 ## Strings
 
 ### maxLength
@@ -1105,6 +1109,73 @@ replicas: 3 # @schema default
 "replicas": {
     "default": 3,
     "type": "integer"
+}
+```
+
+Note the missing colon. `# @schema default:` is the explicit form with its value
+left out, and stays an error.
+
+Maps and lists are reused as well, which keeps `nodeSelector: {}` and
+`tolerations: []` working without repeating them in the comment:
+
+```yaml
+nodeSelector: {} # @schema default
+args: # @schema default
+  - --verbose
+```
+
+```json
+"nodeSelector": {
+    "default": {},
+    "type": "object"
+},
+"args": {
+    "default": [
+        "--verbose"
+    ],
+    "type": "array",
+    "items": {
+        "type": "string"
+    }
+}
+```
+
+Anything the annotations keep out of the schema is kept out of the reused value
+too, so the shorthand cannot put back what you removed. A property marked
+[`hidden`](#hidden) is left out, and `skipProperties` yields
+an empty object:
+
+```yaml
+resources: # @schema default
+  limits:
+    cpu: 100m
+  token: s3cr3t # @schema hidden
+podLabels: # @schema skipProperties; default
+  app: nginx
+```
+
+```json
+"resources": {
+    "default": {
+        "limits": {
+            "cpu": "100m"
+        }
+    },
+    "type": "object",
+    "properties": {
+        "limits": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+},
+"podLabels": {
+    "default": {},
+    "type": "object"
 }
 ```
 
