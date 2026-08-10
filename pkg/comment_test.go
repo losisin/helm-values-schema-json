@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
+	"github.com/losisin/helm-values-schema-json/v2/internal/yamlutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -291,8 +292,8 @@ func TestSplitCommentByParts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var pairs []Pair
-			for key, value := range splitCommentsByParts(tt.comments) {
-				pairs = append(pairs, Pair{key, value})
+			for annot := range splitCommentsByParts(tt.comments) {
+				pairs = append(pairs, Pair{annot.Key, annot.Value})
 			}
 			testutil.Equal(t, tt.want, pairs)
 		})
@@ -307,8 +308,8 @@ func TestSplitCommentsByParts_break(t *testing.T) {
 	comments := []string{"# @schema foo:bar; moo:doo; baz:boz"}
 
 	var pairs []Pair
-	for key, value := range splitCommentsByParts(comments) {
-		pairs = append(pairs, Pair{key, value})
+	for annot := range splitCommentsByParts(comments) {
+		pairs = append(pairs, Pair{annot.Key, annot.Value})
 		if len(pairs) == 2 {
 			break
 		}
@@ -669,26 +670,26 @@ func TestProcessComment(t *testing.T) {
 			name:       "Set const shorthand from string value",
 			schema:     &Schema{},
 			comment:    "# @schema const",
-			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "foo"},
+			valNode:    yamlutil.String("foo"),
 			wantSchema: &Schema{Const: "foo"},
 		},
 		{
 			name:       "Set default shorthand from int value",
 			schema:     &Schema{},
 			comment:    "# @schema default",
-			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!int", Value: "3"},
+			valNode:    yamlutil.Int(3),
 			wantSchema: &Schema{Default: 3},
 		},
 		{
 			name:       "Set const shorthand from bool value",
 			schema:     &Schema{},
 			comment:    "# @schema const",
-			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"},
+			valNode:    yamlutil.Bool(true),
 			wantSchema: &Schema{Const: true},
 		},
 		{
-			// null is decoded to nil and applied without error, matching the
-			// existing `# @schema const: null` behavior.
+			// null decodes to nil, which `omitempty` then drops, so the
+			// shorthand is a no-op on a null value rather than an error.
 			name:       "Set default shorthand from null value",
 			schema:     &Schema{},
 			comment:    "# @schema default",
@@ -696,12 +697,75 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Default: nil},
 		},
 		{
+			name:       "Set default shorthand from map value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			wantSchema: &Schema{Default: map[string]any{"x": 1}},
+		},
+		{
+			name:       "Set default shorthand from list value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Seq(yamlutil.String("a"), yamlutil.String("b")),
+			wantSchema: &Schema{Default: []any{"a", "b"}},
+		},
+		{
+			// An empty map and an empty list are preserved as-is, which is
+			// what makes `nodeSelector: {}` and `tolerations: []` usable.
+			name:       "Set default shorthand from empty map value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Map(),
+			wantSchema: &Schema{Default: map[string]any{}},
+		},
+		{
+			// A hidden property is kept out of the schema, so it must stay out
+			// of the value the shorthand derives too.
+			name:    "Set default shorthand skips hidden property",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.String("keep"), yamlutil.String("ok"),
+				yamlutil.WithLineComment("# @schema hidden", yamlutil.String("drop")), yamlutil.String("secret-token"),
+			),
+			wantSchema: &Schema{Default: map[string]any{"keep": "ok"}},
+		},
+		{
+			// Same for skipProperties: the properties are dropped from the
+			// schema, so they must not reappear inside default.
+			name:    "Set default shorthand empties a skipProperties child",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.WithLineComment("# @schema skipProperties", yamlutil.String("a")),
+				yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			),
+			wantSchema: &Schema{Default: map[string]any{"a": map[string]any{}}},
+		},
+		{
+			// skipProperties on the annotated node itself, in the same comment
+			// as the shorthand, so ordering must not matter.
+			name:       "Set default shorthand honors skipProperties on the same node",
+			schema:     &Schema{},
+			comment:    "# @schema skipProperties; default",
+			valNode:    yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			wantSchema: &Schema{SkipProperties: true, Default: map[string]any{}},
+		},
+		{
+			name:       "Set const and default shorthand from one comment",
+			schema:     &Schema{},
+			comment:    "# @schema const; default",
+			valNode:    yamlutil.String("foo"),
+			wantSchema: &Schema{Const: "foo", Default: "foo"},
+		},
+		{
 			// The explicit long form keeps taking the value from the comment,
 			// ignoring the YAML node value.
 			name:       "Explicit const value overrides the node value",
 			schema:     &Schema{},
 			comment:    "# @schema const: bar",
-			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "foo"},
+			valNode:    yamlutil.String("foo"),
 			wantSchema: &Schema{Const: "bar"},
 		},
 		{
