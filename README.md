@@ -134,7 +134,7 @@ Flags:
       --indent int                          Indentation spaces (even number) (default 4)
       --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/")
       --k8s-schema-version string           Version used in the --k8s-schema-url template for $ref: $k8s/... alias
-      --no-additional-properties            Default additionalProperties to false for all objects in the schema
+      --no-additional-properties            Default additionalProperties to false for all objects in the schema, or unevaluatedProperties where properties also come from a $ref or allOf
       --no-default-global                   Disable automatic injection of 'global' property when schema root does not allow it
   -o, --output string                       Output file path (default "values.schema.json")
       --schema-root.additional-properties   Allow additional properties

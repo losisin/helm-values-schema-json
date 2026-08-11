@@ -1,0 +1,32 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$ref": "root-ref-subschema.schema.json",
+    "type": "object",
+    "properties": {
+        "global": {
+            "description": "Global values shared between all subcharts",
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key.",
+            "type": [
+                "object",
+                "null"
+            ]
+        },
+        "own": {
+            "type": "string"
+        }
+    },
+    "unevaluatedProperties": false,
+    "$defs": {
+        "root-ref-subschema.schema.json": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "root-ref-subschema.schema.json",
+            "$comment": "Sample root schema referenced via --schema-root.ref. This file is meant to be manually created and not automatically generated. It deliberately does not set \"additionalProperties\", so the generator decides how to close it.",
+            "type": "object",
+            "properties": {
+                "fromRef": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

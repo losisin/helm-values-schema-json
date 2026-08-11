@@ -12,7 +12,9 @@ package testdata
 //go:generate go run .. --values meta.yaml --output meta.schema.json
 //go:generate go run .. --values noAdditionalProperties.yaml --output noAdditionalProperties.schema.json --no-additional-properties=true
 //go:generate go run .. --values ref.yaml --output ref-draft2020.schema.json --draft 2020
+//go:generate go run .. --values ref.yaml --output ref-draft2020-noadditional.schema.json --draft 2020 --no-additional-properties=true
 //go:generate go run .. --values ref.yaml --output ref-draft7.schema.json --draft 7
+//go:generate go run .. --values ref.yaml --output root-ref-draft2020-noadditional.schema.json --draft 2020 --no-additional-properties=true --schema-root.ref schema/product.json
 //go:generate go run .. --values subschema.yaml --output subschema.schema.json
 
 //go:generate go run .. --use-helm-docs --values helm-docs/values.yaml --output helm-docs/values.schema.json
@@ -27,6 +29,7 @@ package testdata
 //go:generate go run .. --bundle=true --values bundle/nested.yaml --output bundle/nested.schema.json
 //go:generate go run .. --bundle=true --values bundle/ref-relative-to-id.yaml --output bundle/ref-relative-to-id-without-id.schema.json --bundle-without-id=true
 //go:generate go run .. --bundle=true --values bundle/ref-relative-to-id.yaml --output bundle/ref-relative-to-id.schema.json
+//go:generate go run .. --bundle=true --values bundle/root-ref-noadditional.yaml --output bundle/root-ref-noadditional.schema.json --schema-root.ref ./bundle/root-ref-subschema.schema.json --no-additional-properties=true
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-absolute-root.schema.json --bundle-root=/
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-root-ref.schema.json --schema-root.ref ./bundle/simple-subschema.schema.json
 //go:generate go run .. --bundle=true --values bundle/simple.yaml --output bundle/simple-without-id.schema.json --bundle-without-id=true
