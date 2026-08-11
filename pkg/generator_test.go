@@ -96,6 +96,44 @@ func TestGenerateJsonSchema(t *testing.T) {
 		},
 
 		{
+			// A $ref node with noAdditionalProperties must be closed with
+			// unevaluatedProperties (not additionalProperties) at draft 2019+, while
+			// nested plain-object nodes still get additionalProperties:false.
+			// https://github.com/losisin/helm-values-schema-json/issues/317
+			name: "ref draft 2020 noAdditionalProperties",
+			config: &Config{
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: true,
+				Values: []string{
+					"../testdata/ref.yaml",
+				},
+				Output: "../testdata/ref-draft2020-noadditional_output.json",
+			},
+			templateSchemaFile: "../testdata/ref-draft2020-noadditional.schema.json",
+		},
+		{
+			// The schema root carries a $ref too when --schema-root.ref is used, so it
+			// must be closed with unevaluatedProperties for the same reason, and must
+			// still get the injected "global" property.
+			// https://github.com/losisin/helm-values-schema-json/issues/317
+			name: "root ref draft 2020 noAdditionalProperties",
+			config: &Config{
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: true,
+				Values: []string{
+					"../testdata/ref.yaml",
+				},
+				SchemaRoot: SchemaRoot{
+					Ref: "schema/product.json",
+				},
+				Output: "../testdata/root-ref-draft2020-noadditional_output.json",
+			},
+			templateSchemaFile: "../testdata/root-ref-draft2020-noadditional.schema.json",
+		},
+
+		{
 			name: "bundle/simple",
 			config: &Config{
 				Draft:      2020,
@@ -241,6 +279,32 @@ func TestGenerateJsonSchema(t *testing.T) {
 				Output: "../testdata/bundle/simple-root-ref_output.json",
 			},
 			templateSchemaFile: "../testdata/bundle/simple-root-ref.schema.json",
+		},
+		{
+			// The whole point of the exercise: --schema-root.ref bundled into $defs, with
+			// noAdditionalProperties. The root is closed with unevaluatedProperties so it
+			// accepts what the $ref contributes, and the bundled $defs entry is left open
+			// so it does not reject the root's own properties. Both are needed for
+			// "helm template" to accept either side's values.
+			// https://github.com/losisin/helm-values-schema-json/issues/317
+			// https://github.com/losisin/helm-values-schema-json/issues/324
+			name: "bundle/root-ref-noAdditionalProperties",
+			config: &Config{
+				Draft:                  2020,
+				Indent:                 4,
+				Bundle:                 true,
+				BundleRoot:             "..",
+				NoAdditionalProperties: true,
+				SchemaRoot: SchemaRoot{
+					// Should be relative to CWD, which is this ./pkg dir
+					Ref: "../testdata/bundle/root-ref-subschema.schema.json",
+				},
+				Values: []string{
+					"../testdata/bundle/root-ref-noadditional.yaml",
+				},
+				Output: "../testdata/bundle/root-ref-noadditional_output.json",
+			},
+			templateSchemaFile: "../testdata/bundle/root-ref-noadditional.schema.json",
 		},
 		{
 			// https://github.com/losisin/helm-values-schema-json/issues/286

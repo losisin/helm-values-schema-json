@@ -462,7 +462,7 @@ func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
 			}
 		}
 		for index, subSchema := range schema.OneOf {
-			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("anyOf").Item(index), subSchema) {
+			if subSchema.Kind() == SchemaKindObject && !yield(NewPtr("oneOf").Item(index), subSchema) {
 				return
 			}
 		}

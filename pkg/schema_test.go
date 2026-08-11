@@ -1025,6 +1025,90 @@ func TestSchemaSubschemas_order(t *testing.T) {
 	}
 }
 
+func TestSchemaSubschemas_pointers(t *testing.T) {
+	// A comprehensive test that verifies Subschema() yields correct pointers
+	// for all supported applicator keywords. This prevents copy-paste bugs
+	// like the one where "oneOf" was yielding "anyOf" pointers.
+	schema := &Schema{
+		AllOf:                 []*Schema{{ID: "allOf-0"}, {ID: "allOf-1"}},
+		AnyOf:                 []*Schema{{ID: "anyOf-0"}, {ID: "anyOf-1"}},
+		OneOf:                 []*Schema{{ID: "oneOf-0"}, {ID: "oneOf-1"}},
+		Not:                   &Schema{ID: "not"},
+		If:                    &Schema{ID: "if"},
+		Then:                  &Schema{ID: "then"},
+		Else:                  &Schema{ID: "else"},
+		ContentSchema:         &Schema{ID: "contentSchema"},
+		Contains:              &Schema{ID: "contains"},
+		PrefixItems:           []*Schema{{ID: "prefixItems-0"}, {ID: "prefixItems-1"}},
+		Items:                 &Schema{ID: "items"},
+		AdditionalItems:       &Schema{ID: "additionalItems"},
+		UnevaluatedItems:      &Schema{ID: "unevaluatedItems"},
+		PropertyNames:         &Schema{ID: "propertyNames"},
+		Properties:            map[string]*Schema{"propA": {ID: "properties-propA"}, "propB": {ID: "properties-propB"}},
+		PatternProperties:     map[string]*Schema{"^[a-z]+$": {ID: "patternProperties-key"}},
+		AdditionalProperties:  &Schema{ID: "additionalProperties"},
+		UnevaluatedProperties: &Schema{ID: "unevaluatedProperties"},
+		DependentSchemas:      map[string]*Schema{"depA": {ID: "dependentSchemas-depA"}},
+		Defs:                  map[string]*Schema{"defA": {ID: "$defs-defA"}},
+		Definitions:           map[string]*Schema{"defB": {ID: "definitions-defB"}},
+	}
+
+	want := map[string]string{
+		"/allOf/0":                    "allOf-0",
+		"/allOf/1":                    "allOf-1",
+		"/anyOf/0":                    "anyOf-0",
+		"/anyOf/1":                    "anyOf-1",
+		"/oneOf/0":                    "oneOf-0",
+		"/oneOf/1":                    "oneOf-1",
+		"/not":                        "not",
+		"/if":                         "if",
+		"/then":                       "then",
+		"/else":                       "else",
+		"/contentSchema":              "contentSchema",
+		"/contains":                   "contains",
+		"/prefixItems/0":              "prefixItems-0",
+		"/prefixItems/1":              "prefixItems-1",
+		"/items":                      "items",
+		"/additionalItems":            "additionalItems",
+		"/unevaluatedItems":           "unevaluatedItems",
+		"/propertyNames":              "propertyNames",
+		"/properties/propA":           "properties-propA",
+		"/properties/propB":           "properties-propB",
+		"/patternProperties/^[a-z]+$": "patternProperties-key",
+		"/additionalProperties":       "additionalProperties",
+		"/unevaluatedProperties":      "unevaluatedProperties",
+		"/dependentSchemas/depA":      "dependentSchemas-depA",
+		"/$defs/defA":                 "$defs-defA",
+		"/definitions/defB":           "definitions-defB",
+	}
+
+	got := map[string]string{}
+	for ptr, s := range schema.Subschemas() {
+		got[ptr.String()] = s.ID
+	}
+
+	if len(got) != len(want) {
+		t.Errorf("got %d pointers, want %d", len(got), len(want))
+	}
+
+	for path, wantID := range want {
+		gotID, ok := got[path]
+		if !ok {
+			t.Errorf("missing pointer %q", path)
+			continue
+		}
+		if gotID != wantID {
+			t.Errorf("pointer %q: got ID %q, want %q", path, gotID, wantID)
+		}
+	}
+
+	for path, gotID := range got {
+		if _, ok := want[path]; !ok {
+			t.Errorf("unexpected pointer %q (ID=%q)", path, gotID)
+		}
+	}
+}
+
 func TestSchemaParseRef(t *testing.T) {
 	tests := []struct {
 		name   string

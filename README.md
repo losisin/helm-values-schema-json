@@ -2,7 +2,6 @@
 
 [![ci](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/losisin/helm-values-schema-json/actions/workflows/ci.yaml)
 [![codecov](https://codecov.io/gh/losisin/helm-values-schema-json/graph/badge.svg?token=0QQVCFJH84)](https://codecov.io/gh/losisin/helm-values-schema-json)
-[![Go Report Card](https://goreportcard.com/badge/github.com/losisin/helm-values-schema-json)](https://goreportcard.com/report/github.com/losisin/helm-values-schema-json)
 [![Static Badge](https://img.shields.io/badge/licence%20-%20MIT-green)](https://github.com/losisin/helm-values-schema-json/blob/main/LICENSE)
 [![GitHub release (with filter)](https://img.shields.io/github/v/release/losisin/helm-values-schema-json)](https://github.com/losisin/helm-values-schema-json/releases)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/losisin/helm-values-schema-json/total)
@@ -135,7 +134,7 @@ Flags:
       --indent int                          Indentation spaces (even number) (default 4)
       --k8s-schema-url string               URL template used in $ref: $k8s/... alias (default "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/{{ .K8sSchemaVersion }}/")
       --k8s-schema-version string           Version used in the --k8s-schema-url template for $ref: $k8s/... alias
-      --no-additional-properties            Default additionalProperties to false for all objects in the schema
+      --no-additional-properties            Default additionalProperties to false for all objects in the schema, or unevaluatedProperties where properties also come from a $ref or allOf
       --no-default-global                   Disable automatic injection of 'global' property when schema root does not allow it
   -o, --output string                       Output file path (default "values.schema.json")
       --schema-root.additional-properties   Allow additional properties

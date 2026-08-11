@@ -1,0 +1,10 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "Sample root schema referenced via --schema-root.ref. This file is meant to be manually created and not automatically generated. It deliberately does not set \"additionalProperties\", so the generator decides how to close it.",
+    "type": "object",
+    "properties": {
+        "fromRef": {
+            "type": "string"
+        }
+    }
+}
