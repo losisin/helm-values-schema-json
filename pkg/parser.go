@@ -252,9 +252,10 @@ func (sc *schemaCompliance) ensureCompliantRec(ptr Ptr, schema *Schema, appliedI
 //
 //   - If the schema has an in-place applicator ($ref, allOf, anyOf, oneOf, if/then/else),
 //     then set "unevaluatedProperties: false" instead, as "additionalProperties: false"
-//     does not account for the properties added by such applicators. On draft 7 and
-//     earlier, which has no "unevaluatedProperties", nothing is set and the schema is
-//     left open.
+//     does not account for the properties added by such applicators.
+//
+//   - On draft 7 and earlier, which has no "unevaluatedProperties",
+//     nothing is set and the schema is left open.
 //
 //   - If "additionalProperties" or "unevaluatedProperties" is already set,
 //     then do nothing.
