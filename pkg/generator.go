@@ -198,11 +198,18 @@ func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent s
 	return nil
 }
 
+//gosec:disable G304 -- path is provided by the user, but that's intentional.
 func writeOutputFile(stdout io.Writer, path string, content []byte) error {
 	if path == "-" {
 		if _, err := stdout.Write(content); err != nil {
 			return fmt.Errorf("write schema to stdout: %w", err)
 		}
+		return nil
+	}
+
+	// Don't touch the file if its content is already up to date, so that
+	// modification times stay stable for tooling that watches the file.
+	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, content) {
 		return nil
 	}
 

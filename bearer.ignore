@@ -1,0 +1,8 @@
+{
+  "3e62f4ee41a5fb80d82d43cbff2e2fc2_0": {
+    "author": "Kalle Fagerberg",
+    "comment": "path is provided by the user, but that's intentional.",
+    "false_positive": true,
+    "ignored_at": "2026-08-13T20:28:11Z"
+  }
+}
