@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -897,6 +898,34 @@ func TestWriteOutputFile_WriteToFile(t *testing.T) {
 	defer func() {
 		_ = os.Remove("some_example_output.txt")
 	}()
+}
+
+func TestWriteOutputFile_UnchangedContentIsNotRewritten(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "values.schema.json")
+	content := []byte("some content\n")
+	require.NoError(t, writeOutputFile(nil, path, content))
+
+	before, err := os.Stat(path)
+	require.NoError(t, err)
+
+	// Make sure a rewrite would be observable on filesystems with coarse
+	// modification time resolution.
+	stale := before.ModTime().Add(-time.Hour)
+	require.NoError(t, os.Chtimes(path, stale, stale))
+
+	require.NoError(t, writeOutputFile(nil, path, content))
+
+	after, err := os.Stat(path)
+	require.NoError(t, err)
+	testutil.Equal(t, stale.UnixNano(), after.ModTime().UnixNano())
+
+	// A changed schema must still be written.
+	require.NoError(t, writeOutputFile(nil, path, []byte("other content\n")))
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	testutil.Equal(t, "other content\n", string(got))
 }
 
 func TestWriteOutputFile_WriteToStdout(t *testing.T) {
