@@ -732,6 +732,19 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Default: map[string]any{"keep": "ok"}},
 		},
 		{
+			// A hidden list item is kept out of the schema the same way a
+			// hidden property is, so the shorthand has to drop it from the
+			// derived list rather than leave a gap or copy it through.
+			name:    "Set default shorthand skips hidden list item",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.WithLineComment("# @schema hidden", yamlutil.String("drop")),
+				yamlutil.String("keep"),
+			),
+			wantSchema: &Schema{Default: []any{"keep"}},
+		},
+		{
 			// Same for skipProperties: the properties are dropped from the
 			// schema, so they must not reappear inside default.
 			name:    "Set default shorthand empties a skipProperties child",
@@ -906,16 +919,68 @@ func TestProcessComment_ShorthandDecodeError(t *testing.T) {
 	tests := []struct {
 		name    string
 		comment string
+		valNode *yaml.Node
 		wantErr string
 	}{
-		{name: "const shorthand decode error", comment: "# @schema const", wantErr: "const: decode YAML value:"},
-		{name: "default shorthand decode error", comment: "# @schema default", wantErr: "default: decode YAML value:"},
+		{name: "const shorthand decode error", comment: "# @schema const", valNode: badNode, wantErr: "const: decode YAML value:"},
+		{name: "default shorthand decode error", comment: "# @schema default", valNode: badNode, wantErr: "default: decode YAML value:"},
+
+		// An unparseable hidden/skipProperties annotation on a nested node has
+		// to surface rather than be silently treated as false, or the shorthand
+		// would copy content the user meant to keep out of the schema.
+		{
+			name:    "hidden invalid bool in map value",
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("k")), yamlutil.String("v"),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		{
+			name:    "skipProperties invalid bool in map value",
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.WithLineComment("# @schema skipProperties: foo", yamlutil.String("k")), yamlutil.String("v"),
+			),
+			wantErr: "skipProperties: invalid boolean",
+		},
+		{
+			name:    "hidden invalid bool in list item",
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("a")),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		// The same, one level down, so the error travels back up through the
+		// recursive call rather than only out of the top-level node.
+		{
+			name:    "hidden invalid bool nested in map value",
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.String("outer"),
+				yamlutil.Map(
+					yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("inner")), yamlutil.String("v"),
+				),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		{
+			name:    "hidden invalid bool nested in list item",
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.Map(
+					yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("inner")), yamlutil.String("v"),
+				),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema Schema
-			err := processComment(&schema, []string{tt.comment}, badNode)
+			err := processComment(&schema, []string{tt.comment}, tt.valNode)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
