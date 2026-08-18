@@ -363,7 +363,7 @@ func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) e
 		if valNode == nil {
 			return fmt.Errorf(`%s: parse object "": missing value`, key)
 		}
-		value, err := decodeValueNode(valNode, schema.SkipProperties)
+		value, err := decodeValueNode(valNode)
 		if err != nil {
 			return fmt.Errorf("%s: %w", key, err)
 		}
@@ -389,28 +389,27 @@ func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) e
 //
 // will use the YAML value 123.
 //
-// Annotations that keep content out of the schema keep it out of the decoded
-// value too, so the shorthand cannot put back what the user asked to remove:
-// a property marked hidden is left out, and skipProperties yields an empty
-// object. skipSelf carries that flag for valNode itself, as it is annotated in
-// the same comment as the shorthand.
-func decodeValueNode(valNode *yaml.Node, skipSelf bool) (any, error) {
+// A property marked hidden is left out of the decoded value, so the shorthand
+// cannot put back what the user asked to remove.
+//
+// skipProperties is not treated that way. It only drops the properties from
+// the generated schema, and the decoded value still holds what the YAML
+// defines. This matters when it is combined with $ref: the $ref supplies the
+// schema, and default keeps the chart's own value.
+func decodeValueNode(valNode *yaml.Node) (any, error) {
 	switch valNode.Kind {
 	case yaml.MappingNode:
-		if skipSelf {
-			return map[string]any{}, nil
-		}
 		value := make(map[string]any, len(valNode.Content)/2)
 		for i := 0; i+1 < len(valNode.Content); i += 2 {
 			keyNode, childNode := valNode.Content[i], valNode.Content[i+1]
-			hidden, skipProperties, err := valueNodeFlags(keyNode, childNode)
+			hidden, err := valueNodeFlags(keyNode, childNode)
 			if err != nil {
 				return nil, err
 			}
 			if hidden {
 				continue
 			}
-			child, err := decodeValueNode(childNode, skipProperties)
+			child, err := decodeValueNode(childNode)
 			if err != nil {
 				return nil, err
 			}
@@ -421,14 +420,14 @@ func decodeValueNode(valNode *yaml.Node, skipSelf bool) (any, error) {
 	case yaml.SequenceNode:
 		value := make([]any, 0, len(valNode.Content))
 		for _, itemNode := range valNode.Content {
-			hidden, skipProperties, err := valueNodeFlags(nil, itemNode)
+			hidden, err := valueNodeFlags(nil, itemNode)
 			if err != nil {
 				return nil, err
 			}
 			if hidden {
 				continue
 			}
-			item, err := decodeValueNode(itemNode, skipProperties)
+			item, err := decodeValueNode(itemNode)
 			if err != nil {
 				return nil, err
 			}
@@ -445,24 +444,19 @@ func decodeValueNode(valNode *yaml.Node, skipSelf bool) (any, error) {
 	}
 }
 
-// valueNodeFlags reports the two annotations on a node that remove content
-// from the generated schema, so [decodeValueNode] can remove the same content
-// from a shorthand const or default.
-func valueNodeFlags(keyNode, valNode *yaml.Node) (hidden, skipProperties bool, err error) {
+// valueNodeFlags reports whether a node is annotated hidden, so
+// [decodeValueNode] leaves it out of a shorthand const or default the same way
+// the generated schema does.
+func valueNodeFlags(keyNode, valNode *yaml.Node) (hidden bool, err error) {
 	comments, _ := getComments(keyNode, valNode, false)
 	for annot := range splitCommentsByParts(comments) {
-		switch annot.Key {
-		case "hidden":
+		if annot.Key == "hidden" {
 			if err := processBoolComment(&hidden, annot.Value); err != nil {
-				return false, false, fmt.Errorf("hidden: %w", err)
-			}
-		case "skipProperties":
-			if err := processBoolComment(&skipProperties, annot.Value); err != nil {
-				return false, false, fmt.Errorf("skipProperties: %w", err)
+				return false, fmt.Errorf("hidden: %w", err)
 			}
 		}
 	}
-	return hidden, skipProperties, nil
+	return hidden, nil
 }
 
 // appendNullType adds "null" to the schema type, turning a single type into a
