@@ -757,10 +757,10 @@ func TestParseNode(t *testing.T) {
 			expectedReq: nil,
 		},
 		{
-			// skipProperties drops the properties from the schema, so the
-			// derived default must not carry them either. Annotation order in
-			// the comment must not matter.
-			name: "parse shorthand default with skipProperties on the same node",
+			// skipProperties drops the properties from the schema but leaves
+			// the value alone, so the derived default still carries them.
+			// Annotation order in the comment must not matter.
+			name: "parse shorthand default keeps the value under skipProperties",
 			valNode: yamlutil.Map(
 				yamlutil.String("key"),
 				yamlutil.WithLineComment("# @schema skipProperties; default", yamlutil.Map(
@@ -773,7 +773,7 @@ func TestParseNode(t *testing.T) {
 				Type:           "object",
 				Properties:     nil,
 				SkipProperties: true,
-				Default:        map[string]any{},
+				Default:        map[string]any{"x": 1},
 			}},
 			expectedReq: nil,
 		},

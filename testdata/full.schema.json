@@ -209,7 +209,9 @@
                     "type": "object"
                 },
                 "podLabels": {
-                    "default": {},
+                    "default": {
+                        "app": "nginx"
+                    },
                     "type": "object"
                 },
                 "replicaCount": {
