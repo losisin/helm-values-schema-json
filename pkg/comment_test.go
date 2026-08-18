@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/losisin/helm-values-schema-json/v2/internal/testutil"
+	"github.com/losisin/helm-values-schema-json/v2/internal/yamlutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -291,8 +292,8 @@ func TestSplitCommentByParts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var pairs []Pair
-			for key, value := range splitCommentsByParts(tt.comments) {
-				pairs = append(pairs, Pair{key, value})
+			for annot := range splitCommentsByParts(tt.comments) {
+				pairs = append(pairs, Pair{annot.Key, annot.Value})
 			}
 			testutil.Equal(t, tt.want, pairs)
 		})
@@ -307,8 +308,8 @@ func TestSplitCommentsByParts_break(t *testing.T) {
 	comments := []string{"# @schema foo:bar; moo:doo; baz:boz"}
 
 	var pairs []Pair
-	for key, value := range splitCommentsByParts(comments) {
-		pairs = append(pairs, Pair{key, value})
+	for annot := range splitCommentsByParts(comments) {
+		pairs = append(pairs, Pair{annot.Key, annot.Value})
 		if len(pairs) == 2 {
 			break
 		}
@@ -442,6 +443,7 @@ func TestProcessComment(t *testing.T) {
 		name       string
 		schema     *Schema
 		comment    string
+		valNode    *yaml.Node
 		wantSchema *Schema
 	}{
 		{
@@ -665,6 +667,123 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Examples: []any{"foo", "bar"}},
 		},
 		{
+			name:       "Set const shorthand from string value",
+			schema:     &Schema{},
+			comment:    "# @schema const",
+			valNode:    yamlutil.String("foo"),
+			wantSchema: &Schema{Const: "foo"},
+		},
+		{
+			name:       "Set default shorthand from int value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Int(3),
+			wantSchema: &Schema{Default: 3},
+		},
+		{
+			name:       "Set const shorthand from bool value",
+			schema:     &Schema{},
+			comment:    "# @schema const",
+			valNode:    yamlutil.Bool(true),
+			wantSchema: &Schema{Const: true},
+		},
+		{
+			// null decodes to nil, which `omitempty` then drops, so the
+			// shorthand is a no-op on a null value rather than an error.
+			name:       "Set default shorthand from null value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!null", Value: "null"},
+			wantSchema: &Schema{Default: nil},
+		},
+		{
+			name:       "Set default shorthand from map value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			wantSchema: &Schema{Default: map[string]any{"x": 1}},
+		},
+		{
+			name:       "Set default shorthand from list value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Seq(yamlutil.String("a"), yamlutil.String("b")),
+			wantSchema: &Schema{Default: []any{"a", "b"}},
+		},
+		{
+			// An empty map and an empty list are preserved as-is, which is
+			// what makes `nodeSelector: {}` and `tolerations: []` usable.
+			name:       "Set default shorthand from empty map value",
+			schema:     &Schema{},
+			comment:    "# @schema default",
+			valNode:    yamlutil.Map(),
+			wantSchema: &Schema{Default: map[string]any{}},
+		},
+		{
+			// A hidden property is kept out of the schema, so it must stay out
+			// of the value the shorthand derives too.
+			name:    "Set default shorthand skips hidden property",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.String("keep"), yamlutil.String("ok"),
+				yamlutil.WithLineComment("# @schema hidden", yamlutil.String("drop")), yamlutil.String("secret-token"),
+			),
+			wantSchema: &Schema{Default: map[string]any{"keep": "ok"}},
+		},
+		{
+			// A hidden list item is kept out of the schema the same way a
+			// hidden property is, so the shorthand has to drop it from the
+			// derived list rather than leave a gap or copy it through.
+			name:    "Set default shorthand skips hidden list item",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.WithLineComment("# @schema hidden", yamlutil.String("drop")),
+				yamlutil.String("keep"),
+			),
+			wantSchema: &Schema{Default: []any{"keep"}},
+		},
+		{
+			// skipProperties is not like hidden: it drops the properties from
+			// the schema but leaves the value alone, so the child keeps its
+			// content inside default.
+			name:    "Set default shorthand keeps a skipProperties child's value",
+			schema:  &Schema{},
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.WithLineComment("# @schema skipProperties", yamlutil.String("a")),
+				yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			),
+			wantSchema: &Schema{Default: map[string]any{"a": map[string]any{"x": 1}}},
+		},
+		{
+			// skipProperties on the annotated node itself, in the same comment
+			// as the shorthand. The schema loses the properties, default keeps
+			// the YAML value. This is the $ref case the annotation exists for.
+			name:       "Set default shorthand keeps the value under skipProperties on the same node",
+			schema:     &Schema{},
+			comment:    "# @schema skipProperties; default",
+			valNode:    yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
+			wantSchema: &Schema{SkipProperties: true, Default: map[string]any{"x": 1}},
+		},
+		{
+			name:       "Set const and default shorthand from one comment",
+			schema:     &Schema{},
+			comment:    "# @schema const; default",
+			valNode:    yamlutil.String("foo"),
+			wantSchema: &Schema{Const: "foo", Default: "foo"},
+		},
+		{
+			// The explicit long form keeps taking the value from the comment,
+			// ignoring the YAML node value.
+			name:       "Explicit const value overrides the node value",
+			schema:     &Schema{},
+			comment:    "# @schema const: bar",
+			valNode:    yamlutil.String("foo"),
+			wantSchema: &Schema{Const: "bar"},
+		},
+		{
 			name:       "nullable on inferred scalar type",
 			schema:     &Schema{Type: "string"},
 			comment:    "# @schema nullable",
@@ -710,7 +829,7 @@ func TestProcessComment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processComment(tt.schema, []string{tt.comment})
+			err := processComment(tt.schema, []string{tt.comment}, tt.valNode)
 			require.NoError(t, err)
 			testutil.Equal(t, tt.wantSchema, tt.schema)
 		})
@@ -779,12 +898,83 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "oneOf invalid YAML", comment: "# @schema oneOf: {", wantErr: "oneOf: parse object \"{\": yaml"},
 		{name: "not invalid YAML", comment: "# @schema not: {", wantErr: "not: parse object \"{\": yaml"},
 		{name: "const invalid YAML", comment: "# @schema const: {", wantErr: "const: parse object \"{\": yaml"},
+
+		{name: "const shorthand without a node", comment: "# @schema const", wantErr: "const: parse object \"\": missing value"},
+		{name: "default shorthand without a node", comment: "# @schema default", wantErr: "default: parse object \"\": missing value"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema Schema
-			err := processComment(&schema, []string{tt.comment})
+			err := processComment(&schema, []string{tt.comment}, nil)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestProcessComment_ShorthandDecodeError(t *testing.T) {
+	// A non-nil value node that fails to decode (invalid base64 under the
+	// !!binary tag) exercises the shorthand decode-error path for both const
+	// and default.
+	badNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!binary", Value: "@@not-base64@@"}
+
+	tests := []struct {
+		name    string
+		comment string
+		valNode *yaml.Node
+		wantErr string
+	}{
+		{name: "const shorthand decode error", comment: "# @schema const", valNode: badNode, wantErr: "const: decode YAML value:"},
+		{name: "default shorthand decode error", comment: "# @schema default", valNode: badNode, wantErr: "default: decode YAML value:"},
+
+		// An unparseable hidden/skipProperties annotation on a nested node has
+		// to surface rather than be silently treated as false, or the shorthand
+		// would copy content the user meant to keep out of the schema.
+		{
+			name:    "hidden invalid bool in map value",
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("k")), yamlutil.String("v"),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		{
+			name:    "hidden invalid bool in list item",
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("a")),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		// The same, one level down, so the error travels back up through the
+		// recursive call rather than only out of the top-level node.
+		{
+			name:    "hidden invalid bool nested in map value",
+			comment: "# @schema default",
+			valNode: yamlutil.Map(
+				yamlutil.String("outer"),
+				yamlutil.Map(
+					yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("inner")), yamlutil.String("v"),
+				),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+		{
+			name:    "hidden invalid bool nested in list item",
+			comment: "# @schema default",
+			valNode: yamlutil.Seq(
+				yamlutil.Map(
+					yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("inner")), yamlutil.String("v"),
+				),
+			),
+			wantErr: "hidden: invalid boolean",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var schema Schema
+			err := processComment(&schema, []string{tt.comment}, tt.valNode)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

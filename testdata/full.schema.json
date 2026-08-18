@@ -192,6 +192,56 @@
                 null
             ]
         },
+        "shorthand": {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "default": [
+                        "--verbose"
+                    ],
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "nodeSelector": {
+                    "default": {},
+                    "type": "object"
+                },
+                "podLabels": {
+                    "default": {
+                        "app": "nginx"
+                    },
+                    "type": "object"
+                },
+                "replicaCount": {
+                    "default": 3,
+                    "type": "integer"
+                },
+                "resources": {
+                    "default": {
+                        "limits": {
+                            "cpu": "100m"
+                        }
+                    },
+                    "type": "object",
+                    "properties": {
+                        "limits": {
+                            "type": "object",
+                            "properties": {
+                                "cpu": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "strategy": {
+                    "default": "RollingUpdate",
+                    "const": "RollingUpdate"
+                }
+            }
+        },
         "subchart": {
             "$ref": "https://example.com/schema.json",
             "type": "object",
