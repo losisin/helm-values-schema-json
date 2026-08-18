@@ -745,25 +745,27 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Default: []any{"keep"}},
 		},
 		{
-			// Same for skipProperties: the properties are dropped from the
-			// schema, so they must not reappear inside default.
-			name:    "Set default shorthand empties a skipProperties child",
+			// skipProperties is not like hidden: it drops the properties from
+			// the schema but leaves the value alone, so the child keeps its
+			// content inside default.
+			name:    "Set default shorthand keeps a skipProperties child's value",
 			schema:  &Schema{},
 			comment: "# @schema default",
 			valNode: yamlutil.Map(
 				yamlutil.WithLineComment("# @schema skipProperties", yamlutil.String("a")),
 				yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
 			),
-			wantSchema: &Schema{Default: map[string]any{"a": map[string]any{}}},
+			wantSchema: &Schema{Default: map[string]any{"a": map[string]any{"x": 1}}},
 		},
 		{
 			// skipProperties on the annotated node itself, in the same comment
-			// as the shorthand, so ordering must not matter.
-			name:       "Set default shorthand honors skipProperties on the same node",
+			// as the shorthand. The schema loses the properties, default keeps
+			// the YAML value. This is the $ref case the annotation exists for.
+			name:       "Set default shorthand keeps the value under skipProperties on the same node",
 			schema:     &Schema{},
 			comment:    "# @schema skipProperties; default",
 			valNode:    yamlutil.Map(yamlutil.String("x"), yamlutil.Int(1)),
-			wantSchema: &Schema{SkipProperties: true, Default: map[string]any{}},
+			wantSchema: &Schema{SkipProperties: true, Default: map[string]any{"x": 1}},
 		},
 		{
 			name:       "Set const and default shorthand from one comment",
@@ -935,14 +937,6 @@ func TestProcessComment_ShorthandDecodeError(t *testing.T) {
 				yamlutil.WithLineComment("# @schema hidden: foo", yamlutil.String("k")), yamlutil.String("v"),
 			),
 			wantErr: "hidden: invalid boolean",
-		},
-		{
-			name:    "skipProperties invalid bool in map value",
-			comment: "# @schema default",
-			valNode: yamlutil.Map(
-				yamlutil.WithLineComment("# @schema skipProperties: foo", yamlutil.String("k")), yamlutil.String("v"),
-			),
-			wantErr: "skipProperties: invalid boolean",
 		},
 		{
 			name:    "hidden invalid bool in list item",

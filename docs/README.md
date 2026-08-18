@@ -278,8 +278,9 @@ nameOverride: foo # @schema const
 ```
 
 The same rules as [`default`](#default) apply: `# @schema const:` with a colon
-and no value stays an error, maps and lists are reused whole, and `hidden` /
-`skipProperties` still remove what they remove.
+and no value stays an error, maps and lists are reused whole, `hidden` still
+removes what it removes, and `skipProperties` affects the generated schema
+only.
 
 ## Strings
 
@@ -1140,10 +1141,13 @@ args: # @schema default
 }
 ```
 
-Anything the annotations keep out of the schema is kept out of the reused value
-too, so the shorthand cannot put back what you removed. A property marked
-[`hidden`](#hidden) is left out, and `skipProperties` yields
-an empty object:
+A property marked [`hidden`](#hidden) is kept out of the reused value too, so
+the shorthand cannot put back what you removed.
+
+`skipProperties` is different: it only drops the properties
+from the generated schema, and the reused value still carries what the YAML
+defines. That is what makes it useful with [`$ref`](#ref): the `$ref` supplies
+the schema, and `default` keeps your chart's own value:
 
 ```yaml
 resources: # @schema default
@@ -1174,7 +1178,9 @@ podLabels: # @schema skipProperties; default
     }
 },
 "podLabels": {
-    "default": {},
+    "default": {
+        "app": "nginx"
+    },
     "type": "object"
 }
 ```

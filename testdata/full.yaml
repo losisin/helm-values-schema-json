@@ -89,5 +89,7 @@ shorthand:
       cpu: 100m
     # Hidden stays out of the schema, so it stays out of the default too
     token: s3cr3t # @schema hidden
+  # skipProperties drops the properties from the schema, but the default keeps
+  # the YAML value
   podLabels: # @schema skipProperties; default
     app: nginx
