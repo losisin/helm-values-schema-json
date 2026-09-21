@@ -486,26 +486,6 @@ func appendNullType(t any) any {
 	}
 }
 
-// processValueComment fills dest from the annotation value. When the value is
-// omitted — the shorthand form `# @schema const` or `# @schema default` — it
-// derives the value from the YAML node the comment is attached to instead,
-// including null. The explicit form (`# @schema const: foo`) keeps taking the
-// value written in the comment, so the long form stays the default behavior.
-func processValueComment(dest *any, comment string, valNode *yaml.Node) error {
-	if strings.TrimSpace(comment) != "" {
-		return processObjectComment(dest, comment)
-	}
-	if valNode == nil {
-		return fmt.Errorf("parse object %q: missing value", comment)
-	}
-	var value any
-	if err := valNode.Decode(&value); err != nil {
-		return fmt.Errorf("decode YAML value: %w", err)
-	}
-	*dest = value
-	return nil
-}
-
 func processObjectComment[T any](dest *T, comment string) error {
 	comment = strings.TrimSpace(comment)
 	switch comment {
