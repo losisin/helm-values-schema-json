@@ -36,8 +36,18 @@ func getComments(keyNode, valNode *yaml.Node, useHelmDocs bool) (comments, helmD
 	return comments, helmDocs
 }
 
-func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
-	return func(yield func(string, string) bool) {
+// annotation is a single "key: value" pair from a @schema comment.
+// HasValue distinguishes "key" from "key:", which both leave Value empty but
+// mean different things: only the former is the shorthand that reads the value
+// off the YAML node.
+type annotation struct {
+	Key      string
+	Value    string
+	HasValue bool
+}
+
+func splitCommentsByParts(commentLines []string) iter.Seq[annotation] {
+	return func(yield func(annotation) bool) {
 		for _, comment := range commentLines {
 			trimmed, ok := cutSchemaComment(comment)
 			if !ok {
@@ -45,11 +55,13 @@ func splitCommentsByParts(commentLines []string) iter.Seq2[string, string] {
 			}
 
 			for part := range strings.SplitSeq(trimmed, ";") {
-				key, value, _ := strings.Cut(part, ":")
-				key = strings.TrimSpace(key)
-				value = strings.TrimSpace(value)
+				key, value, hasValue := strings.Cut(part, ":")
 
-				if !yield(key, value) {
+				if !yield(annotation{
+					Key:      strings.TrimSpace(key),
+					Value:    strings.TrimSpace(value),
+					HasValue: hasValue,
+				}) {
 					return
 				}
 			}
@@ -142,11 +154,16 @@ func convertScalarsToString(slice []any) {
 	}
 }
 
-func processComment(schema *Schema, commentLines []string) error {
+func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) error {
 	// nullable is applied after the loop so it merges "null" into the final
 	// type regardless of the order keywords appear in the comment.
 	var nullable bool
-	for key, value := range splitCommentsByParts(commentLines) {
+	// Same for the const/default shorthands: they read the YAML node, and
+	// skipProperties changes what that node contributes, so they cannot be
+	// resolved until every annotation in the comment has been seen.
+	var constShorthand, defaultShorthand bool
+	for annot := range splitCommentsByParts(commentLines) {
+		key, value := annot.Key, annot.Value
 		switch key {
 		case "enum":
 			schema.Enum = processList(value, false)
@@ -236,6 +253,10 @@ func processComment(schema *Schema, commentLines []string) error {
 				return fmt.Errorf("deprecated: %w", err)
 			}
 		case "default":
+			if !annot.HasValue {
+				defaultShorthand = true
+				break
+			}
 			if err := processObjectComment(&schema.Default, value); err != nil {
 				return fmt.Errorf("default: %w", err)
 			}
@@ -320,6 +341,10 @@ func processComment(schema *Schema, commentLines []string) error {
 				return fmt.Errorf("not: %w", err)
 			}
 		case "const":
+			if !annot.HasValue {
+				constShorthand = true
+				break
+			}
 			if err := processObjectComment(&schema.Const, value); err != nil {
 				return fmt.Errorf("const: %w", err)
 			}
@@ -328,11 +353,110 @@ func processComment(schema *Schema, commentLines []string) error {
 		}
 	}
 
+	if constShorthand || defaultShorthand {
+		// Report against whichever annotation asked for the shorthand, so the
+		// error reads the same as the explicit form's.
+		key := "const"
+		if !constShorthand {
+			key = "default"
+		}
+		if valNode == nil {
+			return fmt.Errorf(`%s: parse object "": missing value`, key)
+		}
+		value, err := decodeValueNode(valNode)
+		if err != nil {
+			return fmt.Errorf("%s: %w", key, err)
+		}
+		if constShorthand {
+			schema.Const = value
+		}
+		if defaultShorthand {
+			schema.Default = value
+		}
+	}
+
 	if nullable {
 		schema.Type = appendNullType(schema.Type)
 	}
 
 	return nil
+}
+
+// decodeValueNode reads the value from the YAML node instead of from the
+// "@schema annotation". For example:
+//
+//	foo: 123 # @schema default
+//
+// will use the YAML value 123.
+//
+// A property marked hidden is left out of the decoded value, so the shorthand
+// cannot put back what the user asked to remove.
+//
+// skipProperties is not treated that way. It only drops the properties from
+// the generated schema, and the decoded value still holds what the YAML
+// defines. This matters when it is combined with $ref: the $ref supplies the
+// schema, and default keeps the chart's own value.
+func decodeValueNode(valNode *yaml.Node) (any, error) {
+	switch valNode.Kind {
+	case yaml.MappingNode:
+		value := make(map[string]any, len(valNode.Content)/2)
+		for i := 0; i+1 < len(valNode.Content); i += 2 {
+			keyNode, childNode := valNode.Content[i], valNode.Content[i+1]
+			hidden, err := valueNodeFlags(keyNode, childNode)
+			if err != nil {
+				return nil, err
+			}
+			if hidden {
+				continue
+			}
+			child, err := decodeValueNode(childNode)
+			if err != nil {
+				return nil, err
+			}
+			value[keyNode.Value] = child
+		}
+		return value, nil
+
+	case yaml.SequenceNode:
+		value := make([]any, 0, len(valNode.Content))
+		for _, itemNode := range valNode.Content {
+			hidden, err := valueNodeFlags(nil, itemNode)
+			if err != nil {
+				return nil, err
+			}
+			if hidden {
+				continue
+			}
+			item, err := decodeValueNode(itemNode)
+			if err != nil {
+				return nil, err
+			}
+			value = append(value, item)
+		}
+		return value, nil
+
+	default:
+		var value any
+		if err := valNode.Decode(&value); err != nil {
+			return nil, fmt.Errorf("decode YAML value: %w", err)
+		}
+		return value, nil
+	}
+}
+
+// valueNodeFlags reports whether a node is annotated hidden, so
+// [decodeValueNode] leaves it out of a shorthand const or default the same way
+// the generated schema does.
+func valueNodeFlags(keyNode, valNode *yaml.Node) (hidden bool, err error) {
+	comments, _ := getComments(keyNode, valNode, false)
+	for annot := range splitCommentsByParts(comments) {
+		if annot.Key == "hidden" {
+			if err := processBoolComment(&hidden, annot.Value); err != nil {
+				return false, fmt.Errorf("hidden: %w", err)
+			}
+		}
+	}
+	return hidden, nil
 }
 
 // appendNullType adds "null" to the schema type, turning a single type into a

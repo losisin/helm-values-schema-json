@@ -431,7 +431,7 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		}
 	}
 
-	if err := processComment(schema, schemaComments); err != nil {
+	if err := processComment(schema, schemaComments, valNode); err != nil {
 		return nil, fmt.Errorf("%s: parse @schema comments: %w", ptr, err)
 	}
 
