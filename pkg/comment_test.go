@@ -551,6 +551,24 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Items: &Schema{Required: []string{"name", "value"}}},
 		},
 		{
+			name:       "Set array item additionalProperties false",
+			schema:     &Schema{},
+			comment:    "# @schema itemAdditionalProperties:false",
+			wantSchema: &Schema{Items: &Schema{AdditionalProperties: SchemaFalse()}},
+		},
+		{
+			name:       "Set array item additionalProperties true",
+			schema:     &Schema{},
+			comment:    "# @schema itemAdditionalProperties",
+			wantSchema: &Schema{Items: &Schema{AdditionalProperties: SchemaTrue()}},
+		},
+		{
+			name:       "Set array item additionalProperties schema",
+			schema:     &Schema{},
+			comment:    "# @schema itemAdditionalProperties:{type: string}",
+			wantSchema: &Schema{Items: &Schema{AdditionalProperties: &Schema{Type: "string"}}},
+		},
+		{
 			name:       "Set array only item ref",
 			schema:     &Schema{},
 			comment:    "# @schema itemRef: http://example.com",
@@ -771,6 +789,7 @@ func TestProcessComment_Error(t *testing.T) {
 		{name: "patternProperties invalid YAML", comment: "# @schema patternProperties: {", wantErr: "patternProperties: parse object \"{\": yaml"},
 		{name: "default invalid YAML", comment: "# @schema default: {", wantErr: "default: parse object \"{\": yaml"},
 		{name: "itemProperties invalid YAML", comment: "# @schema itemProperties: {", wantErr: "itemProperties: parse object \"{\": yaml"},
+		{name: "itemAdditionalProperties invalid YAML", comment: "# @schema itemAdditionalProperties: {", wantErr: "itemAdditionalProperties: parse object \"{\": yaml"},
 		{name: "itemRequired invalid list", comment: "# @schema itemRequired: [[foo]]", wantErr: "itemRequired: expected string"},
 		{name: "additionalProperties invalid YAML", comment: "# @schema additionalProperties: {", wantErr: "additionalProperties: parse object \"{\": yaml"},
 		{name: "unevaluatedProperties invalid YAML", comment: "# @schema unevaluatedProperties: {", wantErr: "unevaluatedProperties: parse object \"{\": yaml"},
