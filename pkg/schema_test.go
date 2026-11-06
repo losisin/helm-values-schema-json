@@ -755,6 +755,172 @@ func TestParseNode_Error(t *testing.T) {
 	}
 }
 
+func TestParseNode_YAMLAliases(t *testing.T) {
+	tests := []struct {
+		name          string
+		yaml          string
+		expectedProps map[string]*Schema
+	}{
+		{
+			name: "scalar alias",
+			yaml: `
+num: &num 3
+other: *num
+`,
+			expectedProps: map[string]*Schema{
+				"num":   {Type: "integer"},
+				"other": {Type: "integer"},
+			},
+		},
+		{
+			name: "mapping alias",
+			yaml: `
+defaults: &defaults
+  replicas: 1
+copy: *defaults
+`,
+			expectedProps: map[string]*Schema{
+				"defaults": {Type: "object", Properties: map[string]*Schema{"replicas": {Type: "integer"}}},
+				"copy":     {Type: "object", Properties: map[string]*Schema{"replicas": {Type: "integer"}}},
+			},
+		},
+		{
+			name: "alias uses own comment",
+			yaml: `
+name: &name foo
+list:
+  - *name # @schema type:[string, null]
+`,
+			expectedProps: map[string]*Schema{
+				"name": {Type: "string"},
+				"list": {Type: "array", Items: &Schema{Type: []any{"string", "null"}}},
+			},
+		},
+		{
+			name: "merge key",
+			yaml: `
+defaults: &defaults
+  replicas: 1
+  name: foo
+app:
+  <<: *defaults
+  name: 123
+  port: 80
+`,
+			expectedProps: map[string]*Schema{
+				"defaults": {Type: "object", Properties: map[string]*Schema{
+					"replicas": {Type: "integer"},
+					"name":     {Type: "string"},
+				}},
+				"app": {Type: "object", Properties: map[string]*Schema{
+					"replicas": {Type: "integer"},
+					"name":     {Type: "integer"},
+					"port":     {Type: "integer"},
+				}},
+			},
+		},
+		{
+			name: "merge key with sequence",
+			yaml: `
+a: &a
+  x: 1
+b: &b
+  x: foo
+  y: true
+app:
+  <<: [*a, *b]
+`,
+			expectedProps: map[string]*Schema{
+				"a": {Type: "object", Properties: map[string]*Schema{"x": {Type: "integer"}}},
+				"b": {Type: "object", Properties: map[string]*Schema{
+					"x": {Type: "string"},
+					"y": {Type: "boolean"},
+				}},
+				"app": {Type: "object", Properties: map[string]*Schema{
+					"x": {Type: "integer"},
+					"y": {Type: "boolean"},
+				}},
+			},
+		},
+		{
+			name: "alias to own parent is not expanded",
+			yaml: `
+app: &app
+  settings:
+    namespace:
+      - *app # @schema type:[string]
+`,
+			expectedProps: map[string]*Schema{
+				"app": {Type: "object", Properties: map[string]*Schema{
+					"settings": {Type: "object", Properties: map[string]*Schema{
+						"namespace": {Type: "array", Items: &Schema{Type: "string"}},
+					}},
+				}},
+			},
+		},
+		{
+			name: "merge key with alias to own parent is skipped",
+			yaml: `
+a: &a
+  b:
+    <<: *a
+    c: 1
+`,
+			expectedProps: map[string]*Schema{
+				"a": {Type: "object", Properties: map[string]*Schema{
+					"b": {Type: "object", Properties: map[string]*Schema{"c": {Type: "integer"}}},
+				}},
+			},
+		},
+		{
+			name: "quoted merge key is a normal key",
+			yaml: `
+app:
+  "<<": foo
+`,
+			expectedProps: map[string]*Schema{
+				"app": {Type: "object", Properties: map[string]*Schema{"<<": {Type: "string"}}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(tt.yaml), &doc))
+			schema, err := parseNode(NewPtr(), nil, doc.Content[0], false)
+			require.NoError(t, err)
+			testutil.Equal(t, tt.expectedProps, schema.Properties, "Schema.Properties")
+		})
+	}
+}
+
+func TestParseNode_YAMLAliasesError(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name: "merge key with scalar",
+			yaml: `
+a:
+  <<: foo
+`,
+			wantErr: "/a: merge key \"<<\" must be a mapping or a sequence of mappings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(tt.yaml), &doc))
+			_, err := parseNode(NewPtr(), nil, doc.Content[0], false)
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func TestSchemaSubschemas_order(t *testing.T) {
 	tests := []struct {
 		name   string

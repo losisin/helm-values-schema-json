@@ -1,0 +1,60 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "_base": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                },
+                "replicas": {
+                    "type": "integer"
+                }
+            },
+            "additionalProperties": false
+        },
+        "app": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "replicas": {
+                    "type": "integer"
+                }
+            },
+            "additionalProperties": false
+        },
+        "global": {
+            "description": "Global values shared between all subcharts",
+            "$comment": "Added automatically by 'helm schema' to allow this chart to be used as a Helm dependency, as this schema would otherwise not allow Helm's special 'global' values key.",
+            "type": [
+                "object",
+                "null"
+            ]
+        },
+        "image": {
+            "type": "string"
+        },
+        "replicas": {
+            "type": "integer"
+        },
+        "worker": {
+            "type": "object",
+            "properties": {
+                "image": {
+                    "type": "string"
+                },
+                "replicas": {
+                    "type": "integer"
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "additionalProperties": false
+}
