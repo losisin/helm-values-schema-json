@@ -9,6 +9,7 @@ package testdata
 //go:generate go run .. --values basic.yaml --output basic.schema.json
 //go:generate go run .. --values full.yaml --output full.schema.json --schema-root.id https://example.com/schema --schema-root.ref schema/product.json --schema-root.title "Helm Values Schema" --schema-root.description "Schema for Helm values" --schema-root.additional-properties=true
 //go:generate go run .. --values k8sRef.yaml --output k8sRef.schema.json --k8s-schema-version v1.33.1
+//go:generate go run .. --values merge-keys.yaml --output merge-keys.schema.json --no-additional-properties=true
 //go:generate go run .. --values meta.yaml --output meta.schema.json
 //go:generate go run .. --values noAdditionalProperties.yaml --output noAdditionalProperties.schema.json --no-additional-properties=true
 //go:generate go run .. --values ref.yaml --output ref-draft2020.schema.json --draft 2020

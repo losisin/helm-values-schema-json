@@ -1,0 +1,11 @@
+_base: &base
+  replicas: 1
+  image: nginx
+
+<<: *base
+
+app:
+  <<: *base
+  port: 80
+
+worker: *base
