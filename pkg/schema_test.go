@@ -909,6 +909,15 @@ a:
 `,
 			wantErr: "/a: merge key \"<<\" must be a mapping or a sequence of mappings",
 		},
+		{
+			name: "nested merge key with scalar",
+			yaml: `
+a:
+  <<:
+    <<: foo
+`,
+			wantErr: "/a: merge key \"<<\" must be a mapping or a sequence of mappings",
+		},
 	}
 
 	for _, tt := range tests {
