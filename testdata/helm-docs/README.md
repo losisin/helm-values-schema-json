@@ -18,6 +18,7 @@ Empty docs used to generate demo files for helm-docs
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| caSecret | string | `""` | Secret with the CA of a private identity provider; mounted and passed to the binary as `--ca-file`. |
 | labels."kubernetes.io/hostname" | string | `"localhost"` | Common label for Kubernetes Node hostname |
 | labels.app | string | `"my-app"` | App name |
 | replicas | integer | `1` | Number of replicas |

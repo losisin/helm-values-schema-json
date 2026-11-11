@@ -75,21 +75,24 @@ func ParseHelmDocsComment(helmDocsComments []string) (HelmDocsComment, error) {
 		}
 
 		withoutPound := strings.TrimSpace(strings.TrimPrefix(line, "#"))
-		annotation, value, ok := strings.Cut(withoutPound, "--")
-		if !ok {
-			descriptionLines = append(descriptionLines, withoutPound)
-			continue
+		// Only the known annotations are taken out of the description. Any
+		// other line containing "--", such as one mentioning a CLI flag, is
+		// part of the description.
+		if annotation, value, ok := strings.Cut(withoutPound, "--"); ok {
+			value = strings.TrimSpace(value)
+			switch strings.TrimSpace(annotation) {
+			case "@notationType":
+				helmDocs.NotationType = value
+				continue
+			case "@default":
+				helmDocs.Default = value
+				continue
+			case "@section":
+				helmDocs.Section = value
+				continue
+			}
 		}
-		annotation = strings.TrimSpace(annotation)
-		value = strings.TrimSpace(value)
-		switch annotation {
-		case "@notationType":
-			helmDocs.NotationType = value
-		case "@default":
-			helmDocs.Default = value
-		case "@section":
-			helmDocs.Section = value
-		}
+		descriptionLines = append(descriptionLines, withoutPound)
 	}
 
 	helmDocs.Description = strings.Join(descriptionLines, " ")
