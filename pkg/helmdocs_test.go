@@ -217,6 +217,39 @@ func TestParseHelmDocsComment(t *testing.T) {
 				Description: " @section foo",
 			},
 		},
+
+		{
+			name: "description with flag in line",
+			comment: []string{
+				"# -- Secret with the CA;",
+				"# mounted and passed as `--ca-file`. Empty disables it.",
+			},
+			want: HelmDocsComment{
+				Description: "Secret with the CA; mounted and passed as `--ca-file`. Empty disables it.",
+			},
+		},
+		{
+			name: "description with unknown annotation",
+			comment: []string{
+				"# -- This is",
+				"# @foo -- bar",
+			},
+			want: HelmDocsComment{
+				Description: "This is @foo -- bar",
+			},
+		},
+		{
+			name: "description with dashes and annotation",
+			comment: []string{
+				"# -- This is",
+				"# a -- b",
+				"# @default -- 123",
+			},
+			want: HelmDocsComment{
+				Description: "This is a -- b",
+				Default:     "123",
+			},
+		},
 	}
 
 	for _, tt := range tests {

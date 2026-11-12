@@ -7,6 +7,10 @@ replicas: 1
 # -- Description from helm-docs
 nameOverride: "" # @schema description: Description from schema
 
+# -- Secret with the CA of a private identity provider;
+# mounted and passed to the binary as `--ca-file`.
+caSecret: ""
+
 # service -- Kubernetes Service type
 service: ClusterIP # @schema enum: [ClusterIP, LoadBalancer, null]
 

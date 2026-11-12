@@ -5,12 +5,12 @@
     "type": "object",
     "properties": {
         "bundle": {
-            "description": "Bundle referenced ($ref) subschemas into a single file inside $defs.",
+            "description": "Bundle referenced ($ref) subschemas into a single file inside $defs. Flag: --bundle",
             "default": false,
             "type": "boolean"
         },
         "bundleCacheMin": {
-            "description": "Minimum cache duration for downloaded schemas, e.g. \"24h\" or \"30m\". Raises short server Cache-Control max-age values so schemas stay cached longer. An empty string follows the server's caching headers.",
+            "description": "Minimum cache duration for downloaded schemas, e.g. \"24h\" or \"30m\". Raises short server Cache-Control max-age values so schemas stay cached longer. An empty string follows the server's caching headers. Flag: --bundle-cache-min",
             "examples": [
                 "24h",
                 "30m"
@@ -19,7 +19,7 @@
             "type": "string"
         },
         "bundleRoot": {
-            "description": "Root directory to allow local referenced files to be loaded from. Defaults to the current working directory.",
+            "description": "Root directory to allow local referenced files to be loaded from. Defaults to the current working directory. Flag: --bundle-root",
             "examples": [
                 "./",
                 "../"
@@ -28,12 +28,12 @@
             "type": "string"
         },
         "bundleWithoutID": {
-            "description": "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension.",
+            "description": "Bundle without using $id to reference bundled schemas, which improves compatibility with e.g the VS Code JSON extension. Flag: --bundle-without-id",
             "default": false,
             "type": "boolean"
         },
         "draft": {
-            "description": "JSON Schema draft version.",
+            "description": "JSON Schema draft version. Flag: --draft",
             "default": 2020,
             "type": "integer",
             "enum": [
@@ -45,7 +45,7 @@
             ]
         },
         "indent": {
-            "description": "Output JSON indentation level.",
+            "description": "Output JSON indentation level. Flag: --indent",
             "examples": [
                 2,
                 4
@@ -56,7 +56,7 @@
             "multipleOf": 2
         },
         "k8sSchemaURL": {
-            "description": "URL template used in \"$ref: $k8s/...\" alias. Uses Go text templating, where \"{{ .K8sSchemaVersion }}\" maps to the k8sSchemaVersion config.",
+            "description": "URL template used in \"$ref: $k8s/...\" alias. Uses Go text templating, where \"{{ .K8sSchemaVersion }}\" maps to the k8sSchemaVersion config. Flag: --k8s-schema-url",
             "examples": [
                 "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/refs/heads/master/{{ .K8sSchemaVersion }}/",
                 "https://kubernetesjsonschema.dev/{{ .K8sSchemaVersion }}/"
@@ -65,61 +65,61 @@
             "type": "string"
         },
         "k8sSchemaVersion": {
-            "description": "Version used in the \"k8sSchemaURL\" template for \"$ref: $k8s/...\" alias. This setting has no default value and must be set in order to use the \"$k8s\" alias.",
+            "description": "Version used in the \"k8sSchemaURL\" template for \"$ref: $k8s/...\" alias. This setting has no default value and must be set in order to use the \"$k8s\" alias. Flag: --k8s-schema-version",
             "type": "string"
         },
         "noAdditionalProperties": {
-            "description": "Default additionalProperties to false for all objects in the schema. Objects that also get properties from an in-place applicator (\"$ref\", \"allOf\", \"anyOf\", \"oneOf\", \"if\"/\"then\"/\"else\", \"dependentSchemas\") get \"unevaluatedProperties\" instead on draft 2019-09 and later, because \"additionalProperties\" cannot see those properties and would reject them.",
+            "description": "Default additionalProperties to false for all objects in the schema. Objects that also get properties from an in-place applicator (\"$ref\", \"allOf\", \"anyOf\", \"oneOf\", \"if\"/\"then\"/\"else\", \"dependentSchemas\") get \"unevaluatedProperties\" instead on draft 2019-09 and later, because \"additionalProperties\" cannot see those properties and would reject them. Flag: --no-additional-properties",
             "default": false,
             "type": "boolean"
         },
         "noDefaultGlobal": {
-            "description": "Disable automatic injection of 'global' property when schema root does not allow it.",
+            "description": "Disable automatic injection of 'global' property when schema root does not allow it. Flag: --no-default-global",
             "default": false,
             "type": "boolean"
         },
         "output": {
-            "description": "Output file path.",
+            "description": "Output file path. Flag: --output, -o",
             "default": "values.schema.json",
             "type": "string"
         },
         "schemaRoot": {
-            "description": "Set of configs for configuring properties on the output root schema.",
+            "description": "Set of configs for configuring properties on the output root schema. Flag: --schema-root.*",
             "type": "object",
             "properties": {
                 "additionalProperties": {
-                    "description": "JSON Schema \"additionalProperties\" on the output schema root. This has precedence over the \"noAdditionalProperties\" config.",
+                    "description": "JSON Schema \"additionalProperties\" on the output schema root. This has precedence over the \"noAdditionalProperties\" config. Flag: --schema-root.additionalProperties",
                     "type": [
                         "boolean",
                         "null"
                     ]
                 },
                 "description": {
-                    "description": "JSON Schema \"description\" on the output schema root.",
+                    "description": "JSON Schema \"description\" on the output schema root. Flag: --schema-root.description",
                     "type": "string"
                 },
                 "id": {
-                    "description": "JSON Schema \"$id\" on the output schema root.",
+                    "description": "JSON Schema \"$id\" on the output schema root. Flag: --schema-root.id",
                     "type": "string"
                 },
                 "ref": {
-                    "description": "JSON Schema \"$ref\" on the output schema root. When using local file references (e.g \"./foobar.json\") the path is relative to your .schema.yaml config file.",
+                    "description": "JSON Schema \"$ref\" on the output schema root. When using local file references (e.g \"./foobar.json\") the path is relative to your .schema.yaml config file. Flag: --schema-root.ref",
                     "type": "string"
                 },
                 "title": {
-                    "description": "JSON Schema \"title\" on the output schema root.",
+                    "description": "JSON Schema \"title\" on the output schema root. Flag: --schema-root.title",
                     "type": "string"
                 }
             },
             "additionalProperties": false
         },
         "useHelmDocs": {
-            "description": "Read descriptions from https://github.com/norwoodj/helm-docs comments.",
+            "description": "Read descriptions from https://github.com/norwoodj/helm-docs comments. Flag: --use-helm-docs",
             "default": false,
             "type": "boolean"
         },
         "values": {
-            "description": "One or more YAML files as inputs.",
+            "description": "One or more YAML files as inputs. Flag: --values, -f",
             "default": [
                 "values.yaml"
             ],
