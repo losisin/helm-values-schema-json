@@ -79,9 +79,14 @@ func buildJSONSchema(ctx context.Context, config *Config) (*Schema, error) {
 		properties := make(map[string]*Schema)
 		required := []string{}
 
-		for i := 0; i < len(rootNode.Content); i += 2 {
-			keyNode := rootNode.Content[i]
-			valNode := rootNode.Content[i+1]
+		entries, err := mappingEntries(NewPtr(), rootNode, map[*yaml.Node]struct{}{rootNode: {}})
+		if err != nil {
+			return nil, fmt.Errorf("parse schema: %w", err)
+		}
+
+		for _, entry := range entries {
+			keyNode := entry.key
+			valNode := entry.value
 			schema, err := parseNode(NewPtr(keyNode.Value), keyNode, valNode, config.UseHelmDocs)
 			if err != nil {
 				return nil, fmt.Errorf("parse schema: %w", err)

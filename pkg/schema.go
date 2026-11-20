@@ -357,19 +357,40 @@ func getSchemaURL(draft int) (string, error) {
 }
 
 func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema, error) {
+	return parseNodeRec(ptr, keyNode, valNode, useHelmDocs, map[*yaml.Node]struct{}{})
+}
+
+// parseNodeRec is the recursive part of [parseNode]. The parents set holds the
+// mapping and sequence nodes currently being parsed, used to detect YAML aliases
+// that refer to one of their own parents.
+func parseNodeRec(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool, parents map[*yaml.Node]struct{}) (*Schema, error) {
 	schema := &Schema{}
+
+	// Comments are read from the node as written, so "*alias # @schema ..." works,
+	// while the schema is generated from the value the alias points to.
+	commentNode := valNode
+	valNode = resolveAlias(valNode, parents)
+
+	if valNode.Kind == yaml.MappingNode || valNode.Kind == yaml.SequenceNode {
+		parents[valNode] = struct{}{}
+		defer delete(parents, valNode)
+	}
 
 	var orderedMapProperties []*Schema
 
 	switch valNode.Kind {
 	case yaml.MappingNode:
-		orderedMapProperties = make([]*Schema, 0, len(valNode.Content)/2)
-		properties := make(map[string]*Schema, len(valNode.Content)/2)
+		entries, err := mappingEntries(ptr, valNode, parents)
+		if err != nil {
+			return nil, err
+		}
+		orderedMapProperties = make([]*Schema, 0, len(entries))
+		properties := make(map[string]*Schema, len(entries))
 		required := []string{}
-		for i := 0; i < len(valNode.Content); i += 2 {
-			childKeyNode := valNode.Content[i]
-			childValNode := valNode.Content[i+1]
-			childSchema, err := parseNode(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs)
+		for _, entry := range entries {
+			childKeyNode := entry.key
+			childValNode := entry.value
+			childSchema, err := parseNodeRec(ptr.Prop(childKeyNode.Value), childKeyNode, childValNode, useHelmDocs, parents)
 			if err != nil {
 				return nil, err
 			}
@@ -401,7 +422,7 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		hasItems := false
 
 		for i, itemNode := range valNode.Content {
-			itemSchema, err := parseNode(ptr.Item(i), nil, itemNode, useHelmDocs)
+			itemSchema, err := parseNodeRec(ptr.Item(i), nil, itemNode, useHelmDocs, parents)
 			if err != nil {
 				return nil, err
 			}
@@ -419,7 +440,7 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 		schema.Type = getScalarType(valNode.ShortTag())
 	}
 
-	schemaComments, helmDocsComments := getComments(keyNode, valNode, useHelmDocs)
+	schemaComments, helmDocsComments := getComments(keyNode, commentNode, useHelmDocs)
 
 	if useHelmDocs {
 		helmDocs, err := ParseHelmDocsComment(helmDocsComments)
@@ -447,6 +468,83 @@ func parseNode(ptr Ptr, keyNode, valNode *yaml.Node, useHelmDocs bool) (*Schema,
 	}
 
 	return schema, nil
+}
+
+// resolveAlias follows a YAML alias (e.g "*foo") to the node it refers to.
+// Any other node is returned as-is.
+//
+// An alias that refers to one of its own parents cannot be expanded, so it is
+// returned unresolved and parsed as a value of unknown type, which can still be
+// typed with a "# @schema type:..." comment.
+func resolveAlias(node *yaml.Node, parents map[*yaml.Node]struct{}) *yaml.Node {
+	resolved := node
+	for resolved.Kind == yaml.AliasNode && resolved.Alias != nil {
+		resolved = resolved.Alias
+	}
+	if resolved.Kind == yaml.AliasNode || hasKey(parents, resolved) {
+		return node
+	}
+	return resolved
+}
+
+type mappingEntry struct {
+	key, value *yaml.Node
+}
+
+// mappingEntries returns the key/value pairs of a YAML mapping node, with any
+// merge keys (e.g "<<: *defaults") expanded the same way a YAML decoder does:
+// keys set directly in the mapping take precedence over merged ones, and when
+// merging a sequence of mappings the earlier ones take precedence.
+func mappingEntries(ptr Ptr, node *yaml.Node, parents map[*yaml.Node]struct{}) ([]mappingEntry, error) {
+	entries := make([]mappingEntry, 0, len(node.Content)/2)
+	var merged []mappingEntry
+	seen := map[string]struct{}{}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		keyNode := node.Content[i]
+		valNode := node.Content[i+1]
+		if !isMergeKey(keyNode) {
+			entries = append(entries, mappingEntry{keyNode, valNode})
+			seen[keyNode.Value] = struct{}{}
+			continue
+		}
+
+		mergeNode := resolveAlias(valNode, parents)
+		sources := []*yaml.Node{mergeNode}
+		if mergeNode.Kind == yaml.SequenceNode {
+			sources = mergeNode.Content
+		}
+		for _, source := range sources {
+			source := resolveAlias(source, parents)
+			if source.Kind == yaml.AliasNode {
+				// alias to one of its own parents, nothing to merge
+				continue
+			}
+			if source.Kind != yaml.MappingNode {
+				return nil, fmt.Errorf("%s: merge key %q must be a mapping or a sequence of mappings", ptr, keyNode.Value)
+			}
+			parents[source] = struct{}{}
+			sourceEntries, err := mappingEntries(ptr, source, parents)
+			delete(parents, source)
+			if err != nil {
+				return nil, err
+			}
+			merged = append(merged, sourceEntries...)
+		}
+	}
+
+	for _, entry := range merged {
+		if hasKey(seen, entry.key.Value) {
+			continue
+		}
+		entries = append(entries, entry)
+		seen[entry.key.Value] = struct{}{}
+	}
+	return entries, nil
+}
+
+func isMergeKey(node *yaml.Node) bool {
+	return node.Kind == yaml.ScalarNode && node.Value == "<<" && node.ShortTag() == "!!merge"
 }
 
 func (schema *Schema) Subschemas() iter.Seq2[Ptr, *Schema] {
