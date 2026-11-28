@@ -67,6 +67,7 @@ The following annotations are supported:
     * [ItemEnum](#itemEnum)
     * [Const](#const)
 * [Strings](#strings)
+    * [format](#format)
     * [maxLength](#maxlength)
     * [minLength](#minlength)
     * [pattern](#pattern)
@@ -76,6 +77,7 @@ The following annotations are supported:
     * [minimum](#minimum)
 * [Arrays](#arrays)
     * [item](#item)
+    * [itemFormat](#itemformat)
     * [itemPattern](#itempattern)
     * [itemRequired](#itemrequired)
     * [itemAdditionalProperties](#itemadditionalproperties)
@@ -272,7 +274,37 @@ nameOverride: foo # @schema const: foo
 }
 ```
 
+Omitting the value (`# @schema const`) reuses the field's own YAML value, so the example above is equivalent to:
+
+```yaml
+nameOverride: foo # @schema const
+```
+
+The same rules as [`default`](#default) apply: `# @schema const:` with a colon
+and no value stays an error, maps and lists are reused whole, `hidden` still
+removes what it removes, and `skipProperties` affects the generated schema
+only.
+
 ## Strings
+
+### format
+
+String naming the format of the value. The specification defines [a set of formats](https://json-schema.org/draft/2020-12/json-schema-validation#section-7.3) (`date-time`, `email`, `hostname`, `uri`, `uuid`, …), and custom formats are allowed too.
+
+With draft 2019-09 and 2020-12, `format` is an annotation by default: validators that don't assert formats, Helm included, accept any string. With draft 7 and earlier, validators check known formats, and Helm rejects values that don't match.
+
+```yaml
+contactEmail: "admin@example.com" # @schema format:email
+```
+
+This will generate the following schema:
+
+```json
+"contactEmail": {
+    "format": "email",
+    "type": "string"
+}
+```
 
 ### maxLength
 
@@ -387,6 +419,25 @@ This will generate following schema:
 "imagePullSecrets": {
     "items": {
         "type": "object"
+    }
+}
+```
+
+### itemFormat
+
+This is a special annotation that applies [format](#format) to string items of an array.
+
+```yaml
+hostnames: [] # @schema item:string; itemFormat:hostname
+```
+
+This will generate the following schema:
+
+```json
+"hostnames": {
+    "items": {
+        "format": "hostname",
+        "type": "string"
     }
 }
 ```
@@ -1105,6 +1156,91 @@ tolerations: [] # @schema default: [{key: foo, operator: Equal, value: bar, effe
         }
     ],
     "type": "array"
+}
+```
+
+Omitting the value (`# @schema default`) reuses the field's own YAML value:
+
+```yaml
+replicas: 3 # @schema default
+```
+
+```json
+"replicas": {
+    "default": 3,
+    "type": "integer"
+}
+```
+
+Note the missing colon. `# @schema default:` is the explicit form with its value
+left out, and stays an error.
+
+Maps and lists are reused as well, which keeps `nodeSelector: {}` and
+`tolerations: []` working without repeating them in the comment:
+
+```yaml
+nodeSelector: {} # @schema default
+args: # @schema default
+  - --verbose
+```
+
+```json
+"nodeSelector": {
+    "default": {},
+    "type": "object"
+},
+"args": {
+    "default": [
+        "--verbose"
+    ],
+    "type": "array",
+    "items": {
+        "type": "string"
+    }
+}
+```
+
+A property marked [`hidden`](#hidden) is kept out of the reused value too, so
+the shorthand cannot put back what you removed.
+
+`skipProperties` is different: it only drops the properties
+from the generated schema, and the reused value still carries what the YAML
+defines. That is what makes it useful with [`$ref`](#ref): the `$ref` supplies
+the schema, and `default` keeps your chart's own value:
+
+```yaml
+resources: # @schema default
+  limits:
+    cpu: 100m
+  token: s3cr3t # @schema hidden
+podLabels: # @schema skipProperties; default
+  app: nginx
+```
+
+```json
+"resources": {
+    "default": {
+        "limits": {
+            "cpu": "100m"
+        }
+    },
+    "type": "object",
+    "properties": {
+        "limits": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+},
+"podLabels": {
+    "default": {
+        "app": "nginx"
+    },
+    "type": "object"
 }
 ```
 
