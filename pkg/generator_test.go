@@ -55,6 +55,19 @@ func TestGenerateJsonSchema(t *testing.T) {
 			},
 			templateSchemaFile: "../testdata/noAdditionalProperties.schema.json",
 		},
+		{
+			name: "YAML merge keys and aliases",
+			config: &Config{
+				Draft:                  2020,
+				Indent:                 4,
+				NoAdditionalProperties: true,
+				Values: []string{
+					"../testdata/merge-keys.yaml",
+				},
+				Output: "../testdata/merge-keys_output.json",
+			},
+			templateSchemaFile: "../testdata/merge-keys.schema.json",
+		},
 
 		{
 			name: "k8s ref alias",
@@ -654,6 +667,18 @@ func TestGenerateJsonSchema_Errors(t *testing.T) {
 				Output: "../testdata/fail-type_output.json",
 			},
 			expectedErr: errors.New("/properties/nameOverride/type: invalid type \"foobar\", must be one of: array, boolean, integer, null, number, object, string"),
+		},
+		{
+			name: "invalid merge key",
+			config: &Config{
+				Draft:  2020,
+				Indent: 4,
+				Values: []string{
+					"../testdata/fail-merge-key.yaml",
+				},
+				Output: "../testdata/fail-merge-key_output.json",
+			},
+			expectedErr: errors.New("parse schema: /: merge key \"<<\" must be a mapping or a sequence of mappings"),
 		},
 		{
 			name: "invalid helm-docs comment",
