@@ -229,12 +229,12 @@ func TestParseFlagsFail(t *testing.T) {
 		errStr string
 	}{
 		{[]string{"--values"}, "flag needs an argument"},
-		{[]string{"--draft", "foo"}, "invalid syntax"},
+		{[]string{"--draft", "foo"}, "must be an integer"},
 		{[]string{"--foo"}, "unknown flag: --foo"},
-		{[]string{"--schema-root.additional-properties=123"}, "invalid syntax"},
-		{[]string{"--bundle=123"}, "invalid syntax"},
-		{[]string{"--bundle-without-id=123"}, "invalid syntax"},
-		{[]string{"--use-helm-docs=123"}, "invalid syntax"},
+		{[]string{"--schema-root.additional-properties=123"}, "must be true or false"},
+		{[]string{"--bundle=123"}, "must be true or false"},
+		{[]string{"--bundle-without-id=123"}, "must be true or false"},
+		{[]string{"--use-helm-docs=123"}, "must be true or false"},
 	}
 
 	for _, tt := range tests {
