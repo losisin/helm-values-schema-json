@@ -125,7 +125,7 @@ func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
 }
 
 func openCacheFile(path string) (io.ReadCloser, io.Closer, error) {
-	file, mainErr := os.Open(path + ".cbor")
+	file, mainErr := os.Open(path + ".cbor") // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
 	if mainErr == nil {
 		return file, nil, nil
 	}
