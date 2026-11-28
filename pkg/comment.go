@@ -183,6 +183,8 @@ func processComment(schema *Schema, commentLines []string) error {
 			}
 		case "pattern":
 			schema.Pattern = value
+		case "format":
+			schema.Format = value
 		case "maxItems":
 			if err := processUint64PtrComment(&schema.MaxItems, value); err != nil {
 				return fmt.Errorf("maxItems: %w", err)
@@ -287,6 +289,11 @@ func processComment(schema *Schema, commentLines []string) error {
 				schema.Items = &Schema{}
 			}
 			schema.Items.Pattern = value
+		case "itemFormat":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			schema.Items.Format = value
 		case "itemRef":
 			if schema.Items == nil {
 				schema.Items = &Schema{}

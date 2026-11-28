@@ -67,6 +67,7 @@ The following annotations are supported:
     * [ItemEnum](#itemEnum)
     * [Const](#const)
 * [Strings](#strings)
+    * [format](#format)
     * [maxLength](#maxlength)
     * [minLength](#minlength)
     * [pattern](#pattern)
@@ -76,6 +77,7 @@ The following annotations are supported:
     * [minimum](#minimum)
 * [Arrays](#arrays)
     * [item](#item)
+    * [itemFormat](#itemformat)
     * [itemPattern](#itempattern)
     * [itemRequired](#itemrequired)
     * [itemAdditionalProperties](#itemadditionalproperties)
@@ -274,6 +276,25 @@ nameOverride: foo # @schema const: foo
 
 ## Strings
 
+### format
+
+String naming the format of the value. The specification defines [a set of formats](https://json-schema.org/draft/2020-12/json-schema-validation#section-7.3) (`date-time`, `email`, `hostname`, `uri`, `uuid`, …), and custom formats are allowed too.
+
+With draft 2019-09 and 2020-12, `format` is an annotation by default: validators that don't assert formats, Helm included, accept any string. With draft 7 and earlier, validators check known formats, and Helm rejects values that don't match.
+
+```yaml
+contactEmail: "admin@example.com" # @schema format:email
+```
+
+This will generate the following schema:
+
+```json
+"contactEmail": {
+    "format": "email",
+    "type": "string"
+}
+```
+
 ### maxLength
 
 Non-negative integer. [section 6.3.1](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.3.1)
@@ -387,6 +408,25 @@ This will generate following schema:
 "imagePullSecrets": {
     "items": {
         "type": "object"
+    }
+}
+```
+
+### itemFormat
+
+This is a special annotation that applies [format](#format) to string items of an array.
+
+```yaml
+hostnames: [] # @schema item:string; itemFormat:hostname
+```
+
+This will generate the following schema:
+
+```json
+"hostnames": {
+    "items": {
+        "format": "hostname",
+        "type": "string"
     }
 }
 ```

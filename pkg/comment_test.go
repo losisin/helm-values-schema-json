@@ -527,6 +527,12 @@ func TestProcessComment(t *testing.T) {
 			wantSchema: &Schema{Pattern: "^abv$", MinLength: uint64Ptr(2), MaxLength: uint64Ptr(10)},
 		},
 		{
+			name:       "Set string format",
+			schema:     &Schema{},
+			comment:    "# @schema format:email",
+			wantSchema: &Schema{Format: "email"},
+		},
+		{
 			name:       "Set array",
 			schema:     &Schema{},
 			comment:    "# @schema minItems:1;maxItems:10;uniqueItems:true;item:object;itemProperties:{\"key\": {\"type\": \"string\"}}",
@@ -543,6 +549,12 @@ func TestProcessComment(t *testing.T) {
 			schema:     &Schema{},
 			comment:    "# @schema itemPattern:^[a-z]+$",
 			wantSchema: &Schema{Items: &Schema{Pattern: "^[a-z]+$"}},
+		},
+		{
+			name:       "Set array only item format",
+			schema:     &Schema{},
+			comment:    "# @schema itemFormat:hostname",
+			wantSchema: &Schema{Items: &Schema{Format: "hostname"}},
 		},
 		{
 			name:       "Set array only item required",
