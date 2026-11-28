@@ -125,10 +125,9 @@ func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
 }
 
 func openCacheFile(path string) (io.ReadCloser, io.Closer, error) {
-	if file, err := os.Open(path + ".cbor"); err == nil {
+	file, mainErr := os.Open(path + ".cbor")
+	if mainErr == nil {
 		return file, nil, nil
-	} else if !os.IsNotExist(err) {
-		return nil, nil, err
 	}
 
 	if file, err := os.Open(path + ".cbor.gz"); err == nil { // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
@@ -138,11 +137,9 @@ func openCacheFile(path string) (io.ReadCloser, io.Closer, error) {
 			return nil, nil, err
 		}
 		return gzipReader, file, nil
-	} else if !os.IsNotExist(err) {
-		return nil, nil, err
 	}
 
-	return nil, nil, nil
+	return nil, nil, mainErr
 }
 
 func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
