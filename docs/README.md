@@ -78,6 +78,7 @@ The following annotations are supported:
     * [item](#item)
     * [itemPattern](#itempattern)
     * [itemRequired](#itemrequired)
+    * [itemAdditionalProperties](#itemadditionalproperties)
     * [maxItems](#maxitems)
     * [minItems](#minitems)
     * [uniqueItems](#uniqueitems)
@@ -437,6 +438,24 @@ This will generate following schema:
             "name",
             "value"
         ],
+        "type": "object"
+    }
+}
+```
+
+### itemAdditionalProperties
+
+This is a special annotation that sets `additionalProperties` on object items
+of an array. It accepts a boolean or a schema object.
+
+```yaml
+env: [] # @schema item:object; itemAdditionalProperties:false
+```
+
+```json
+"env": {
+    "items": {
+        "additionalProperties": false,
         "type": "object"
     }
 }

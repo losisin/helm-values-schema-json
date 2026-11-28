@@ -289,6 +289,15 @@ func processComment(schema *Schema, commentLines []string, valNode *yaml.Node) e
 				}
 				schema.Items.Required = append(schema.Items.Required, required)
 			}
+		case "itemAdditionalProperties":
+			if schema.Items == nil {
+				schema.Items = &Schema{}
+			}
+			if strings.TrimSpace(value) == "" {
+				schema.Items.AdditionalProperties = SchemaTrue()
+			} else if err := processObjectComment(&schema.Items.AdditionalProperties, value); err != nil {
+				return fmt.Errorf("itemAdditionalProperties: %w", err)
+			}
 		case "itemEnum":
 			if schema.Items == nil {
 				schema.Items = &Schema{}

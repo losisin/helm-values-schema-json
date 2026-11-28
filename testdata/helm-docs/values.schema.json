@@ -2,6 +2,10 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "properties": {
+        "caSecret": {
+            "description": "Secret with the CA of a private identity provider; mounted and passed to the binary as `--ca-file`.",
+            "type": "string"
+        },
         "image": {
             "type": "object",
             "properties": {
