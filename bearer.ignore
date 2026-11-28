@@ -4,5 +4,17 @@
     "comment": "path is provided by the user, but that's intentional.",
     "false_positive": true,
     "ignored_at": "2026-08-13T20:28:11Z"
+  },
+  "94079fa28abdba948c67852c1abb8adf_0": {
+    "author": "Kalle Fagerberg",
+    "comment": "path is known to be safe thanks to urlToCachePath",
+    "false_positive": true,
+    "ignored_at": "2026-11-28T16:21:41Z"
+  },
+  "94079fa28abdba948c67852c1abb8adf_1": {
+    "author": "Kalle Fagerberg",
+    "comment": "path is known to be safe thanks to urlToCachePath",
+    "false_positive": true,
+    "ignored_at": "2026-11-28T16:22:05Z"
   }
 }
