@@ -19,7 +19,9 @@ func uniqueStringAppend(dest, src []string) []string {
 }
 
 func closeIgnoreError(closer io.Closer) {
-	_ = closer.Close()
+	if closer != nil {
+		_ = closer.Close()
+	}
 }
 
 // hasKey returns true when a map contains the given key.

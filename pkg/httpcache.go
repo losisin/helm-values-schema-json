@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/base32"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -107,25 +108,38 @@ func NewHTTPCache(minCacheDuration time.Duration) *HTTPFileCache {
 var _ HTTPCache = &HTTPFileCache{}
 
 func (h *HTTPFileCache) LoadCache(req *http.Request) (CachedResponse, error) {
-	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".cbor.gz")
+	reader, closer, err := openCacheFile(filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)))
+	if reader == nil || err != nil {
+		return CachedResponse{}, err
+	}
+	defer closeIgnoreError(closer)
+	defer closeIgnoreError(reader)
 
-	file, err := os.Open(path) // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
-	if err != nil {
-		return CachedResponse{}, err
-	}
-	defer closeIgnoreError(file)
-	gzipReader, err := gzip.NewReader(file)
-	if err != nil {
-		return CachedResponse{}, err
-	}
-	defer closeIgnoreError(gzipReader)
-	cborDecoder := cbor.NewDecoder(gzipReader)
+	cborDecoder := cbor.NewDecoder(reader)
 	var cached CachedResponse
 	if err := cborDecoder.Decode(&cached); err != nil {
 		return CachedResponse{}, fmt.Errorf("decode cached response: %w", err)
 	}
 	cached.CachedAt = cached.CachedAt.UTC()
 	return cached, nil
+}
+
+func openCacheFile(path string) (io.ReadCloser, io.Closer, error) {
+	file, mainErr := os.Open(path + ".cbor") // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
+	if mainErr == nil {
+		return file, nil, nil
+	}
+
+	if file, err := os.Open(path + ".cbor.gz"); err == nil { // #nosec G304 -- path is known to be safe thanks to [urlToCachePath]
+		gzipReader, err := gzip.NewReader(file)
+		if err != nil {
+			_ = file.Close()
+			return nil, nil, err
+		}
+		return gzipReader, file, nil
+	}
+
+	return nil, nil, mainErr
 }
 
 func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body []byte) (CachedResponse, error) {
@@ -142,7 +156,7 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 		MaxAge:   maxAge,
 		ETag:     resp.Header.Get("ETag"),
 	}
-	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".cbor.gz")
+	path := filepath.Join(h.cacheDirFunc(), urlToCachePath(req.URL)+".cbor")
 
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return CachedResponse{}, fmt.Errorf("mkdir: %w", err)
@@ -153,9 +167,12 @@ func (h *HTTPFileCache) SaveCache(req *http.Request, resp *http.Response, body [
 		return CachedResponse{}, fmt.Errorf("create cache file: %w", err)
 	}
 	defer closeIgnoreError(file)
-	gzipWriter := gzip.NewWriter(file)
-	defer closeIgnoreError(gzipWriter)
-	cborEncoder := cbor.NewEncoder(gzipWriter)
+
+	// We previously used gzip compression, but that got removed.
+	// Clean up old file, only after we know that we can write to the new file
+	_ = os.Remove(path + ".gz")
+
+	cborEncoder := cbor.NewEncoder(file)
 	return cached, cborEncoder.Encode(cached)
 }
 
