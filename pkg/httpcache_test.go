@@ -59,7 +59,18 @@ func TestLoadCache(t *testing.T) {
 			wantErrIs: os.ErrNotExist,
 		},
 		{
-			name: "dir",
+			name: "dir.cbor",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.cbor"), 0755))
+			},
+			wantErr: testutil.PerGOOS{
+				Default: "file.txt.cbor: is a directory",
+				Windows: "file.txt.cbor: Incorrect function.",
+			}.String(),
+		},
+		{
+			name: "dir.cbor.gz",
 			url:  "http://example.com/file.txt",
 			setup: func(t *testing.T, dir string) {
 				require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "file.txt.cbor.gz"), 0755))
@@ -86,7 +97,7 @@ func TestLoadCache(t *testing.T) {
 				subdir := filepath.Join(dir, "http", "example.com")
 
 				require.NoError(t, os.MkdirAll(subdir, 0755))
-				file, err := os.Create(filepath.Join(subdir, "file.txt.cbor.gz"))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.cbor"))
 				require.NoError(t, err)
 				defer func() { assert.NoError(t, file.Close()) }()
 
@@ -99,7 +110,7 @@ func TestLoadCache(t *testing.T) {
 			wantErr: "decode cached response: ",
 		},
 		{
-			name: "valid",
+			name: "valid gzipped",
 			url:  "http://example.com/file.txt",
 			setup: func(t *testing.T, dir string) {
 				subdir := filepath.Join(dir, "http", "example.com")
@@ -121,6 +132,40 @@ func TestLoadCache(t *testing.T) {
 				}
 
 				enc := cbor.NewEncoder(w)
+				require.NoError(t, enc.Encode(CachedResponse{
+					CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
+					MaxAge:   time.Hour,
+					ETag:     "lorem ipsum",
+					Data:     []byte(`{"foo":"bar"}`),
+				}))
+			},
+			want: CachedResponse{
+				CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
+				MaxAge:   time.Hour,
+				ETag:     "lorem ipsum",
+				Data:     []byte(`{"foo":"bar"}`),
+			},
+		},
+		{
+			name: "valid uncompressed",
+			url:  "http://example.com/file.txt",
+			setup: func(t *testing.T, dir string) {
+				subdir := filepath.Join(dir, "http", "example.com")
+
+				require.NoError(t, os.MkdirAll(subdir, 0755))
+				file, err := os.Create(filepath.Join(subdir, "file.txt.cbor"))
+				require.NoError(t, err)
+				defer func() { assert.NoError(t, file.Close()) }()
+
+				// Copy the type here, so that we can detect regressions in case the real struct is changed
+				type CachedResponse struct {
+					CachedAt time.Time
+					MaxAge   time.Duration
+					ETag     string
+					Data     []byte
+				}
+
+				enc := cbor.NewEncoder(file)
 				require.NoError(t, enc.Encode(CachedResponse{
 					CachedAt: time.Date(2025, 6, 8, 12, 0, 0, 0, time.UTC),
 					MaxAge:   time.Hour,
@@ -278,7 +323,7 @@ func TestSaveCache_Error(t *testing.T) {
 		dir := testutil.CreateTempDir(t, "schema-httpcache-*")
 		cache.cacheDirFunc = func() string { return dir }
 
-		require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "schema.json.cbor.gz"), 0755))
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "http", "example.com", "schema.json.cbor"), 0755))
 
 		req, err := http.NewRequest(http.MethodGet, "http://example.com/schema.json", nil)
 		require.NoError(t, err)
