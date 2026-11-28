@@ -25,6 +25,36 @@ func GenerateJsonSchema(ctx context.Context, config *Config) error {
 	return WriteOutput(ctx, mergedSchema, filepath.FromSlash(config.Output), indentString)
 }
 
+// checkJSONSchema compares the output that generation would write against the
+// existing file. It never creates or rewrites the output file.
+func checkJSONSchema(ctx context.Context, config *Config) error {
+	outputPath := filepath.FromSlash(config.Output)
+	if outputPath == "-" {
+		return errors.New("--check requires a file for --output, not stdout")
+	}
+
+	schema, err := buildJSONSchema(ctx, config)
+	if err != nil {
+		return err
+	}
+	expected, err := marshalSchemaOutput(schema, strings.Repeat(" ", config.Indent))
+	if err != nil {
+		return err
+	}
+	// The output path is explicitly supplied by the user or the config.
+	current, err := os.ReadFile(outputPath) // #nosec G304
+	if errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("output schema %q is missing; run without --check to generate it", outputPath)
+	}
+	if err != nil {
+		return fmt.Errorf("read output schema: %w", err)
+	}
+	if !bytes.Equal(current, expected) {
+		return fmt.Errorf("output schema %q is out of date; run without --check to regenerate it", outputPath)
+	}
+	return nil
+}
+
 // buildJSONSchema parses and validates the configured input files and returns
 // the merged, JSON-Schema-compliant schema, without writing any output. It is
 // shared by [GenerateJsonSchema] and "helm schema lint" so both run the exact
@@ -183,11 +213,10 @@ func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent s
 	logger := LoggerFromContext(ctx)
 
 	// If validation is successful, marshal the schema and save to the file
-	jsonBytes, err := json.MarshalIndent(mergedSchema, "", indent)
+	jsonBytes, err := marshalSchemaOutput(mergedSchema, indent)
 	if err != nil {
 		return err
 	}
-	jsonBytes = append(jsonBytes, '\n')
 
 	// Write the JSON schema to the output file
 	if err := writeOutputFile(os.Stdout, outputPath, jsonBytes); err != nil {
@@ -196,6 +225,14 @@ func WriteOutput(ctx context.Context, mergedSchema *Schema, outputPath, indent s
 
 	logger.Log("JSON schema successfully generated")
 	return nil
+}
+
+func marshalSchemaOutput(schema *Schema, indent string) ([]byte, error) {
+	content, err := json.MarshalIndent(schema, "", indent)
+	if err != nil {
+		return nil, err
+	}
+	return append(content, '\n'), nil
 }
 
 //gosec:disable G304 -- path is provided by the user, but that's intentional.

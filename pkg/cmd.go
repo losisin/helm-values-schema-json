@@ -14,6 +14,7 @@ import (
 )
 
 func NewCmd() *cobra.Command {
+	var check bool
 	cmd := &cobra.Command{
 		Use:  "helm",
 		Args: cobra.NoArgs,
@@ -40,6 +41,9 @@ func NewCmd() *cobra.Command {
 			config, err := LoadConfig(cmd)
 			if err != nil {
 				return err
+			}
+			if check {
+				return checkJSONSchema(cmd.Context(), config)
 			}
 			return GenerateJsonSchema(cmd.Context(), config)
 		},
@@ -68,6 +72,7 @@ func NewCmd() *cobra.Command {
 
 	cmd.Flags().StringSliceP("values", "f", DefaultConfig.Values, "One or more YAML files as inputs. Use comma-separated list or supply flag multiple times")
 	cmd.Flags().StringP("output", "o", DefaultConfig.Output, "Output file path")
+	cmd.Flags().BoolVar(&check, "check", false, "Check that the existing output matches without writing it")
 	cmd.Flags().Int("draft", DefaultConfig.Draft, "Draft version (4, 6, 7, 2019, or 2020)")
 	cmd.Flags().Bool("no-additional-properties", false, "Default additionalProperties to false for all objects in the schema, or unevaluatedProperties where properties also come from a $ref or allOf")
 	cmd.Flags().Bool("no-default-global", false, "Disable automatic injection of 'global' property when schema root does not allow it")
