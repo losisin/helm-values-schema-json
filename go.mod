@@ -1,6 +1,6 @@
 module github.com/losisin/helm-values-schema-json/v2
 
-go 1.24.2
+go 1.27.0
 
 require (
 	github.com/fxamacker/cbor/v2 v2.10.0
@@ -24,5 +24,5 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 )

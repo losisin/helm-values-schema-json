@@ -103,12 +103,10 @@ func TestMain(t *testing.T) {
 			os.Args = tt.args
 
 			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				main()
 				require.NoError(t, w.Close())
-			}()
+			})
 			wg.Wait()
 
 			var buf bytes.Buffer
